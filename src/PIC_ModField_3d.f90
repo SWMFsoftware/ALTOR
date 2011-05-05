@@ -59,7 +59,7 @@ contains
          (nZ+1+2*iGCN)*9+&
          nX*nY*nZ)&          !For density
          *real(iRealPrec+1)& !*2, if compiled with a double prec-n
-         *cFour/real(M),'+/-0.1 MB'
+         *4.0/real(M),'+/-0.1 MB'
   end subroutine evaluate_memory_for_field
 !----------------------------------------------------------------!
   subroutine get_b_from_a
@@ -190,11 +190,11 @@ contains
        do k=1,nZ
           do j=1,nY
              do i=1,nX
-                rho_G(i,j,k)=cEighth*(&
+                rho_G(i,j,k)=0.1250*(&
                      sum(Counter_DG(x_,i,j-1:j,k-1:k)**2)+&
                      sum(Counter_DG(y_,i-1:i,j,k-1:k)**2)+&
                      sum(Counter_DG(z_,i-1:i,j-1:j,k)**2))+&
-                     cQuarter*(&
+                     0.250 * (&
                      sum(E_DG(x_,i-1:i,j,k)**2)+&
                      sum(E_DG(y_,i,j-1:j,k)**2)+&
                      sum(E_DG(z_,i,j,k-1:k)**2))
@@ -205,11 +205,11 @@ contains
        do k=1,nZ
           do j=1,nY
              do i=1,nX
-                rho_G(i,j,k)=cEighth*(&
+                rho_G(i,j,k)=0.125*(&
                      sum(Magnetic_DG(x_,i,j-1:j,k-1:k)**2)+&
                      sum(Magnetic_DG(y_,i-1:i,j,k-1:k)**2)+&
                      sum(Magnetic_DG(z_,i-1:i,j-1:j,k)**2))+&
-                     cQuarter*(&
+                     0.250*(&
                      sum(E_DG(x_,i-1:i,j,k)**2)+&
                      sum(E_DG(y_,i,j-1:j,k)**2)+&
                      sum(E_DG(z_,i,j,k-1:k)**2))

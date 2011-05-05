@@ -1,0 +1,121 @@
+#
+# List the default target first for stand alone mode
+#
+DEFAULT_TARGET = ALTOR
+DEFAULT_EXE    = ${DEFAULT_TARGET}.exe
+
+default : ${DEFAULT_TARGET}
+
+include Makefile.def
+
+#
+# Menu of make options
+#
+help:
+	@echo ' '
+	@echo '  You can "make" the following:'
+	@echo ' '
+	@echo '    <default> ${DEFAULT_TARGET} in stand alone mode, help in SWMF'
+	@echo ' '
+	@echo '    help         (makefile option list)'
+	@echo '    install      (install BATSRUS)'
+	@#^CFG IF TESTING BEGIN
+	@echo '    test         (run all tests for BATSRUS)'
+	@echo '    test_help    (show all options for running the tests)'
+	@#^CFG END TESTING
+	@echo ' '
+	@echo '    LIB     (Component library libPC for SWMF)'
+	@echo '    ALTOR (ALTernating-ORder interpolation scheme for PIC)'
+	@echo '    NOMPI   (NOMPI library for compilation without MPI)'
+	@echo ' '
+	@echo '    rundir      (create run directory for standalone or SWMF)'
+	@echo '    rundir RUNDIR=run_test (create run directory run_test)'
+	@echo ' '
+	@echo "    nompirun    (make and run ${DEFAULT_EXE} on 1 PE)"
+	@echo "    mpirun      (make and mpirun ${DEFAULT_EXE} on 8 PEs)"
+	@echo "    mpirun NP=7 RUNDIR=run_test (run on 7 PEs in run_test)"
+	@echo "    mprun NP=5  (make and mprun ${DEFAULT_EXE} on 5 PEs)"
+	@echo ' '	
+	@echo '    clean     (remove temp files like: *~ *.o *.kmo *.mod *.T *.lst core)'
+	@echo '    distclean (equivalent to ./Config.pl -uninstall)'
+	@echo '    dist      (create source distribution tar file)'
+
+INSTALLFILES =	src/Makefile.DEPEND
+
+install: src/PIC_ModSize.f90
+	touch ${INSTALLFILES}
+
+src/PIC_ModSize.f90: src/PIC_ModSize_3d.f90
+	cp -f src/PIC_ModSize_3d.f90 src/PIC_ModSize.f90
+
+LIB:
+	cd src; make LIB
+
+ALTOR:
+	cd ${SHAREDIR}; make LIB
+	cd ${TIMINGDIR}; make LIB
+	cd src; make LIB
+	cd src; make ALTOR
+
+NOMPI:
+	cd util/NOMPI/src; make LIB
+
+
+# The MACHINE variable holds the machine name for which scripts should
+# be copied to the run directory when it is created.  This is used mostly
+# when several different machines have the same operating system,
+# but they require different batch queue scripts.
+# If MACHINE is empty or not defined, all scripts for the current OS will
+# be copied.
+#
+# The default is the short name of the current machine
+MACHINE = `hostname | sed -e 's/\..*//;s/[0-9]*$$//'`
+COMPONENT = PC 
+
+rundir:
+	mkdir -p ${RUNDIR}/${COMPONENT}
+	@(if [ "$(STANDALONE)" != "NO" ]; then \
+		touch ${DIR}/share/JobScripts/TMP_${MACHINE}; \
+		cp ${DIR}/share/JobScripts/*${MACHINE}* ${RUNDIR}/; \
+		rm -f ${RUNDIR}/TMP_${MACHINE}; \
+		rm -f ${DIR}/share/JobScripts/TMP_${MACHINE}; \
+		cp -f Param/PARAM.DEFAULT ${RUNDIR}/PARAM.in; \
+		touch ${RUNDIR}/core; chmod 444 ${RUNDIR}/core; \
+		cd ${RUNDIR}; ln -s ${BINDIR}/${DEFAULT_EXE} .; \
+		ln -s ${COMPONENT}/* .;                          \
+	fi);
+
+                        
+#
+#       Run the default code on NP processors
+#
+
+NP=8
+
+mpirun: ${DEFAULT_TARGET}
+	cd ${RUNDIR}; mpirun -np ${NP} ./${DEFAULT_EXE}
+
+mprun: ${DEFAULT_TARGET}
+	cd ${RUNDIR}; mprun -np ${NP} ./${DEFAULT_EXE}
+
+nompirun: ${DEFAULT_TARGET}
+	cd ${RUNDIR}; ./${DEFAULT_EXE}
+
+
+#
+# Cleaning
+#
+
+clean:
+	@touch ${INSTALLFILES}
+	cd src; make clean
+	@(if [ -d util  ]; then cd util;  make clean; fi);
+	@(if [ -d share ]; then cd share; make clean; fi);
+
+distclean: 
+	./Config.pl -uninstall
+
+allclean:
+	@touch ${INSTALLFILES}
+	cd src; make distclean
+

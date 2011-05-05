@@ -21,7 +21,7 @@ contains
     use PIC_ModParticles
     integer,intent(in)::iP,iSort
     real::Energy,MomentumAvr,GammaInv,W_D(x_:z_)
-    real,parameter::cTwoThird=cTwo*cThird
+    real,parameter::cTwoThird = 2.0/3.0
     Energy=-vT2_P(iSort)*LOG(ERAND())
     MomentumAvr=sqrt(cTwoThird*Energy)
     W_D(x_)=MomentumAvr*COS(cTwoPi*RAND())

@@ -1,49 +1,25 @@
 #^CFG COPYRIGHT UM
 SHELL = /bin/sh
-OS    = Linux
 
-#MF = Makefile.${OS}
-MF = 
+include ../Makefile.def
 
-DEFAULT_TARGET=PIC.exe
+SEARCH_EXTRA =  
 
-default : ${DEFAULT_TARGET}
+include ../Makefile.conf
+include Makefile.DEPEND
+
 #
-#	Makefile for parallel code BATSRUS
+#	Makefile for parallel code ALTOR
 #
-#       Linux version
-#
-FTN     = mpif90
 
-#PRECISION = -r8
-PRECISION =
 
-MPILIB = 
-##MPILIB = -L. -lNOMPI						#^CFG  IF NOT SIMPLE
-
-MPIHEADERS = mpif90.h
-MPIF90H = mpif90.h
-
-# Set optimization / debug levels
-#OPT = -O0 -C -gline #		Debugging
-#OPT = -O1 -C -gline #		Development
-OPT = -O3 #			Production
-
-OPTSAFE = -O0
-
-Cflag0  = -c ${OPTSAFE} ${PRECISION}
-Cflag1  = -c ${OPT} ${PRECISION}
-
-Lflag1  = ${PRECISION} ${MPILIB} ${OPT}
-Lflag2  = ${PRECISION} ${OPT}
 
 nDim = 3
 
 # BLAS and LAPACK libraries
 
-OBJECTS=ModMpi.o \
-	ModNumConst.o \
-	PIC_ModSize_${nDim}d.o \
+OBJECTS= \
+	PIC_ModSize.o \
 	PIC_ModProc.o \
 	PIC_ModMain.o \
 	PIC_ModFormFactor.o \
@@ -52,30 +28,63 @@ OBJECTS=ModMpi.o \
 	PIC_ModPassField_${nDim}d.o \
 	PIC_ModParticles.o \
 	PIC_ModRandom.o \
-	PIC_ModThermal.o \
-	PIC_main.o
+	PIC_ModThermal.o 
+
+
 #2dperiodicMPI.o
 
 ANALYZE: Analyzer2D.o
 	${FTN} -o Analyze.exe Analyzer2D.o	
 
+############################################################################
 
-PIC.exe: ${OBJECTS}
-	${FTN} -o PIC.exe ${OBJECTS} 
-clean:
-	rm -f *.o *.mod *~ *.exe
+DEPEND:
+	@perl ${SCRIPTDIR}/depend.pl ${SEARCH} \
+		${OBJECTS}
 
-.SUFFIXES:
-.SUFFIXES: .f90 .f .o
 
-.f90.o:
-	${FTN} ${Cflag1} $<
+MY_LIB  = libALTOR.a
 
-.f.o:
-	${FTN} ${Cflag1} $<
+LIB:	DEPEND
+	make ${MY_LIB}
+	@echo
+	@echo ${MY_LIB} has been brought up to date.
+	@echo
 
-#
-#	Specific Rules
-#
+${MY_LIB}: ${OBJECTS} 
+	${AR} ${MY_LIB} ${OBJECTS}
+
+# Object files not included into the library
+OBJECTS_EXE = PIC_main.o
+
+# Other requireed libraries
+LIBSHARE  = ${LIBDIR}/libSHARE.a
+LIBTIMING = ${LIBDIR}/libTIMING.a
+
+# Libraries should be compiled first, because modules are used in main.
+${OBJECTS_EXE}: ${LIBSHARE} ${LIBTIMING} ${MY_LIB}
+
+EXE = ${BINDIR}/ALTOR.exe
+
+ALTOR:
+	make ${EXE}
+	@echo ' '
+	@echo Program ALTOR has been brought up to date.
+	@echo ' '	
+
+${EXE}: ${OBJECTS_EXE}
+	rm -rf Tmp_; mkdir Tmp_
+	cd Tmp_; \
+		ar -x ../${MY_LIB}; \
+		ar -x ${LIBTIMING}; \
+		ar -x ${LIBSHARE}
+	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o \
+		${Lflag1}
+	rm -rf Tmp_ 
+
+distclean: clean
+	rm -f PIC_ModSize.f90
+
+
 
 

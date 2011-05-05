@@ -130,7 +130,7 @@ contains
        !Multiply the magnetic force by 2 to take a whole
        !rotation and reduce its magnitude not to perturb energy
 
-       BForce_D=(cTwo/(cOne+sum(BForce_D**2)))*BForce_D
+       BForce_D=(2.0/(1.0 + sum(BForce_D**2)))*BForce_D
 
        !Get a final momentum
 
