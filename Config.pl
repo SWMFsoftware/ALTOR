@@ -32,7 +32,7 @@ my $Src         = 'src';
 # Grid size variables
 my $NameSizeFile = "$Src/PIC_ModSize.f90";
 my $GridSize;
-my ($nX, $nY, $nZ, $MaxBlock);
+my ($nX, $nY, $nZ, $nPType, $MaxBlock);
 
 # Read previous grid size, equation and user module
 &get_settings;
@@ -45,7 +45,7 @@ foreach (@Arguments){
 
 &set_grid_size if $NewGridSize and $NewGridSize ne $GridSize;
 # Show grid size in a compact form if requested
-print "Config.pl -g=$nX,$nY,$nZ,$MaxBlock",
+print "Config.pl -g=$nX,$nY,$nZ,$nPType,$MaxBlock",
     ,"\n" if $ShowGridSize and not $Show;
 
 
@@ -62,10 +62,11 @@ sub get_settings{
     open(FILE, $NameSizeFile) or die "$ERROR could not open $NameSizeFile\n";
     while(<FILE>){
 	next if /^\s*!/; # skip commented out lines
-        $MaxBlock=$1     if /\bMaxBlock\s*=\s*(\d+)/i;
         $nX=$1           if /\bnX\s*=\s*(\d+)/i;
 	$nY=$1           if /\bnY\s*=\s*(\d+)/i;
 	$nZ=$1           if /\bnZ\s*=\s*(\d+)/i;
+        $MaxBlock=$1     if /\bMaxBlock\s*=\s*(\d+)/i;
+	$nPType=$1        if /\bnPType\s*=\s*(\d+)/i;
     }
     close FILE;
 
@@ -73,7 +74,7 @@ sub get_settings{
 	unless length($MaxBlock);
 
 
-    $GridSize = "$nX,$nY,$nZ,$MaxBlock";
+    $GridSize = "$nX,$nY,$nZ,$nPType,$MaxBlock";
 
 }
 
@@ -83,9 +84,9 @@ sub set_grid_size{
 
     $GridSize = $NewGridSize;
 
-    if($GridSize=~/^[1-9]\d*,[1-9]\d*,[1-9]\d*,[1-9]\d*
+    if($GridSize=~/^[1-9]\d*,[1-9]\d*,[1-9]\d*,[1-9]\d*,[1-9]\d*
        $/x){
-	($nX,$nY,$nZ,$MaxBlock)= split(',', $GridSize);
+	($nX,$nY,$nZ,$nPType,$MaxBlock)= split(',', $GridSize);
     }elsif($GridSize){
 	die "$ERROR -g=$GridSize should be ".
 	    #"4". 
@@ -103,6 +104,7 @@ sub set_grid_size{
 	s/\b(nX\s*=[^0-9]*)(\d+)/$1$nX/i;
 	s/\b(nY\s*=[^0-9]*)(\d+)/$1$nY/i;
 	s/\b(nZ\s*=[^0-9]*)(\d+)/$1$nZ/i;
+	s/\b(nPType\s*=[^0-9]*)(\d+)/$1$nPType/i;
 	print;
     }
 }
@@ -114,6 +116,8 @@ sub current_settings{
 
     $Settings = 
 	"Number of cells in a block        : nX=$nX, nY=$nY, nZ=$nZ\n";
+    $Settings .= 
+	"Number of different types of particles        : nPType=$nPType\n";
     $Settings .= 
 	"Max. number of blocks/PE          : MaxBlock=$MaxBlock\n";
 
