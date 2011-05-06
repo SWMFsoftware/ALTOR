@@ -18,14 +18,13 @@ help:
 	@echo '    <default> ${DEFAULT_TARGET} in stand alone mode, help in SWMF'
 	@echo ' '
 	@echo '    help         (makefile option list)'
-	@echo '    install      (install BATSRUS)'
-	@#^CFG IF TESTING BEGIN
-	@echo '    test         (run all tests for BATSRUS)'
-	@echo '    test_help    (show all options for running the tests)'
-	@#^CFG END TESTING
+	@echo '    install      (install ALTOR)'
+	@echo '    2d           (re-install the code with nDim=2)'
+	@echo '    3d           (re-install the code with nDim=3)'
 	@echo ' '
 	@echo '    LIB     (Component library libPC for SWMF)'
 	@echo '    ALTOR (ALTernating-ORder interpolation scheme for PIC)'
+	@echo '    nDim=2 compiles the code with nDim=2'
 	@echo '    NOMPI   (NOMPI library for compilation without MPI)'
 	@echo ' '
 	@echo '    rundir      (create run directory for standalone or SWMF)'
@@ -42,11 +41,12 @@ help:
 
 INSTALLFILES =	src/Makefile.DEPEND
 
+
 install: src/PIC_ModSize.f90
 	touch ${INSTALLFILES}
 
-src/PIC_ModSize.f90: src/PIC_ModSize_3d.f90
-	cp -f src/PIC_ModSize_3d.f90 src/PIC_ModSize.f90
+src/PIC_ModSize.f90: src/PIC_ModSize_${nDim}d.f90
+	cp -f src/PIC_ModSize_${nDim}d.f90 src/PIC_ModSize.f90
 
 LIB:
 	cd src; make LIB
@@ -60,6 +60,15 @@ ALTOR:
 NOMPI:
 	cd util/NOMPI/src; make LIB
 
+2d:
+	touch src/PIC_ModSize_2d.f90
+	cd src;rm -f *3d.o
+	make install nDim=2
+
+3d:
+	touch src/PIC_ModSize_3d.f90
+	cd src;rm -f *2d.o
+	make install
 
 # The MACHINE variable holds the machine name for which scripts should
 # be copied to the run directory when it is created.  This is used mostly
@@ -79,10 +88,8 @@ rundir:
 		cp ${DIR}/share/JobScripts/*${MACHINE}* ${RUNDIR}/; \
 		rm -f ${RUNDIR}/TMP_${MACHINE}; \
 		rm -f ${DIR}/share/JobScripts/TMP_${MACHINE}; \
-		cp -f Param/PARAM.DEFAULT ${RUNDIR}/PARAM.in; \
 		touch ${RUNDIR}/core; chmod 444 ${RUNDIR}/core; \
 		cd ${RUNDIR}; ln -s ${BINDIR}/${DEFAULT_EXE} .; \
-		ln -s ${COMPONENT}/* .;                          \
 	fi);
 
                         
