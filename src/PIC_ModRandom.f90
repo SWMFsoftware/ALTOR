@@ -14,7 +14,7 @@ contains
     if(present(iSeedIn))then
        iSeed=iSeedIn
     else
-       iSeed=0
+       iSeed=1
     end if
   end subroutine init_rand
   !-----------------------------------------------------------------!
