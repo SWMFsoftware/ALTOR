@@ -21,7 +21,8 @@ contains
   !===============================================================C
   REAL FUNCTION RAND()
     ISEED=ISEED*48828125
-    IF(ISEED.LE.0) ISEED=(ISEED+2147483647)+1
+    IF(ISEED < 0) ISEED=(ISEED+2147483647)+1
+    if(iSeed==0) iSeed=1
     RAND=FLOAT(ISEED)/2147483647
   END FUNCTION RAND
   !===============================================================C
