@@ -3,6 +3,13 @@ module PIC_ModGrid
   integer,parameter::nDim=2            !Dimensionality
   integer,parameter::nX=10,nY=10       !The numbers of the grid 
                                        !cells
-  integer,parameter::x_=1,y_=2,z_=3
-  integer,parameter::nPType=2,nElectronMax=10000000
+  integer,parameter:: x_=1,y_=2,z_=3
+  integer,parameter:: nPType=2,nElectronMax=10000000
+
+  !Not used at the time
+  integer,parameter:: nZ=1, MaxBlock=1
+
+  integer,parameter:: nCell_D(nDim) = (/nX, nY/)
+
+
 end module PIC_ModGrid
