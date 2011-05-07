@@ -12,3 +12,4 @@ SHAREDIR  = ${PCDIR}/share/Library/src
 TIMINGDIR = ${PCDIR}/util/TIMING/src
 #TIMINGDIR = ${PCDIR}/util/TIMING/srcEmpty
 
+nDim = 3
