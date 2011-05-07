@@ -13,9 +13,6 @@ include Makefile.DEPEND
 #
 
 
-
-nDim = 3
-
 # BLAS and LAPACK libraries
 
 OBJECTS= \
@@ -28,6 +25,7 @@ OBJECTS= \
 	PIC_ModPassField_${nDim}d.o \
 	PIC_ModParticles.o \
 	PIC_ModRandom.o \
+	PIC_set_param.o \
 	PIC_ModThermal.o 
 
 
@@ -51,7 +49,8 @@ LIB:	DEPEND
 	@echo ${MY_LIB} has been brought up to date.
 	@echo
 
-${MY_LIB}: ${OBJECTS} 
+${MY_LIB}: ${OBJECTS}
+	rm -f ${MY_LIB}
 	${AR} ${MY_LIB} ${OBJECTS}
 
 # Object files not included into the library
