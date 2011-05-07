@@ -1,45 +1,34 @@
 module PIC_ModThermal
-  use PIC_ModMain,ONLY:nSortParticle,SaveVelocity
+  use PIC_ModMain,ONLY:nPType
   use PIC_ModRandom
+  use PIC_ModParticles
   implicit none
-  private!Except
-  real,dimension(nSortParticle)::vT2_P
-  !Methods
-  public::init_thermal
-  public::thermalize
-  interface thermalize
-     module procedure thermalize_particle
-     module procedure thermalize_all_sorts
-  end interface
+
+  real,dimension(nPType) :: vT2_P = 0.0
 contains
-  subroutine init_thermal(vT2In_P)
-    real,dimension(nSortParticle),intent(in)::vT2In_P
-    vT2_P=vT2In_P
-  end subroutine init_thermal
-  !----------------------------------------------------------!
   subroutine thermalize_particle(iP,iSort)
-    use PIC_ModParticles
     integer,intent(in)::iP,iSort
-    real::Energy,MomentumAvr,GammaInv,W_D(x_:z_)
-    real,parameter::cTwoThird = 2.0/3.0
+    real::Energy, MomentumAvr
+    integer :: iW
+    !==================================
+
     Energy=-vT2_P(iSort)*LOG(ERAND())
-    MomentumAvr=sqrt(cTwoThird*Energy)
-    W_D(x_)=MomentumAvr*COS(cTwoPi*RAND())
-    W_D(y_)=MomentumAvr*COS(cTwoPi*RAND())
-    W_D(z_)=MomentumAvr*COS(cTwoPi*RAND())
-    if(SaveVelocity)then
-       GammaInv=c/sqrt(c2+sum(W_D**2))
-       W_D=W_D*GammaInv
-    end if
-    Of(iSort)%Coords(Wx_:Wz_,iP)=W_D
-  end subroutine thermalize_particle
-  !----------------------------------------------------------!
-  subroutine thermalize_all_sorts(iP)
-    use PIC_ModParticles
-    integer,intent(in)::iP
-    integer::iSort
-    do iSort=1,nSortParticle
-       call thermalize_particle(iP,iSort)
+
+    MomentumAvr=sqrt(2.0*Energy)
+    do iW = Wx_, Wz_
+       Of(iSort)%Coords(iW,iP) = Of(iSort)%Coords(iW,iP) + &
+            MomentumAvr*COS(cTwoPi*RAND())
     end do
-  end subroutine thermalize_all_sorts
+  end subroutine thermalize_particle
+  !===============
+  subroutine thermalize
+    integer:: iSort, iP
+    !------------------
+    do iSort = 1, nPType
+       do iP = 1, n_P(iSort)
+          call thermalize_particle(iP, iSort)
+       end do
+    end do
+  end subroutine thermalize
+  !=============
 end module PIC_ModThermal
