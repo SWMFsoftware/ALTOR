@@ -1,10 +1,8 @@
-
-!
-!This file, being added to 
+!This file, once added to 
 !PIC_main.f90 
 !PIC_solver.f90 and 
 !PIC_form_factor.f90, 
-!solves the Vlasov-Maxwell equations for 3D geometries. 
+!solves the Vlasov-Maxwell equations for 2D geometries. 
 !Dependencies: uses ModFormFactor, location:PIC_form_factor.f90
 
 module PIC_ModMpi
@@ -14,7 +12,7 @@ module PIC_ModMpi
   implicit none
   !structures
   integer,parameter::iBuffSizeMax=10 !In MByte
-  integer,parameter::KByte=2**10, M=KByte*KByte
+  integer,parameter::KByte=1024, M=KByte*KByte
   !Methods:
   public::pass_density
   public::pass_current
@@ -25,9 +23,12 @@ contains
        iBuffSizeMax*M/(4*(iRealPrec+1)*(nX+2*iGCN)),1)
     real,dimension(1-iGCN:nX+iGCN,iLength)::Buff_G
     integer::j,jNew
+    !----------------
+
     !If iProcIn is given, the result is at PE=iProcIn only
+
     if(present(iProcIn))then
-       j=-iGCN
+       j = -iGCN
        do while(j<nY+iGCN)
           jNew=min(nY+iGCN,j+iLength)
           call MPI_REDUCE(&
@@ -59,22 +60,24 @@ contains
   !---------------------------------------------------------------!
   subroutine pass_current
     integer,parameter::iLength=max(&
-       iBuffSizeMax*M/(12*(iRealPrec+1)*(nX+2*iGCN+1)),1)
-    real,dimension(3,0-iGCN:nX+iGCN,iLength)::Buff_G
-    integer::j,jNew
-    !If iProcIn is given, the result is at PE=iProcIn only
-    j=-iGCN-1
-    do while(j<nY+iGCN)
-       jNew=min(nY+iGCN,j+iLength)
-       call MPI_ALLREDUCE(&
-            Counter_DG(1,0-iGCN,j+1),&
-            Buff_G(1,0-iGCN,1),&
-            (nX+2*iGCN+1)*(jNew-j),&
-            MPI_REAL,&
-            MPI_SUM,&
-            iComm,iError)
-       Counter_DG(:,:,j+1:jNew)=Buff_G(:,:,1:jNew-j)
-       j=jNew
+       iBuffSizeMax*M/(4*(iRealPrec+1)*(nX+2*iGCN)),1)
+    real,dimension(1-iGCN:nX+iGCN,iLength)::Buff_G
+    integer::j,jNew,iDim
+    !---------------
+    do iDim = 1,3
+       j= - iGCN
+       do while(j<nY+iGCN)
+          jNew=min(nY+iGCN,j+iLength)
+          call MPI_ALLREDUCE(&
+               Counter_GD(1-iGCN,j+1,iDim),&
+               Buff_G(1-iGCN,1),&
+               (nX+2*iGCN)*(jNew-j),&
+               MPI_REAL,&
+               MPI_SUM,&
+               iComm,iError)
+          Counter_GD(:,j+1:jNew,iDim)=Buff_G(:,1:jNew-j)
+          j=jNew
+       end do
     end do
   end subroutine pass_current
   !--------------------------------------------------------------!

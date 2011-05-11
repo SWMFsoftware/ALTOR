@@ -1,12 +1,10 @@
 module PIC_ModParticleInField
   use PIC_ModField,get_b_from_a_global=>get_b_from_a
-!-----------------------------------------------------------------------!
-  !Structures
-  integer,dimension(nDim)::Node_D,NodeNew_D
-               !Discsrete particle coordinates
+  implicit none
+  SAVE
 
-  real,dimension(1:lOrderFF+1,nDim)::HighFF_ID,HighFFNew_ID
-               !Particle form-factor
+  !Structures
+
 
   !As long as Node_D and form-factors are defined, we
   !can get interpolated values from the structures of the
@@ -25,16 +23,16 @@ module PIC_ModParticleInField
                            !from a given particle
   public::add_current !Adds an input to an electric current
 contains
-!----------------------------------------------------------------------!
-  subroutine get_b_from_a_local(BOut_DG)    
-    real,dimension(1:3,1:lOrderFF+1,1:lOrderFF+1),&
-           intent(out)::BOut_DG
+  !====================================
+  subroutine get_b_from_a_local(BOut_GD)    
+    real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:3),&
+           intent(out)::BOut_GD
     integer::i,j,i1,j1
     !Applied only if UseVectorPotential
-    !The vector potential is in Magnetic_DG
+    !The vector potential is in Magnetic_GD
     !Calculates the magnetic field.
     !
-    !The resulting magnetic field is saved to BOut_DG
+    !The resulting magnetic field is saved to BOut_GD
     !Only those values of the field are calculated which are needed
     !to interpolated the magnetic field acting on the particle
     !around Node_D
@@ -44,51 +42,51 @@ contains
        i1=0
        do i=Node_D(1)+iDownFF,Node_D(1)+iUpFF
           i1=i1+1
-          BOut_DG(x_,i1,j1)=&
+          BOut_GD(i1,j1,x_)=&
                SpeedOfLight_D(y_)*&
-                 (Magnetic_DG(z_,i,  j+1)-Magnetic_DG(z_,i,j))
+                 (Magnetic_GD(i,  j+1,z_) - Magnetic_GD(i,j,z_))
              
-          BOut_DG(y_,i1,j1)=-&
+          BOut_GD(i1,j1,y_)=-&
                SpeedOfLight_D(x_)*&
-                 (Magnetic_DG(z_,i+1,j  )-Magnetic_DG(z_,i,j))
+                 (Magnetic_GD(i+1,j  ,z_) - Magnetic_GD(i,j,z_))
              
-          BOut_DG(z_,i1,j1)=&
+          BOut_GD(i1,j1,z_)=&
                SpeedOfLight_D(x_)*&
-                 (Magnetic_DG(y_,i+1,j  )-Magnetic_DG(y_,i,j))-&
+                 (Magnetic_GD(i+1,j  ,y_) - Magnetic_GD(i,j,y_))-&
                SpeedOfLight_D(y_)*& 
-                 (Magnetic_DG(x_,i,  j+1)-Magnetic_DG(x_,i,j))
+                 (Magnetic_GD(i,  j+1,x_) - Magnetic_GD(i,j,x_))
        end do
     end do
   end subroutine get_b_from_a_local
   !-------------------------------------------------------------------------!
   function e_interpolated_d()
-    !Sets the pointer to the fragment of E_DG array to interpolate E
+    !Sets the pointer to the fragment of E_GD array to interpolate E
     real,dimension(1:3)::e_interpolated_d
-    call interpolate_e( E_DG(1:3,Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
-                         Node_D(2)+iDownFF:Node_D(2)+iUpFF))
+    call interpolate_e( E_GD(Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
+                         Node_D(2)+iDownFF:Node_D(2)+iUpFF,1:3))
   contains
-    subroutine interpolate_e(EIn_DG)
+    subroutine interpolate_e(EIn_GD)
       !Calculate the interpolated value of the electric field
       !Optimized loops are used, the ranges of indexes being
       !declared as parameters
       use ModNumConst
-      real,dimension(1:3,1:lOrderFF+1,1:lOrderFF+1),&
-           intent(in)::EIn_DG
+      real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:3),&
+           intent(in)::EIn_GD
       integer::i,j
       e_interpolated_d=cZero
       do j=1,lOrderFF+1
          e_interpolated_d(x_)= e_interpolated_d(x_)+ &
-               sum(EIn_DG(x_,1:lOrderFF,j)*LowFF_ID(:,x_))&
+               sum(EIn_GD(1:lOrderFF,j,x_)*LowFF_ID(:,x_))&
                  *HighFF_ID(j,y_)
       end do
       do j=1,lOrderFF
          e_interpolated_d(y_)= e_interpolated_d(y_)+ &
-               sum(EIn_DG(y_,1:lOrderFF+1,j)*HighFF_ID(:,x_))&
+               sum(EIn_GD(1:lOrderFF+1,j,y_)*HighFF_ID(:,x_))&
                  *LowFF_ID(j,y_)
       end do
       do j=1,lOrderFF+1
          e_interpolated_d(z_)= e_interpolated_d(z_)+ &
-               sum(EIn_DG(z_,1:lOrderFF+1,j)*HighFF_ID(:,x_))&
+               sum(EIn_GD(1:lOrderFF+1,j,z_)*HighFF_ID(:,x_))&
                  *HighFF_ID(j,y_)
       end do
     end subroutine interpolate_e
@@ -98,37 +96,37 @@ contains
     !Sets the pointer to the fragment of the magnetic field array to 
     !interpolate B
     real,dimension(1:3)::b_interpolated_d
-    real,dimension(1:3,1:lOrderFF+1,1:lOrderFF+1)::BOut_DG
+    real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:3)::BOut_GD
     if(UseVectorPotential)then
-       call get_b_from_a(BOut_DG)
-       call interpolate_b(BOut_DG)
+       call get_b_from_a(BOut_GD)
+       call interpolate_b(BOut_GD)
     else   
-       call interpolate_b(Magnetic_DG(1:3,&
+       call interpolate_b(Magnetic_GD(&
                          Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
-                         Node_D(2)+iDownFF:Node_D(2)+iUpFF))
+                         Node_D(2)+iDownFF:Node_D(2)+iUpFF,1:3))
     end if
   contains
-    subroutine interpolate_b(BIn_DG)
+    subroutine interpolate_b(BIn_GD)
       !calculate the interpolated value of the magnetic field
       !Optimized loops are used, the ranges of indexes being
       !declared as parameters
-      real,dimension(1:3,1:lOrderFF+1,1:lOrderFF+1),&
-           intent(in)::BIn_DG
+      real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:3),&
+           intent(in)::BIn_GD
       integer::i,j
       b_interpolated_d=cZero
       do j=1,lOrderFF
          b_interpolated_d(x_)= b_interpolated_d(x_)+ &
-               sum(BIn_DG(x_,1:lOrderFF+1,j)*HighFF_ID(:,x_))&
+               sum(BIn_GD(1:lOrderFF+1,j,x_)*HighFF_ID(:,x_))&
                  *LowFF_ID(j,y_)
       end do
       do j=1,lOrderFF+1
          b_interpolated_d(y_)= b_interpolated_d(y_)+ &
-              sum(BIn_DG(y_,1:lOrderFF,j)*LowFF_ID(:,x_))&
+              sum(BIn_GD(1:lOrderFF,j,y_)*LowFF_ID(:,x_))&
                  *HighFF_ID(j,y_)
       end do
       do j=1,lOrderFF
          b_interpolated_d(z_)= b_interpolated_d(z_)+ &
-              sum(BIn_DG(z_,1:lOrderFF,j)*LowFF_ID(:,x_))&
+              sum(BIn_GD(1:lOrderFF,j,z_)*LowFF_ID(:,x_))&
                  *LowFF_ID(j,y_)
       end do
     end subroutine interpolate_b
@@ -157,19 +155,19 @@ contains
     real,intent(in)::QPerVDx_D(nDim),W_D(x_:z_)
     optional::W_D
     if(any(Node_D/=NodeNew_D))then
-       call add_current_extended(Counter_DG(x_:z_,&
+       call add_current_extended(Counter_GD(&
                          Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
-                         Node_D(2)+iDownFF-1:Node_D(2)+iUpFF+1))
+                         Node_D(2)+iDownFF-1:Node_D(2)+iUpFF+1,x_:z_))
     else
-       call add_current_simple(Counter_DG(x_:z_,&
+       call add_current_simple(Counter_GD(&
                          Node_D(1)+iDownFF  :Node_D(1)+iUpFF  ,&
-                         Node_D(2)+iDownFF  :Node_D(2)+iUpFF  ))
+                         Node_D(2)+iDownFF  :Node_D(2)+iUpFF  ,x_:z_))
     end if
 
   contains
-    subroutine add_current_simple(CurrentFragment_DG)
-      real,dimension(1:3,1:lOrderFF+1,1:lOrderFF+1),&
-           intent(inout)::CurrentFragment_DG
+    subroutine add_current_simple(CurrentFragment_GD)
+      real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:3),&
+           intent(inout)::CurrentFragment_GD
       real,dimension(1:lOrderFF+1,nDim)::DeltaFPlus,DeltaFMinus
       real,dimension(1:lOrderFF,nDim)::FI
       real,parameter::sqrt13=cOne/1.732050808
@@ -181,32 +179,33 @@ contains
       do i=2,lOrderFF
          FI(i,:)=FI(i-1,:)+DeltaFMinus(i,:)
       end do
-      !To optimize algebra, multiply FI by -q/V*dx/4
+      !To optimize algebra, multiply FI by -q/V*4*\pi*dx/4
       !and divide \DeltaFMinus by sqrt(3):
-      do iDim=x_,z_
-         FI(:,iDim)=(-QPerVDx_D(iDim)*cQuarter)*FI(:,iDim)
+      do iDim=1,nDim
+         FI(:,iDim)=(-QPerVDx_D(iDim)*cPi)*FI(:,iDim)
       end do
       DeltaFMinus=sqrt13*DeltaFMinus
       !add current density:
       do j=1,lOrderFF+1
-         CurrentFragment_DG(x_,1:lOrderFF,j)=&
-              CurrentFragment_DG(x_,1:lOrderFF,j)+&
+         CurrentFragment_GD(1:lOrderFF,j,x_)=&
+              CurrentFragment_GD(1:lOrderFF,j,x_)+&
               FI(:,x_)*(&
               DeltaFPlus (j,y_))
       end do
       do j=1,lOrderFF
-         CurrentFragment_DG(y_,1:lOrderFF+1,j)=&
-              CurrentFragment_DG(x_,1:lOrderFF+1,j)+&
+         CurrentFragment_GD(1:lOrderFF+1,j,y_)=&
+              CurrentFragment_GD(1:lOrderFF+1,j,y_)+&
               FI(j,y_)*(&
               DeltaFPlus (:,x_))
       end do
       do j=1,lOrderFF+1
-         CurrentFragment_DG(z_,1:lOrderFF+1,j)=&
-              CurrentFragment_DG(z_,1:lOrderFF+1,j)+&
+         CurrentFragment_GD(1:lOrderFF+1,j,z_)=&
+              CurrentFragment_GD(z_,1:lOrderFF+1,j)+&
               W_D(3)*(&
               DeltaFPlus (:,x_)*DeltaFPlus (j,y_)+&
               DeltaFMinus(:,x_)*DeltaFMinus(j,y_))
       end do
+      !Whole crap!!!!!
     end subroutine add_current_simple
     !-------------------------------------------------------------!
     subroutine add_current_extended(CurrentFragment_DG)
@@ -216,7 +215,8 @@ contains
       real,dimension(0:lOrderFF+2,nDim)::DeltaFPlus,DeltaFMinus
       real,dimension(0:lOrderFF+1,nDim)::FI
       real,parameter::sqrt13=cOne/1.732050808
-      integer::i,j
+      integer::i,j, iDim
+      !-----------------
       DeltaFPlus=cZero
       !First, add the properly shifted new formfactor
       DeltaFPlus(1+NodeNew_D(1)-Node_D(1):&
@@ -236,10 +236,10 @@ contains
       do i=1,lOrderFF+1
          FI(i,:)=FI(i-1,:)+DeltaFMinus(i,:)
       end do
-      !To optimize algebra, multiply FI by -q/V*dx/4
+      !To optimize algebra, multiply FI by -q/V*4*\pi*dx/4
       !and divide \DeltaFMinus by sqrt(3):
       do iDim=x_,z_
-         FI(:,iDim)=(-QPerVDx_D(iDim)*cQuarter)*FI(:,iDim)
+         FI(:,iDim)=(-QPerVDx_D(iDim)*cPi)*FI(:,iDim)
       end do
       DeltaFMinus=sqrt13*DeltaFMinus
       !add current density:
