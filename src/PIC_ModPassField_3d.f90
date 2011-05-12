@@ -25,6 +25,9 @@ contains
        iBuffSizeMax*M/(4*(iRealPrec+1)*(nX+2*iGCN)*(nY+2*iGCN)),1)
     real,dimension(1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,iLength)::Buff_G
     integer::k,kNew
+    !--------------
+    call density_bc_periodic
+    if(nProc==1)return
     !If iProcIn is given, the result is at PE=iProcIn only
     if(present(iProcIn))then
        k=-iGCN
@@ -63,6 +66,8 @@ contains
     real,dimension(1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,iLength)::Buff_G
     integer::k,kNew,iDim
     !-------------------
+    call current_bc_periodic
+    if(nProc==1)return
     do iDim = 1,3
        k=-iGCN
        do while(k<nZ+iGCN)

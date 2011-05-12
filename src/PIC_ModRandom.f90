@@ -6,7 +6,6 @@ module PIC_ModRandom
   integer::iSeed=0
   !Methods
   public::rand
-  public::erand
   public::init_rand
 contains
   subroutine init_rand(iSeedIn)
@@ -25,12 +24,4 @@ contains
     if(iSeed==0) iSeed=1
     RAND=FLOAT(ISEED)/2147483647
   END FUNCTION RAND
-  !===============================================================C
-  REAL FUNCTION ERAND()
-    use ModNumConst
-    do
-       ERAND=RAND()
-       IF ((ERAND>cZero).and.(ERAND<cOne))return
-    end do
-  END FUNCTION ERAND
 end module PIC_ModRandom

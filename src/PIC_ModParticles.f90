@@ -89,8 +89,97 @@ contains
        call CON_stop('Simulation stops')
     end if
     Of(iSort)%Coords(x_:nDim,n_P(iSort)) = PhaseCoords_D
+    Of(iSort)%Coords(nDim+1:nDim+3,n_P(iSort)) = 0.0
   end subroutine put_particle
-  
+  !==============
+  subroutine parallel_init_rand(nCall,iSeed)
+    use ModMpi
+    use PIC_ModProc
+    use PIC_ModRandom
+    integer, intent(in)           :: nCall
+    integer, intent(in), optional :: iSeed
+    
+    integer :: iSend_I(1), iRecv_IP(1,0:nProc-1), iLoop
+    real :: Aux
+    !-----------------------------------------
+    call init_rand(iSeed)
+    if(nProc==1)return
+    iSend_I(1) = nCall
+    iRecv_IP = 0
+    call MPI_ALLGATHER(iSend_I, 1, MPI_INTEGER, &
+         iRecv_IP, 1, MPI_INTEGER, iComm, iError)
+    if(iProc==0)return
+    do iLoop =1,sum(iRecv_IP(1,0:iProc-1))
+       Aux = RAND()
+    end do
+  end subroutine parallel_init_rand
+  !==================================
+  !=========reading command #UNIFORM==
+  subroutine read_uniform
+    use ModReadParam,ONLY: read_var
+    use PIC_ModProc, ONLY: iProc
+    integer:: nPPerCell_P(nPType)=0
+    integer:: iSort
+    !--------------
+    do iSort = 1,nPType
+       call read_var('nPPerCell',nPPerCell_P(iSort))
+       if(nPPerCell_P(iSort)<0.and.iProc==0)&
+            write(*,*)'Particles will neutralize electrons'
+    end do
+    rho_G = 0.0
+    write(*,*)'Start uniform with nPPerCell_P=',nPPerCell_P
+    call uniform(nPPerCell_P)
+    call pass_density(0)
+    if(iProc==0)then
+       write(*,*)'Particles are distributed'
+       write(*,*)'Particle density max:',maxval(rho_G(1:nX,1:nY,1:nZ))
+       write(*,*)'Particle density min:',minval(rho_G(1:nX,1:nY,1:nZ))
+       write(*,*)'Particle density average:',sum(rho_G(1:nX,1:nY,1:nZ))/product(nCell_D)
+    end if
+  end subroutine read_uniform
+  !================================
+  subroutine uniform(nPPerCellIn_P)
+    use PIC_ModProc
+    use PIC_ModRandom
+    integer, intent(in) :: nPPerCellIn_P(nPType)
+    integer             :: nPPerCell_P(nPType)
+    integer :: nPPerPE, nResidual, NPTotal, iSort, iDim, iP
+    real    :: Coord_D(nDim)
+    logical :: UseQuasineutral
+    !--------------------------
+    do iSort = 1, nPType
+       if(nPPerCellIn_P(iSort)==0)CYCLE
+       if(nPPerCellIn_P(iSort) > 0)then
+          nPPerCell_P(iSort) = nPPerCellIn_P(iSort)
+          UseQuasiNeutral = .false.
+       else
+          nPPerCell_P(iSort) = -nPPerCellIn_P(iSort)
+          UseQuasiNeutral = .true.
+       end if
+       write(*,*)'iSort=',iSort
+       NPTotal = product(nCell_D) * NPPerCell_P(iSort)
+       write(*,*)'nPTotal=',nPTotal
+       nPPerPE = NPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
+       if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
+       if(UseQuasiNeutral)then
+          !Initialize the same random number sequence as 
+          !for electrons
+          call parallel_init_rand(nDim * nPPerPE, Electrons_)
+       else
+          call parallel_init_rand(nDim * nPPerPE, iSort)
+       end if
+       write(*,*)'nPPerPE=',nPPerPE
+       do iP = 1, nPPerPE
+          do iDim = 1,nDim
+             Coord_D(iDim) = nCell_D(iDim) * RAND()
+          end do
+          call put_particle(iSort, Coord_D)
+          !write(*,*)n_P(iSort),Coord_D
+          call get_form_factors(Coord_D,Node_D,HighFF_ID)
+          call add_density(Node_D,HighFF_ID)
+       end do
+    end do
+  end subroutine uniform
   !==========================
   
   subroutine add_velocity(W_D, iSort)

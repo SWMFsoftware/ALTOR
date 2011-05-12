@@ -1,4 +1,4 @@
-module PIC_ModThermal
+Module PIC_ModThermal
   use PIC_ModMain,ONLY:nPType
   use PIC_ModRandom
   use PIC_ModParticles
@@ -12,7 +12,7 @@ contains
     integer :: iW
     !==================================
 
-    Energy=-vT2_P(iSort)*LOG(ERAND())
+    Energy=-vT2_P(iSort)*LOG(RAND())
 
     MomentumAvr=sqrt(2.0*Energy)
     do iW = Wx_, Wz_

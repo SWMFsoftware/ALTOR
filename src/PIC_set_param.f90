@@ -98,6 +98,8 @@ subroutine PIC_set_param(TypeAction)
                 //NameNormalization)
         end select
         call set_particle_param(M_P,Q_P)
+     case('#UNIFORM')
+        call read_uniform
     case("#END")
         IslastRead=.true.
         EXIT READPARAM
