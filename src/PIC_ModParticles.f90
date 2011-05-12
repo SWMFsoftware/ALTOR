@@ -127,7 +127,6 @@ contains
             write(*,*)'Particles will neutralize electrons'
     end do
     rho_G = 0.0
-    write(*,*)'Start uniform with nPPerCell_P=',nPPerCell_P
     call uniform(nPPerCell_P)
     call pass_density(0)
     if(iProc==0)then
@@ -148,7 +147,9 @@ contains
     logical :: UseQuasineutral
     !--------------------------
     do iSort = 1, nPType
+
        if(nPPerCellIn_P(iSort)==0)CYCLE
+
        if(nPPerCellIn_P(iSort) > 0)then
           nPPerCell_P(iSort) = nPPerCellIn_P(iSort)
           UseQuasiNeutral = .false.
@@ -156,11 +157,12 @@ contains
           nPPerCell_P(iSort) = -nPPerCellIn_P(iSort)
           UseQuasiNeutral = .true.
        end if
-       write(*,*)'iSort=',iSort
+
        NPTotal = product(nCell_D) * NPPerCell_P(iSort)
-       write(*,*)'nPTotal=',nPTotal
        nPPerPE = NPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
+
        if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
+
        if(UseQuasiNeutral)then
           !Initialize the same random number sequence as 
           !for electrons
@@ -168,13 +170,12 @@ contains
        else
           call parallel_init_rand(nDim * nPPerPE, iSort)
        end if
-       write(*,*)'nPPerPE=',nPPerPE
+      
        do iP = 1, nPPerPE
           do iDim = 1,nDim
              Coord_D(iDim) = nCell_D(iDim) * RAND()
           end do
           call put_particle(iSort, Coord_D)
-          !write(*,*)n_P(iSort),Coord_D
           call get_form_factors(Coord_D,Node_D,HighFF_ID)
           call add_density(Node_D,HighFF_ID)
        end do
