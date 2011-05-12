@@ -1,0 +1,25 @@
+#DESCRIPTION
+3 dimensional version
+
+#CHECKGRID
+64
+64
+64
+2
+
+#DXYZ
+0.05
+0.05
+0.05
+
+#NORMALIZATION
+standard
+152
+-1.0
+1.0
+
+#UNIFORM
+76
+76
+
+#END
