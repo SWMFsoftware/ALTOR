@@ -30,6 +30,10 @@ module PIC_ModParticles
   integer,dimension(nPType) :: n_P,nMax_P
   real,dimension(nPType)    :: Energy_P
   real,dimension(nPType)    :: OmegaPDtMax_P
+
+  !Only at the root PE:
+  integer,dimension(nPType) :: nTotal_P
+
   !Methods
   public::set_pointer_to_particles !Set pointer to the coordinate array of electrons or ions
   public::set_particle_param       !Assigns M_P, Q_P and allocates coordinate arrays
@@ -90,8 +94,14 @@ contains
     end if
     Of(iSort)%Coords(x_:nDim,n_P(iSort)) = PhaseCoords_D
     Of(iSort)%Coords(nDim+1:nDim+3,n_P(iSort)) = 0.0
+
   end subroutine put_particle
-  !==============
+  !===========================
+  !== This routine allows to get reporducible random disdtribution independent 
+  !== on the number of processors invoved. This is extremely expensive way,
+  !== as long as the operation of the random number calculation actually becomes
+  !== serial 
+  !===========================
   subroutine parallel_init_rand(nCall,iSeed)
     use ModMpi
     use PIC_ModProc
@@ -113,11 +123,14 @@ contains
        Aux = RAND()
     end do
   end subroutine parallel_init_rand
-  !==================================
-  !=========reading command #UNIFORM==
+  !==========================================
+  !=========reading command #UNIFORM=========
+  !==========================================
   subroutine read_uniform
     use ModReadParam,ONLY: read_var
-    use PIC_ModProc, ONLY: iProc
+    use PIC_ModProc
+    use ModMpi
+
     integer:: nPPerCell_P(nPType)=0
     integer:: iSort
     !--------------
@@ -128,9 +141,18 @@ contains
     end do
     rho_G = 0.0
     call uniform(nPPerCell_P)
+    if(nProc==1)then
+       nTotal_P = n_P
+    else
+       call MPI_reduce(n_P, nTotal_P, nPType, MPI_INTEGER,&
+            MPI_SUM, 0, iComm, iError)
+    end if
     call pass_density(0)
     if(iProc==0)then
        write(*,*)'Particles are distributed'
+       do iSort = 1, nPType
+          write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
+       end do
        write(*,*)'Particle density max:',maxval(rho_G(1:nX,1:nY,1:nZ))
        write(*,*)'Particle density min:',minval(rho_G(1:nX,1:nY,1:nZ))
        write(*,*)'Particle density average:',sum(rho_G(1:nX,1:nY,1:nZ))/product(nCell_D)
@@ -181,8 +203,32 @@ contains
        end do
     end do
   end subroutine uniform
-  !==========================
-  
+  !====================
+  subroutine get_energy
+    use ModMpi
+    use PIC_ModProc
+
+    real :: E_P(nPType), P2
+    integer:: iSort, iP
+    real,dimension(:,:),pointer::Coord_VI
+    !--------------
+    E_P = 0
+    do iSort = 1, nPType
+       call set_pointer_to_particles(iSort,Coord_VI)
+       do iP = 1, n_P(iSort)
+          P2 = sum(Coord_VI(Wx_:Wz_,iP)**2)
+          E_P(iSort) = E_P(iSort) + &
+               M_P(iSort) * c*P2/(c + sqrt(c2 + P2))
+       end do
+    end do
+    if(nProc==1)then
+       Energy_P = E_P
+    else
+       call MPI_Reduce(&
+            E_P, Energy_P, nPType, MPI_REAL,MPI_SUM,  0, iComm, iError)
+    end if
+  end subroutine get_energy
+  !==============================
   subroutine add_velocity(W_D, iSort)
     real,    intent(in) :: W_D(Wx_:Wz_)
     integer, intent(in) :: iSort

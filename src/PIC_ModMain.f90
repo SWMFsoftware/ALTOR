@@ -14,8 +14,20 @@ module PIC_ModMain
 
   real :: c = cHalf, c2 = 0.25
   real,dimension(nDim)::SpeedOfLight_D = cHalf
+
+  !\
+  ! Time stepping parameters and values.
+  !/
+  real :: tSimulation = 0.0
+  integer :: n_step, iIter =0
   real :: Dt= 0.0
   real ::CellVolume=cOne, Dx_D(nDim)=cOne
 
-  logical:: IsLastRead=.false.
+  !\
+  ! Stopping conditions. These variables are only used in stand alone mode.
+  !/
+  real    :: tMax = -1.0, CpuTimeMax = -1.0
+  integer :: nIter = -1
+  logical :: UseStopFile = .true.
+  logical :: IsLastRead=.false.
 end module PIC_ModMain

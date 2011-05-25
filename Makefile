@@ -90,6 +90,7 @@ rundir:
 		rm -f ${DIR}/share/JobScripts/TMP_${MACHINE}; \
 		touch ${RUNDIR}/core; chmod 444 ${RUNDIR}/core; \
 		cd ${RUNDIR}; ln -s ${BINDIR}/${DEFAULT_EXE} .; \
+		ln -s ../Param .; cp Param/PARAM.DEFAULT PARAM.in; \
 	fi);
 
                         

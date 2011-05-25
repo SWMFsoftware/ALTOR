@@ -4,6 +4,7 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModMain
   use PIC_ModGrid
   use PIC_ModParticles
+  use PIC_ModThermal,ONLY: read_temperature
   use ModConst
   implicit none
 
@@ -86,7 +87,7 @@ subroutine PIC_set_param(TypeAction)
            c = 1.0; c2 = 1.0
            call read_var('nPPerCrit',nPPerCrit)
            Q_P(Electron_) = - CellVolume/(4*cPi*nPPerCrit)
-           M_P(Electron_) = - CellVolume/(4*cPi*nPPerCrit)
+           M_P(Electron_) =   CellVolume/(4*cPi*nPPerCrit)
            do iP=2, nPType
               call read_var('Q_P/| Q_P(Electron_) |',Q_P(iP))
               Q_P(iP) = Q_P(iP) *  CellVolume/(4*cPi*nPPerCrit)
@@ -100,6 +101,8 @@ subroutine PIC_set_param(TypeAction)
         call set_particle_param(M_P,Q_P)
      case('#UNIFORM')
         call read_uniform
+     case('#THERMALIZE')
+        call read_temperature
     case("#END")
         IslastRead=.true.
         EXIT READPARAM

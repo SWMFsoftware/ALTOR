@@ -25,6 +25,7 @@ OBJECTS= \
 	PIC_ModPassField_${nDim}d.o \
 	PIC_ModParticles.o \
 	PIC_ModRandom.o \
+	PIC_advance.o \
 	PIC_set_param.o \
 	PIC_ModThermal.o 
 
