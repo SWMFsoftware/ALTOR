@@ -14,7 +14,7 @@ module PIC_ModMpi
   implicit none
   !structures
   integer,parameter::iBuffSizeMax=10 !In MByte
-  integer,parameter::KByte=1024, M=KByte*KByte
+  integer,parameter,private::KByte=1024, M=KByte*KByte
   !Methods:
   public::pass_density
   public::pass_current
