@@ -4,7 +4,9 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModMain
   use PIC_ModGrid
   use PIC_ModParticles
-  use PIC_ModThermal,ONLY: read_temperature
+  use PIC_ModLogFile, ONLY: nLogFile
+  use PIC_ModThermal, ONLY: read_temperature
+  use PIC_ModField,   ONLY: add_e, add_b
   use ModConst
   implicit none
 
@@ -22,12 +24,24 @@ subroutine PIC_set_param(TypeAction)
   
   character(LEN=10) :: NameNormalization
   integer:: nPPerCrit
+
+  integer            :: TimingDepth=-1
+  character (len=10) :: TimingStyle='cumm'
   !------------------
   iSession = i_session_read()
   select case(TypeAction)
   case('CHECK')
      if(iProc==0)write(*,*) NameSub,': CHECK iSession =',iSession
      SpeedOfLight_D = Dt * c / Dx_D
+     if(iProc==0)then
+        call timing_active(UseTiming)
+        if(iSession==1)then
+           call timing_step(0)
+        end if
+        call timing_depth(TimingDepth)
+        call timing_report_style(TimingStyle)
+     end if
+
      RETURN
   case('read','Read','READ')
      if(iProc==0)then
@@ -54,15 +68,15 @@ subroutine PIC_set_param(TypeAction)
         call read_var('',NameDescription)
      case('#CHECKGRID')
         call read_var('nX',iP)
-        if(iP/=nX)call CON_stop('nX differs, reconfigure ALTOR')
+        if(iP /= nX)call CON_stop('nX differs, reconfigure ALTOR')
         call read_var('nY',iP)
-        if(iP/=nY)call CON_stop('nY differs, reconfigure ALTOR')
+        if(iP /= nY)call CON_stop('nY differs, reconfigure ALTOR')
         if(nDim==3)then
            call read_var('nZ',iP)
-           if(iP/=nZ)call CON_stop('nZ differs, reconfigure ALTOR')
+           if(iP /= nZ)call CON_stop('nZ differs, reconfigure ALTOR')
         end if
         call read_var('nPType',iP)
-        if(iP/=nPType)call CON_stop('nPType differs, reconfigure ALTOR')
+        if(iP /= nPType)call CON_stop('nPType differs, reconfigure ALTOR')
      case('#DXYZ')
         do iDim=1,nDim
            call read_var('Dx_D(iDim)', Dx_D(iDim))
@@ -101,9 +115,20 @@ subroutine PIC_set_param(TypeAction)
         call set_particle_param(M_P,Q_P)
      case('#UNIFORM')
         call read_uniform
+
      case('#THERMALIZE')
         call read_temperature
-    case("#END")
+        
+     case('#ADDE')
+        call add_e
+
+     case('#ADDB')
+        call add_b
+
+     case('#TIMESTEP')
+        call read_var('Dt',Dt)
+
+     case("#END")
         IslastRead=.true.
         EXIT READPARAM
 
@@ -111,6 +136,27 @@ subroutine PIC_set_param(TypeAction)
         IslastRead=.false.
         EXIT READPARAM
 
+     case("#STOP")
+        call read_var('MaxIteration',nIter)
+        call read_var('tSimulationMax',tMax)
+
+     case("#CPUTIMEMAX")
+        call read_var('CpuTimeMax',CpuTimeMax)
+
+     case("#CHECKSTOPFILE")
+        call read_var('UseStopFile',UseStopFile)
+
+     case("#TIMING")
+        if(iSession /= 1)CYCLE READPARAM
+        call read_var('UseTiming',UseTiming)
+        if(.not.UseTiming)CYCLE READPARAM
+        call read_var('DnTiming',nTiming)
+        call read_var('nDepthTiming',TimingDepth)
+        call read_var('TypeTimingReport',TimingStyle)
+     
+     case('#LOGFILE')
+        if(iSession /=1 )CYCLE READPARAM
+        call read_var('nLogFile',nLogFile)
 
      case default
         if(iProc==0) then
