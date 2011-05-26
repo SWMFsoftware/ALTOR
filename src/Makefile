@@ -19,15 +19,16 @@ OBJECTS= \
 	PIC_ModSize.o \
 	PIC_ModProc.o \
 	PIC_ModMain.o \
-	PIC_ModFormFactor.o \
+	PIC_ModFormFactor_${FF}.o \
 	PIC_ModField_${nDim}d.o \
 	PIC_ModParticleInField_${nDim}d.o \
 	PIC_ModPassField_${nDim}d.o \
 	PIC_ModParticles.o \
 	PIC_ModRandom.o \
-	PIC_advance.o \
+	PIC_ModThermal.o \
+	PIC_ModLogFile.o \
 	PIC_set_param.o \
-	PIC_ModThermal.o 
+	PIC_methods.o
 
 
 #2dperiodicMPI.o

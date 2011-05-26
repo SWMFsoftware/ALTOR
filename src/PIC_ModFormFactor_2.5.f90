@@ -1,0 +1,53 @@
+module PIC_ModFormFactor
+  use PIC_ModGrid
+  implicit none
+
+  integer, parameter :: lOrderFF = 3 
+  integer, parameter :: iDownFF = -2, iUpFF = 1
+
+  !Structures
+  !Discsrete particle coordinates
+  integer,dimension(nDim) :: Node_D, NodeNew_D
+ 
+  !Particle form-factors
+  real,dimension(1:lOrderFF+1,nDim) :: HighFF_ID, HighFFNew_ID
+               
+
+  real,dimension(lOrderFF,nDim)::LowFF_ID
+contains
+  subroutine get_form_factors(X_D, NodeOut_D, HighFFOut_ID)
+    use ModNumConst,ONLY: cHalf
+    !Input parameters
+    !X_D should be mormalized by (/\Delta x,\Delta y,\Delta z/)
+    real,dimension(nDim),intent(in) :: X_D
+
+    !Output parameters
+    !The cell-center index    
+    integer,dimension(nDim),intent(out)::NodeOut_D
+    real,dimension(lOrderFF+1,nDim)::HighFFOut_ID
+
+    !Normally both Node_D and HighFF_ID are members of this module
+
+    real,dimension(nDim)::d_D
+    real,parameter:: cThird =1.0/3.0, cTwoThird = 2.0/3.0, cSixth = 1.0/6.0
+    integer::iDim
+    !--------------------
+    NodeOut_D = floor(X_D + cHalf)
+
+    d_D = X_D + cHalf - real(NodeOut_D)
+
+    NodeOut_D = NodeOut_D + 1
+    do iDim=1,nDim
+       LowFF_ID(1,iDim) = cHalf *( 1.0 - d_D(iDim))**2
+       LowFF_ID(2,iDim) = 0.750 - (cHalf - d_D(iDim))**2
+       LowFF_ID(3,iDim) = cHalf * d_D(iDim)**2
+
+       HighFFOut_ID(1, iDim) = LowFF_ID(1,iDim)*(1.0 - d_D(iDim))*cThird
+       HighFFOut_ID(2,iDim)  = cSixth*(2.0 - d_D(iDim))**3 - 4.0*HighFFOut_ID(1, iDim)
+       HighFFOut_ID(4, iDim) = LowFF_ID(2,iDim)*       d_D(iDim) *cThird
+       HighFFOut_ID(3,iDim)  = cSixth*(1.0 + d_D(iDim))**3 - 4.0*HighFFOut_ID(4, iDim)
+    end do
+
+ 
+  end subroutine get_form_factors
+end module PIC_ModFormFactor
