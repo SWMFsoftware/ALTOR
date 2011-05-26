@@ -52,6 +52,46 @@ module PIC_ModField
   public::get_rho_max     
 contains
   !=======================
+  subroutine add_e
+    use ModReadParam, ONLY: read_var
+    real:: E_D(3)
+    integer:: i,j,k,iDim
+    !------------
+    call read_var('Ex',E_D(1))
+    call read_var('Ey',E_D(2))
+    call read_var('Ez',E_D(3))
+    do iDim = 1,3
+       do k=1-iGCN,nX+iGCN
+          do j=1-iGCN,nY+iGCN
+             do i=1-iGCN,nZ+iGCN
+                E_GD(i,j,k,iDim) = &
+                     E_GD(i,j,k,iDim) + E_D(iDim)
+             end do
+          end do
+       end do
+    end do
+  end subroutine add_e
+  !===================
+  subroutine add_b
+    use ModReadParam, ONLY: read_var
+    real:: B_D(3)
+    integer:: i,j,k,iDim
+    !------------
+    call read_var('Bx',B_D(1))
+    call read_var('By',B_D(2))
+    call read_var('Bz',B_D(3))
+    do iDim = 1,3
+       do k=1-iGCN,nX+iGCN
+          do j=1-iGCN,nY+iGCN
+             do i=1-iGCN,nZ+iGCN
+                Magnetic_GD(i,j,k,iDim) = &
+                     Magnetic_GD(i,j,k,iDim) + B_D(iDim)
+             end do
+          end do
+       end do
+    end do
+  end subroutine add_b
+  !===================
   subroutine get_b_from_a
     integer::i,j,k
     !Applied only if UseVectorPotential
@@ -60,7 +100,9 @@ contains
     
     !The whole magnetic field is calculated and 
     !the result is saved to Counter_GD
-
+    !---------------------------------
+    Counter_GD = 0.0
+    
     !Array index is the coordinate of the gridpoint with +1/2 being
     !approximated as 1
     !                                                Ez (:,:,nZ+2)    
@@ -281,6 +323,59 @@ contains
     end if
     call get_rho_max(EnergyMax,Coord_D)
   end subroutine get_max_intensity
+  !====================
+  subroutine get_field_energy(Energy_V)
+    use PIC_ModMain, ONLY: CellVolume
+    real,intent(out)::Energy_V(6)
+    integer::i,j,k
+    !-------------
+    Energy_V = cZero
+    if(UseVectorPotential)then
+       call get_b_from_a()
+       do k=1,nZ; do j=1,nY; do i=1,nX
+          Energy_V(1) = Energy_V(1) + 0.1250*&
+               sum(Counter_GD(i,j-1:j,k-1:k,x_)**2)
+
+          Energy_V(2) = Energy_V(2) + 0.1250*&
+               sum(Counter_GD(i-1:i,j,k-1:k,y_)**2)
+
+          Energy_V(3) = Energy_V(3) + 0.1250*&
+               sum(Counter_GD(i-1:i,j-1:j,k,z_)**2)
+
+
+          Energy_V(4) = Energy_V(4) + 0.250*&
+               sum(E_GD(i-1:i,j,k,x_)**2)
+
+          Energy_V(5) = Energy_V(5) + 0.250*&
+               sum(E_GD(i,j-1:j,k,y_)**2)
+
+          Energy_V(6) = Energy_V(6) + 0.250*&
+               sum(E_GD(i,j,k-1:k,z_)**2)
+       end do; end do; end do
+    else
+       do k=1,nZ; do j=1,nY; do i=1,nX
+          Energy_V(1) = Energy_V(1) + 0.1250*&
+               sum(Magnetic_GD(i,j-1:j,k-1:k,x_)**2)
+
+          Energy_V(2) = Energy_V(2) + 0.1250*&
+               sum(Magnetic_GD(i-1:i,j,k-1:k,y_)**2)
+
+          Energy_V(3) = Energy_V(3) + 0.1250*&
+               sum(Magnetic_GD(i-1:i,j-1:j,k,z_)**2)
+
+
+          Energy_V(4) = Energy_V(4) + 0.250*&
+               sum(E_GD(i-1:i,j,k,x_)**2)
+
+          Energy_V(5) = Energy_V(5) + 0.250*&
+               sum(E_GD(i,j-1:j,k,y_)**2)
+
+          Energy_V(6) = Energy_V(6) + 0.250*&
+               sum(E_GD(i,j,k-1:k,z_)**2)
+       end do; end do; end do
+    end if
+    Energy_V = (CellVolume/(4.0 * cPi)) * Energy_V
+  end subroutine get_field_energy
   !===============================
   !ONLY FOR PERIODIC BC.
   !================
