@@ -1,7 +1,6 @@
 !^CFG COPYRIGHT UofM
 module PIC_ModParticles
   use PIC_ModGrid,ONLY:nPType, nElectronMax
-  !  use PIC_ModMain,ONLY:SaveVelocity
   use PIC_ModMain,ONLY:c,c2,Dt,Dx_D,CellVolume
   use PIC_ModParticleInField,ONLY: rho_G,add_density,add_current
   use PIC_ModParticleInField,ONLY: b_interpolated_d,e_interpolated_d
@@ -244,15 +243,15 @@ contains
    
   !================PARTICLE MOVER================!
   subroutine advance_particles(iSort)
-
     integer,intent(in)::iSort
 
-    real:: QDtPerM
+    real:: QDtPerM, M
     real,dimension(nDim)::QPerVDx_D
 
     !real :: QcDtPerV
 
-    real::Energy,W2
+    !real::Energy,
+    real::W2
 
     integer::iParticle
 
@@ -271,18 +270,16 @@ contains
 
     !1/2 * Q * dt / M, 
     !used to calculate the force effect
+
     QDtPerM = cHalf * Dt * Q_P(iSort) / M_P(iSort)
 
     !Q / V * (/\Delta x, \Delta y, \Delta z/)
     !Used to calculate J*dt in the 
     !charge-conserving scheme
+
     QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
 
-    !Nullify counters: for energy:
-    !NOT A GENERAL WAY - DISABLED
-    !Should be nullified outside the routine.
-    !Energy_P(iSort) = 0.0
-    !rho_G = 0.0
+    M = M_P(iSort)
 
     call set_pointer_to_particles(iSort,Coord_VI)
 
@@ -292,10 +289,10 @@ contains
        X_D=Coord_VI(x_:nDim,iParticle)
        W_D=Coord_VI(Wx_:Wz_,iParticle)
 
-
+       
        W2 = sum(W_D**2)
        Gamma = sqrt(c2 + W2)
-
+       
        !Now W_D is the initial momentum, W2=W_D^2
        !Mow Gamma is the initial Gamma-factor multiplied by c
 
@@ -303,12 +300,12 @@ contains
 
        !Electric field force
        EForce_D = QDtPerM * e_interpolated_d()
-
+      
        !Add kinetic energy
 
        Energy_P(iSort) = Energy_P(iSort) + &
             M*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
-
+      
        !Acceleration from the electric field, for the
        !first half of the time step:
 
@@ -339,12 +336,10 @@ contains
        Coord_VI(1+nDim:3+nDim,iParticle) = W_D
        W_D = (cOne/Gamma)*W_D
        
-       !end if
-
        !Now W_D is the velocity divided by c
        !Update coordinate
        X_D = X_D + SpeedOfLight_D*W_D(1:nDim)
-
+       
        !New form factor
        call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
  
@@ -356,7 +351,7 @@ contains
        !         call add_current(QPerVDx_D,W_D)
        !      end if
        !Contribute to the current
-       call add_current(QPerVDx_D)
+       call add_current(QPerVDx_D,W_D)
 
        iShift_D = floor(X_D/nCell_D)
        X_D = X_D -nCell_D*iShift_D
