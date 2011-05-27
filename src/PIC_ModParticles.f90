@@ -1,13 +1,15 @@
 !^CFG COPYRIGHT UofM
 module PIC_ModParticles
-  use PIC_ModGrid,ONLY:nPType, nElectronMax
-  use PIC_ModMain,ONLY:c,c2,Dt,Dx_D,CellVolume
+  use PIC_ModSize,ONLY: nPType, nElectronMax,nDim, x_, y_, z_
+  use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D
+  use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, CellVolume, SpeedOfLight_D
   use PIC_ModParticleInField,ONLY: rho_G,add_density,add_current
   use PIC_ModParticleInField,ONLY: b_interpolated_d,e_interpolated_d
+  use PIC_ModParticleInField,ONLY: min_val_rho, max_val_rho, rho_avr
   use PIC_ModFormFactor,ONLY: HighFF_ID, HighFFNew_ID,&
-                              Node_D,NodeNew_D 
-  use PIC_ModProc,ONLY:iProc,iError
-  use PIC_ModMpi
+                              Node_D, NodeNew_D, get_form_factors
+  use PIC_ModProc,      ONLY:iProc,iError
+  use ModNumConst,      ONLY: cHalf
   implicit none
   integer,parameter :: W_ = nDim
   integer,parameter :: Wx_ = W_+x_, Wy_ = W_+y_, Wz_ = W_+z_
@@ -75,7 +77,7 @@ contains
             stat=iError)
        if(iError>0)write(*,*)'Cannot allocate of sort=',iSort,&
             'particles at PE=',iProc
-       Of(iSort)%Coords=cZero
+       Of(iSort)%Coords = 0.0
     end do
   end subroutine set_particle_param
   
@@ -128,6 +130,7 @@ contains
   subroutine read_uniform
     use ModReadParam,ONLY: read_var
     use PIC_ModProc
+    use PIC_ModMpi,  ONLY: pass_density
     use ModMpi
 
     integer:: nPPerCell_P(nPType)=0
@@ -152,9 +155,9 @@ contains
        do iSort = 1, nPType
           write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
        end do
-       write(*,*)'Particle density max:',maxval(rho_G(1:nX,1:nY,1:nZ))
-       write(*,*)'Particle density min:',minval(rho_G(1:nX,1:nY,1:nZ))
-       write(*,*)'Particle density average:',sum(rho_G(1:nX,1:nY,1:nZ))/product(nCell_D)
+       write(*,*)'Particle density max:',max_val_rho()
+       write(*,*)'Particle density min:',min_val_rho()
+       write(*,*)'Particle density average:',rho_avr()
     end if
   end subroutine read_uniform
   !================================
@@ -334,7 +337,7 @@ contains
 
        !Save momentum
        Coord_VI(1+nDim:3+nDim,iParticle) = W_D
-       W_D = (cOne/Gamma)*W_D
+       W_D = (1.0/Gamma)*W_D
        
        !Now W_D is the velocity divided by c
        !Update coordinate
