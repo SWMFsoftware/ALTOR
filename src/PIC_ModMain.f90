@@ -1,6 +1,6 @@
 module PIC_ModMain
   use ModNumConst
-  use PIC_ModGrid
+  use PIC_ModSize, ONLY: nDim
   implicit none
   !-----------------------
   !If UseSharedField==.true. at all processaros
@@ -19,7 +19,7 @@ module PIC_ModMain
   ! Time stepping parameters and values.
   !/
   real :: tSimulation = 0.0
-  integer :: n_step, iIter =0
+  integer :: iStep = 0
   real :: Dt= 0.0
   real ::CellVolume=cOne, Dx_D(nDim)=cOne
 
@@ -30,4 +30,15 @@ module PIC_ModMain
   integer :: nIter = -1
   logical :: UseStopFile = .true.
   logical :: IsLastRead=.false.
+
+  !\
+  !Progress variables
+  !/
+
+  integer :: nProgress1=10, nProgress2=100
+
+  
+  ! Timing variables
+  logical:: UseTiming = .true.
+  integer:: nTiming = -2
 end module PIC_ModMain
