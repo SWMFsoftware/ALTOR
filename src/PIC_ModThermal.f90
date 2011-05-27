@@ -1,7 +1,10 @@
 Module PIC_ModThermal
-  use PIC_ModMain,ONLY:nPType
+  use PIC_ModSize,      ONLY: nPType
+  use PIC_ModMain,      ONLY: c2
   use PIC_ModRandom
-  use PIC_ModParticles
+  use PIC_ModParticles, ONLY: Wx_, Wz_, n_P, parallel_init_rand
+  use PIC_ModParticles, ONLY: particles, Of, Energy_P, nTotal_P, M_P
+  use ModNumConst,      ONLY: cTwoPi
   implicit none
 
   real,dimension(nPType) :: uT2_P = 0.0
@@ -33,8 +36,9 @@ contains
   end subroutine thermalize
   !===========Reading command #THERMALIZE============
   subroutine read_temperature
-    use ModReadParam,ONLY: read_var
-    use PIC_ModProc, ONLY: iProc
+    use ModReadParam,    ONLY: read_var
+    use PIC_ModProc,     ONLY: iProc
+    use PIC_ModParticles,ONLY: get_energy
     integer:: iSort
     !--------------
     do iSort = 1,nPType
