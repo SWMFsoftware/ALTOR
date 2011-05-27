@@ -1,9 +1,10 @@
 module PIC_ModFormFactor
-  use PIC_ModGrid
+  use PIC_ModSize, ONLY: nDim
   implicit none
 
-  integer, parameter :: lOrderFF = 3 
-  integer, parameter :: iDownFF = -2, iUpFF = 1
+  integer, parameter :: lOrderFF =  3 
+  integer, parameter :: iDownFF  = -2, iUpFF = 1
+  integer, parameter :: iExt     =  0
 
   !Structures
   !Discsrete particle coordinates
@@ -37,15 +38,24 @@ contains
     d_D = X_D + cHalf - real(NodeOut_D)
 
     NodeOut_D = NodeOut_D + 1
+
+    !Asterisk means non-zero FF value
+    !Node-2!Node-1!Node  !Node+1!           
+    !      !   ---!---   !      ! '----' means the particle position
+    !      1*     2*     3*     ! Low
+    !      !      !      !      !
+    !  1*  !  2*  !  3*  !  4*  ! High
+    !      !      !      !      !
+    !   Node-2  Node-1 Node   Node+1
     do iDim=1,nDim
        LowFF_ID(1,iDim) = cHalf *( 1.0 - d_D(iDim))**2
        LowFF_ID(2,iDim) = 0.750 - (cHalf - d_D(iDim))**2
        LowFF_ID(3,iDim) = cHalf * d_D(iDim)**2
 
-       HighFFOut_ID(1, iDim) = LowFF_ID(1,iDim)*(1.0 - d_D(iDim))*cThird
-       HighFFOut_ID(2,iDim)  = cSixth*(2.0 - d_D(iDim))**3 - 4.0*HighFFOut_ID(1, iDim)
-       HighFFOut_ID(4, iDim) = LowFF_ID(2,iDim)*       d_D(iDim) *cThird
-       HighFFOut_ID(3,iDim)  = cSixth*(1.0 + d_D(iDim))**3 - 4.0*HighFFOut_ID(4, iDim)
+       HighFFOut_ID(1, iDim) = LowFF_ID(1,iDim)*(1.0 - d _D(iDim))*cThird
+       HighFFOut_ID(2, iDim) = cSixth*(2.0 - d_D(iDim))**3 - 4.0*HighFFOut_ID(1, iDim)
+       HighFFOut_ID(4, iDim) = LowFF_ID(3,iDim)*       d_D(iDim) *cThird
+       HighFFOut_ID(3, iDim) = cSixth*(1.0 + d_D(iDim))**3 - 4.0*HighFFOut_ID(4, iDim)
     end do
 
  
