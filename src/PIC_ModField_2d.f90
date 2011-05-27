@@ -2,14 +2,17 @@
 !--------------------------------------------------------------!
 
 module PIC_ModField
-  use PIC_ModGrid
+  use PIC_ModSize, ONLY: nX, nY, x_, y_, z_, nDim
   use ModNumConst
   use PIC_ModMain,ONLY:&
        SpeedOfLight_D,&     !This is c\Delta t/\Delta x,...
        UseVectorPotential   !If we use vector-potential, or not
 
-  use PIC_ModFormFactor
+  use PIC_ModFormFactor, ONLY: lOrderFF
   implicit none
+
+
+
   !Introduce the number of ghostcells (iGCN)
   integer,parameter:: iGCN=&
        1 &    !because even with the first order formfactor the 
@@ -33,11 +36,51 @@ module PIC_ModField
   real,dimension(&
        1-iGCN:nX+iGCN,&
        1-iGCN:nY+iGCN) :: rho_G = 0.0 
- 
+
+  !Methods
+
+  public::get_b_from_a   !Transforms the vector potential to magn. field 
   public::update_magnetic!Updates the magnetic field, or vector potential
   public::update_e       !Updates the electric field
   public::get_rho_max    !
 contains
+  !=======================
+  subroutine add_e
+    use ModReadParam, ONLY: read_var
+    real:: E_D(3)
+    integer:: i,j,iDim
+    !------------
+    call read_var('Ex',E_D(1))
+    call read_var('Ey',E_D(2))
+    call read_var('Ez',E_D(3))
+    do iDim = 1,3
+       do j=1-iGCN,nY+iGCN
+          do i=1-iGCN,nX+iGCN
+             E_GD(i,j,iDim) = &
+                  E_GD(i,j,iDim) + E_D(iDim)
+          end do
+       end do
+    end do
+  end subroutine add_e
+  !===================
+  subroutine add_b
+    use ModReadParam, ONLY: read_var
+    real:: B_D(3)
+    integer:: i,j,iDim
+    !------------
+    call read_var('Bx',B_D(1))
+    call read_var('By',B_D(2))
+    call read_var('Bz',B_D(3))
+    do iDim = 1,3
+       do j=1-iGCN,nY+iGCN
+          do i=1-iGCN,nX+iGCN
+             Magnetic_GD(i,j,iDim) = &
+                  Magnetic_GD(i,j,iDim) + B_D(iDim)
+          end do
+       end do
+    end do
+  end subroutine add_b
+  !===================
   !=====================
   !Transforms the vector potential to magn. field
   subroutine get_b_from_a
@@ -204,6 +247,60 @@ contains
     end subroutine use_magnetic_field_from
   end subroutine update_e
   !======================
+  !====================
+  subroutine get_field_energy(Energy_V)
+    use PIC_ModMain, ONLY: CellVolume
+    real,intent(out)::Energy_V(6)
+    integer::i,j
+    !-------------
+    Energy_V = cZero
+    if(UseVectorPotential)then
+       call get_b_from_a()
+       do j=1,nY; do i=1,nX
+          Energy_V(1) = Energy_V(1) + 0.250*&
+               sum(Counter_GD(i,j-1:j,x_)**2)
+
+          Energy_V(2) = Energy_V(2) + 0.250*&
+               sum(Counter_GD(i-1:i,j,y_)**2)
+
+          Energy_V(3) = Energy_V(3) + 0.1250*&
+               sum(Counter_GD(i-1:i,j-1:j,z_)**2)
+
+
+          Energy_V(4) = Energy_V(4) + 0.250*&
+               sum(E_GD(i-1:i,j,x_)**2)
+
+          Energy_V(5) = Energy_V(5) + 0.250*&
+               sum(E_GD(i,j-1:j,y_)**2)
+
+          Energy_V(6) = Energy_V(6) + 0.50*&
+               sum(E_GD(i,j,z_)**2)
+       end do; end do
+    else
+       do j=1,nY; do i=1,nX
+          Energy_V(1) = Energy_V(1) + 0.250*&
+               sum(Magnetic_GD(i,j-1:j,x_)**2)
+
+          Energy_V(2) = Energy_V(2) + 0.250*&
+               sum(Magnetic_GD(i-1:i,j,y_)**2)
+
+          Energy_V(3) = Energy_V(3) + 0.1250*&
+               sum(Magnetic_GD(i-1:i,j-1:j,z_)**2)
+
+
+          Energy_V(4) = Energy_V(4) + 0.250*&
+               sum(E_GD(i-1:i,j,x_)**2)
+
+          Energy_V(5) = Energy_V(5) + 0.250*&
+               sum(E_GD(i,j-1:j,y_)**2)
+
+          Energy_V(6) = Energy_V(6) + 0.50*&
+               sum(E_GD(i,j,z_)**2)
+       end do; end do
+    end if
+    Energy_V = (CellVolume/(4.0 * cPi)) * Energy_V
+  end subroutine get_field_energy
+  !===============================
   subroutine get_rho_max(RhoMax,Coord_D)
     real,intent(out) :: RhoMax
     real,dimension(nDim),optional,intent(out) :: Coord_D
@@ -224,27 +321,276 @@ contains
 
        do j=1,nY; do i=1,nX
 
-          rho_G(i,j)=cHalf*(&
+          rho_G(i,j)=cHalf*(cHalf*(&
                sum(E_GD(i-1:i,j,x_)**2)+&
                sum(E_GD(i,j-1:j,y_)**2)+&
                sum(Counter_GD(i,j-1:j,x_)**2)+&
                sum(Counter_GD(i-1:i,j,y_)**2))+&
                0.250*&
                sum(Counter_GD(i-1:i,j-1:j,z_)**2)+&
-               E_GD(i,j,z_)**2
+               E_GD(i,j,z_)**2)
 
        end do; end do
     else
        do j=1,nY; do i=1,nX
-          rho_G(i,j)=cHalf*(&
+          rho_G(i,j)=cHalf*(cHalf*(&
                sum(E_GD(i-1:i,j,x_)**2)+&
                sum(E_GD(i,j-1:j,y_)**2)+&
                sum(Magnetic_GD(i,j-1:j,x_)**2)+&
                sum(Magnetic_GD(i-1:i,j,y_)**2))+&
                0.250*&
                sum(Magnetic_GD(i-1:i,j-1:j,z_)**2)+&
-               E_GD(i,j,z_)**2
+               E_GD(i,j,z_)**2)
        end do; end do
     end if
   end subroutine get_intensity
+  !===============================
+  !ONLY FOR PERIODIC BC.
+  !================
+  subroutine density_bc_periodic
+    integer :: i, j, iInner, jInner
+    !-------------------------------!
+    
+    do j=1-iGCN,nY+iGCN
+       jInner = j - nY*floor( (j - 0.50) /nY )
+       do i=1-iGCN,nX+iGCN
+          iInner = i - nX*floor( (i - 0.50) /nX )
+          if(i==iInner.and.j==jInner)CYCLE
+          Rho_G(iInner,jInner) = &
+               Rho_G(iInner,jInner) + &
+               Rho_G(i,j)
+          Rho_G(i,j) = 0.0
+       end do
+    end do
+  end subroutine density_bc_periodic
+  !=================================
+  subroutine current_bc_periodic
+    real :: Current_F(0:nX,0:nY)
+    integer :: i, j, k, iInner, jInner, kInner
+    !-------------------------------!
+    !++++++++++++x_ currents++++++++++++++++=
+    Current_F = 0.0
+    
+    do j=1-iGCN,nY+iGCN
+       jInner = j - nY*floor( (j - 0.50) /nY )
+       do i=1-iGCN, -1
+          iInner = i + nX
+          Current_F(iInner,jInner) = &
+               Current_F(iInner,jInner) + &
+               Counter_GD(i,j, x_)
+       end do
+       Current_F( 0,jInner) = &
+            Current_F( 0,jInner) + &
+            Counter_GD( 0,j, x_)      + &
+            Counter_GD(nX,j, x_)
+
+       do i=2,nX-1
+          iInner = i
+          Current_F(iInner,jInner) = &
+                   Current_F(iInner,jInner,kInner) + &
+                   Counter_GD(i,j,k, x_)
+           end do
+           Current_F(nX,jInner,kInner) = &
+                Current_F(nX,jInner,kInner) + &
+                Counter_GD( 0,j,k, x_)      + &
+                Counter_GD(nX,j,k, x_)
+       
+           do i=nX+1, nX+iGCN-1
+              iInner = i - nX
+              Current_F(iInner,jInner,kInner) = &
+                   Current_F(iInner,jInner,kInner) + &
+                   Counter_GD(i,j,k, x_)
+           end do
+        end do
+     end do
+     Counter_GD(:,:,:,x_) = 0.0
+     Counter_GD(0:nX,1:nY,1:nZ,x_) = Current_F(0:nX,1:nY,1:nZ)
+
+     !++++++++++y_ currents+++++++++++++++
+
+     Current_F = 0.0
+     do k=1-iGCN,nZ+iGCN
+        kInner = k - nZ*floor( (k - 0.50) /nZ )
+        
+        do j=1-iGCN, -1
+           jInner = j + nY
+           do i=1-iGCN,nX+iGCN
+              iInner = i - nX*floor( (i - 0.50) /nX )
+              Current_F(iInner,jInner,kInner) = &
+                   Current_F(iInner,jInner,kInner) + &
+                   Counter_GD(i,j,k, y_)
+           end do
+        end do
+        do i=1-iGCN,nX+iGCN
+           iInner = i - nX*floor( (i - 0.50) /nX )
+           Current_F( iInner,0,kInner) = &
+                Current_F( iInner,0,kInner) + &
+                Counter_GD( i, 0,k, y_)      + &
+                Counter_GD( i,nY,k, y_)
+        end do
+        do j=2,nY-1
+           jInner = j 
+           do i=1-iGCN,nX+iGCN
+              iInner = i - nX*floor( (i - 0.50) /nX )
+              Current_F(iInner,jInner,kInner) = &
+                   Current_F(iInner,jInner,kInner) + &
+                   Counter_GD(i,j,k, y_)
+           end do
+        end do
+        do i=1-iGCN,nX+iGCN
+           iInner = i - nX*floor( (i - 0.50) /nX )
+           Current_F( iInner,nY,kInner) = &
+                Current_F( iInner,nY,kInner) + &
+                Counter_GD( i, 0,k, y_)      + &
+                Counter_GD( i,nY,k, y_)
+        end do
+        do j=nY+1,nY+iGCN-1
+           jInner = j - nY
+           do i=1-iGCN,nX+iGCN
+              iInner = i - nX*floor( (i - 0.50) /nX )
+              Current_F(iInner,jInner,kInner) = &
+                   Current_F(iInner,jInner,kInner) + &
+                   Counter_GD(i,j,k, y_)
+           end do
+        end do
+     end do
+     Counter_GD(:,:,:,y_) = 0.0
+     Counter_GD(1:nX,0:nY,1:nZ,y_) = Current_F(1:nX,0:nY,1:nZ)
+
+     !++++++++++z_ currents+++++++++++++++
+
+     Current_F = 0.0
+     do k=1-iGCN,-1
+        kInner = k + nZ
+        do j=1-iGCN,nY+iGCN
+           jInner = j - nY*floor( (j - 0.50) /nY ) 
+           do i=1-iGCN,nX+iGCN
+              iInner = i - nX*floor( (i - 0.50) /nX )
+              Current_F(iInner,jInner,kInner) = &
+                   Current_F(iInner,jInner,kInner) + &
+                   Counter_GD(i,j,k, z_)
+           end do
+        end do
+     end do
+ 
+     do j=1-iGCN,nY+iGCN
+        jInner = j - nY*floor( (j - 0.50) /nY )
+        do i=1-iGCN,nX+iGCN
+           iInner = i - nX*floor( (i - 0.50) /nX )
+           Current_F( iInner,jInner,0) = &
+                Current_F( iInner,jInner,0) + &
+                Counter_GD( i, j, 0, z_)      + &
+                Counter_GD( i, j,nZ, z_)
+        end do
+     end do
+   
+     do k=2,nZ-1
+        kInner = k
+        do j=1-iGCN,nY+iGCN
+           jInner = j - nY*floor( (j - 0.50) /nY ) 
+           do i=1-iGCN,nX+iGCN
+              iInner = i - nX*floor( (i - 0.50) /nX )
+              Current_F(iInner,jInner,kInner) = &
+                   Current_F(iInner,jInner,kInner) + &
+                   Counter_GD(i,j,k, z_)
+           end do
+        end do
+     end do
+
+     do j=1-iGCN,nY+iGCN
+        jInner = j - nY*floor( (j - 0.50) /nY )
+        do i=1-iGCN,nX+iGCN
+           iInner = i - nX*floor( (i - 0.50) /nX )
+           Current_F( iInner,jInner,nZ) = &
+                Current_F( iInner,jInner,nZ) + &
+                Counter_GD( i, j, 0, z_)      + &
+                Counter_GD( i, j,nZ, z_)
+        end do
+     end do
+
+     do k=nZ+1,nZ+iGCN,-1
+        kInner = k - nZ
+        do j=1-iGCN,nY+iGCN
+           jInner = j - nY*floor( (j - 0.50) /nY ) 
+           do i=1-iGCN,nX+iGCN
+              iInner = i - nX*floor( (i - 0.50) /nX )
+              Current_F(iInner,jInner,kInner) = &
+                   Current_F(iInner,jInner,kInner) + &
+                   Counter_GD(i,j,k, z_)
+           end do
+        end do
+     end do
+
+     Counter_GD(:,:,:,z_) = 0.0
+     Counter_GD(1:nX,1:nY,0:nZ,z_) = Current_F(1:nX,1:nY,0:nZ)
+
+  end subroutine current_bc_periodic
+  !======================
+  subroutine field_bc_periodic
+    integer :: i, j, iInner, jInner
+    !-------------------------------!
+    !++++++++++++x_fields++++++++++++++++=
+   
+    do j=1-iGCN,nY+iGCN
+       jInner = j - nY*floor( (j - 0.50) /nY )
+       do i=1-iGCN, -1
+          iInner = i + nX
+          E_GD(i,j,x_) = &
+               E_GD(iInner,jInner,x_)
+       end do
+       do i=nX+1, nX+iGCN-1
+          iInner = i - nX
+          E_GD(i,j,x_) = &
+                  E_GD(iInner,jInner,x_)
+       end do
+       if(j==jInner)CYCLE
+       E_GD(0:nX,j,x_) = &
+            E_GD(0:nX,jInner,x_)            
+    end do
+
+    !++++++++++y_ currents+++++++++++++++
+    
+
+    do j=1-iGCN, -1
+       jInner = j + nY
+       do i=1-iGCN,nX+iGCN
+          iInner = i - nX*floor( (i - 0.50) /nX )
+          E_GD(i,j,y_) = &
+               E_GD(iInner,jInner,y_) 
+       end do
+    end do
+
+    do j=nY+1,nY+iGCN-1
+       jInner = j - nY
+       do i=1-iGCN,nX+iGCN
+          iInner = i - nX*floor( (i - 0.50) /nX )
+          E_GD(i,j,y_) = &
+               E_GD(iInner,jInner,y_)
+       end do
+    end do
+    do j=0,nY
+       jInner = j 
+       do i=1-iGCN,nX+iGCN
+          iInner = i - nX*floor( (i - 0.50) /nX )
+          if(iInner==i)CYCLE
+          E_GD(i,j,y_) = &
+               E_GD(iInner,jInner,y_)
+       end do
+    end do
+    
+    !++++++++++z_ fields+++++++++++++++
+
+
+    
+    do j=1-iGCN,nY+iGCN
+       jInner = j - nY*floor( (j - 0.50) /nY ) 
+       do i=1-iGCN,nX+iGCN
+          iInner = i - nX*floor( (i - 0.50) /nX )
+          if(i==iInner.and.j==jInner)CYCLE
+          E_GD(i,j,z_) = &
+                  E_GD(iInner,jInner,z_)
+       end do
+    end do
+  end subroutine field_bc_periodic
+  !====================
 end module PIC_ModField
