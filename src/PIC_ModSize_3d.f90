@@ -1,5 +1,5 @@
 !--------------------------------------------------------------!
-module PIC_ModGrid
+module PIC_ModSize
   integer,parameter :: nDim=3            !Dimensionality
 
   integer,parameter :: MaxBlock = 1
@@ -11,4 +11,4 @@ module PIC_ModGrid
   integer,parameter :: nPType=2, nElectronMax=10000000
   integer,parameter :: nCell_D(nDim) = (/nX, nY, nZ/)
 
-end module PIC_ModGrid
+end module PIC_ModSize

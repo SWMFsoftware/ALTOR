@@ -1,5 +1,5 @@
 !--------------------------------------------------------------!
-module PIC_ModGrid
+module PIC_ModSize
   integer,parameter::nDim=2            !Dimensionality
   integer,parameter::nX=10,nY=10       !The numbers of the grid 
                                        !cells
@@ -12,4 +12,4 @@ module PIC_ModGrid
   integer,parameter:: nCell_D(nDim) = (/nX, nY/)
 
 
-end module PIC_ModGrid
+end module PIC_ModSize
