@@ -1,5 +1,5 @@
 module PIC_ModLogFile
-  use PIC_ModParticles, ONLY: nPType
+  use PIC_ModSize, ONLY: nPType
   implicit none
   SAVE
   PRIVATE !Except
@@ -40,7 +40,6 @@ contains
      use ModIoUnit,        ONLY: io_unit_new
      use PIC_ModParticles, ONLY: get_energy
      use PIC_ModProc,      ONLY: iProc
-     use PIC_ModGrid,      ONLY: nPType
   
   character(LEN=100) :: Name
   character(LEN=1  ) :: Name1
