@@ -2,13 +2,13 @@
 !--------------------------------------------------------------!
 
 module PIC_ModField
-  use PIC_ModGrid
+  use PIC_ModSize, ONLY: nX, nY, nZ, x_, y_, z_, nDim
   use ModNumConst
   use PIC_ModMain,ONLY:&
        SpeedOfLight_D,&     !This is c\Delta t/\Delta x,...
        UseVectorPotential   !If we use vector-potential, or not
 
-  use PIC_ModFormFactor
+  use PIC_ModFormFactor, ONLY: lOrderFF
   implicit none
 
   SAVE
@@ -45,7 +45,7 @@ module PIC_ModField
        1-iGCN:nZ+iGCN)::rho_G
 
  !Methods
-  ! public::evaluate_memory_for_field !Summarizes the memory requirements
+
   public::get_b_from_a   !Transforms the vector potential to magn. field
   public::update_magnetic!Updates the magnetic field, or vector potential
   public::update_e       !Updates the electric field
@@ -61,9 +61,9 @@ contains
     call read_var('Ey',E_D(2))
     call read_var('Ez',E_D(3))
     do iDim = 1,3
-       do k=1-iGCN,nX+iGCN
+       do k=1-iGCN,nZ+iGCN
           do j=1-iGCN,nY+iGCN
-             do i=1-iGCN,nZ+iGCN
+             do i=1-iGCN,nX+iGCN
                 E_GD(i,j,k,iDim) = &
                      E_GD(i,j,k,iDim) + E_D(iDim)
              end do
@@ -81,9 +81,9 @@ contains
     call read_var('By',B_D(2))
     call read_var('Bz',B_D(3))
     do iDim = 1,3
-       do k=1-iGCN,nX+iGCN
+       do k=1-iGCN,nZ+iGCN
           do j=1-iGCN,nY+iGCN
-             do i=1-iGCN,nZ+iGCN
+             do i=1-iGCN,nX+iGCN
                 Magnetic_GD(i,j,k,iDim) = &
                      Magnetic_GD(i,j,k,iDim) + B_D(iDim)
              end do
@@ -409,28 +409,32 @@ contains
        kInner = k - nZ*floor( (k - 0.50) /nZ )
        do j=1-iGCN,nY+iGCN
            jInner = j - nY*floor( (j - 0.50) /nY )
+           !Select x_ faces.
+           ! -1
            do i=1-iGCN, -1
               iInner = i + nX
               Current_F(iInner,jInner,kInner) = &
                    Current_F(iInner,jInner,kInner) + &
                    Counter_GD(i,j,k, x_)
            end do
+           !  0
            Current_F( 0,jInner,kInner) = &
                 Current_F( 0,jInner,kInner) + &
                 Counter_GD( 0,j,k, x_)      + &
                 Counter_GD(nX,j,k, x_)
-
-           do i=2,nX-1
+           ! 1:nX-1
+           do i=1,nX-1
               iInner = i
               Current_F(iInner,jInner,kInner) = &
                    Current_F(iInner,jInner,kInner) + &
                    Counter_GD(i,j,k, x_)
            end do
+           !nX
            Current_F(nX,jInner,kInner) = &
                 Current_F(nX,jInner,kInner) + &
                 Counter_GD( 0,j,k, x_)      + &
                 Counter_GD(nX,j,k, x_)
-       
+           !nX+1
            do i=nX+1, nX+iGCN-1
               iInner = i - nX
               Current_F(iInner,jInner,kInner) = &
@@ -447,7 +451,8 @@ contains
      Current_F = 0.0
      do k=1-iGCN,nZ+iGCN
         kInner = k - nZ*floor( (k - 0.50) /nZ )
-        
+        !Select y_ faces
+        !-1
         do j=1-iGCN, -1
            jInner = j + nY
            do i=1-iGCN,nX+iGCN
@@ -457,6 +462,7 @@ contains
                    Counter_GD(i,j,k, y_)
            end do
         end do
+        !0
         do i=1-iGCN,nX+iGCN
            iInner = i - nX*floor( (i - 0.50) /nX )
            Current_F( iInner,0,kInner) = &
@@ -464,7 +470,8 @@ contains
                 Counter_GD( i, 0,k, y_)      + &
                 Counter_GD( i,nY,k, y_)
         end do
-        do j=2,nY-1
+        !1:nY-1
+        do j=1,nY-1
            jInner = j 
            do i=1-iGCN,nX+iGCN
               iInner = i - nX*floor( (i - 0.50) /nX )
@@ -473,6 +480,7 @@ contains
                    Counter_GD(i,j,k, y_)
            end do
         end do
+        !nY
         do i=1-iGCN,nX+iGCN
            iInner = i - nX*floor( (i - 0.50) /nX )
            Current_F( iInner,nY,kInner) = &
@@ -480,6 +488,7 @@ contains
                 Counter_GD( i, 0,k, y_)      + &
                 Counter_GD( i,nY,k, y_)
         end do
+        !-1
         do j=nY+1,nY+iGCN-1
            jInner = j - nY
            do i=1-iGCN,nX+iGCN
@@ -496,6 +505,8 @@ contains
      !++++++++++z_ currents+++++++++++++++
 
      Current_F = 0.0
+     !Select z_ faces
+     !-1
      do k=1-iGCN,-1
         kInner = k + nZ
         do j=1-iGCN,nY+iGCN
@@ -508,7 +519,7 @@ contains
            end do
         end do
      end do
- 
+     !0
      do j=1-iGCN,nY+iGCN
         jInner = j - nY*floor( (j - 0.50) /nY )
         do i=1-iGCN,nX+iGCN
@@ -519,8 +530,8 @@ contains
                 Counter_GD( i, j,nZ, z_)
         end do
      end do
-   
-     do k=2,nZ-1
+     !1:nZ-1
+     do k=1,nZ-1
         kInner = k
         do j=1-iGCN,nY+iGCN
            jInner = j - nY*floor( (j - 0.50) /nY ) 
@@ -532,7 +543,7 @@ contains
            end do
         end do
      end do
-
+     !mZ
      do j=1-iGCN,nY+iGCN
         jInner = j - nY*floor( (j - 0.50) /nY )
         do i=1-iGCN,nX+iGCN
@@ -543,7 +554,7 @@ contains
                 Counter_GD( i, j,nZ, z_)
         end do
      end do
-
+     !nZ+1
      do k=nZ+1,nZ+iGCN,-1
         kInner = k - nZ
         do j=1-iGCN,nY+iGCN
@@ -570,17 +581,21 @@ contains
        kInner = k - nZ*floor( (k - 0.50) /nZ )
        do j=1-iGCN,nY+iGCN
            jInner = j - nY*floor( (j - 0.50) /nY )
+           !Select x_ faces
+           !-1
            do i=1-iGCN, -1
               iInner = i + nX
               E_GD(i,j,k,x_) = &
                    E_GD(iInner,jInner,kInner,x_)
            end do
+           !nX+1
            do i=nX+1, nX+iGCN-1
               iInner = i - nX
               E_GD(i,j,k,x_) = &
                    E_GD(iInner,jInner,kInner,x_)
            end do
            if(k==kInner.and.j==jInner)CYCLE
+           !0:nX
            E_GD(0:nX,j,k,x_) = &
                 E_GD(0:nX,jInner,kInner,x_)            
         end do
@@ -590,7 +605,8 @@ contains
      !++++++++++y_ currents+++++++++++++++
      do k=1-iGCN,nZ+iGCN
         kInner = k - nZ*floor( (k - 0.50) /nZ )
-        
+        !Select y_ face
+        !-1
         do j=1-iGCN, -1
            jInner = j + nY
            do i=1-iGCN,nX+iGCN
@@ -599,7 +615,7 @@ contains
                    E_GD(iInner,jInner,kInner,y_) 
            end do
         end do
-
+        !nY+1
         do j=nY+1,nY+iGCN-1
            jInner = j - nY
            do i=1-iGCN,nX+iGCN
@@ -608,6 +624,7 @@ contains
                    E_GD(iInner,jInner,kInner,y_)
            end do
         end do
+        !0:nY
         do j=0,nY
            jInner = j 
            do i=1-iGCN,nX+iGCN
@@ -621,7 +638,8 @@ contains
  
 
      !++++++++++z_ fields+++++++++++++++
-
+     !Select z_ faces
+     !-1
      do k=1-iGCN,-1
         kInner = k + nZ
         do j=1-iGCN,nY+iGCN
@@ -633,6 +651,7 @@ contains
            end do
         end do
      end do
+     !nZ+1
      do k=nZ+1,nZ+iGCN,-1
         kInner = k - nZ
         do j=1-iGCN,nY+iGCN
@@ -644,7 +663,7 @@ contains
            end do
         end do
      end do
-   
+     !0:nZ
      do k=0,nZ
         kInner = k
         do j=1-iGCN,nY+iGCN
