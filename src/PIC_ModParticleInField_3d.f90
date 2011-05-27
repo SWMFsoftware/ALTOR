@@ -25,6 +25,7 @@ contains
     real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:lOrderFF+1,1:3),&
            intent(out)::BOut_GD
     integer::i,j,k,i1,j1,k1
+    character(LEN=*),parameter:: NameSub = 'PIC_get_b_from_a_local'
     !--------------------
     !Applied only if UseVectorPotential
     !The vector potential is in Magnetic_GD
@@ -34,6 +35,7 @@ contains
     !Only those values of the field are calculated which are needed
     !to interpolated the magnetic field acting on the particle
     !around Node_D
+    call CON_stop(NameSub//' is not tested')
     k1=0
     do k=Node_D(3)+iDownFF,Node_D(3)+iUpFF
        k1=k1+1
@@ -64,7 +66,7 @@ contains
        end do
     end do
   end subroutine get_b_from_a_local
-  !-------------------------------------------------------------------------!
+  !================================
   function e_interpolated_d()
     !Sets the pointer to the fragment of E_GD array to interpolate E
     real,dimension(1:3)::e_interpolated_d
@@ -83,15 +85,15 @@ contains
       !----------------
       e_interpolated_d=cZero
 
-      do k=1,lOrderFF+1
-         do j=1,lOrderFF+1
+      do k=1, iUpFF - iDownFF + 1
+         do j=1, iUpFF - iDownFF + 1
             e_interpolated_d(x_)= e_interpolated_d(x_)+ &
-            sum(EIn_GD(1:lOrderFF,j,k,x_)*LowFF_ID(:,x_))&
-                 *HighFF_ID(j,y_)*HighFF_ID(k,z_)
+            sum(EIn_GD(1:lOrderFF, j, k, x_)*LowFF_ID(:, x_))&
+                 *HighFF_ID(j, y_)*HighFF_ID(k, z_)
          end do
          do j=1,lOrderFF
             e_interpolated_d(y_)= e_interpolated_d(y_)+ &
-            sum(EIn_GD(1:lOrderFF+1,j,k,y_)*HighFF_ID(:,x_))&
+            sum(EIn_GD(1:iUpFF-iDownFF+1, j, k, y_)*HighFF_ID(:,x_))&
                  *LowFF_ID(j,y_)*HighFF_ID(k,z_)
          end do
       end do
@@ -180,7 +182,18 @@ contains
   subroutine add_current(QPerVDx_D,W_D) 
     real,intent(in)::QPerVDx_D(x_:z_),W_D(x_:z_)
     optional::W_D
-    if(any(Node_D/=NodeNew_D))then
+    logical:: IsExtended
+    !-------------------
+    IsExtended = any(Node_D/=NodeNew_D)
+
+    !\
+    !For testing 
+    !
+    ! call write_current
+    ! For testing the extended version 
+    ! if(IsExtended)Counter_GD=0.0
+
+    if(IsExtended)then
        call add_current_extended(Counter_GD(&
                          Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
                          Node_D(2)+iDownFF-1:Node_D(2)+iUpFF+1,&
@@ -191,13 +204,78 @@ contains
                          Node_D(2)+iDownFF  :Node_D(2)+iUpFF  ,&
                          Node_D(3)+iDownFF  :Node_D(3)+iUpFF  ,1:3))
     end if
-
+    !\
+    !For testing 
+    !
+    ! call write_current
+    ! For testing the extended version 
+    ! 
+    ! if(IsExtended)then
+    !   call write_current
+    !   stop
+    ! end if
   contains
+    !===================
+    subroutine write_current
+      use PIC_ModMain, ONLY: Dt, SpeedOfLight_D
+      integer::i,j,k,iDim
+      !-------------------
+      write(*,*)'cPi*QPerVDx_D, Dt=',cPi*QPerVDx_D, Dt
+      write(*,*)'W_D=',W_D
+      write(*,*)'Node_D=',Node_D,' FormfactorOld ='
+      do iDim = 1,3
+         write(*,*)HighFF_ID(:,iDim)
+      end do
+      write(*,*)'NodeNew_D=',NodeNew_D,' FormfactorNew ='
+      do iDim = 1,3
+         write(*,*)HighFFNew_ID(:,iDim)
+      end do
+      do  iDim = 1,3 
+         write(*,*)'iDim=',iDim,' W_D(iDim)*Dt='!, W_D(iDim)*Dt
+         if(IsExtended)then
+            do k=Node_D(3)+iDownFF-1,Node_D(3)+iUpFF+1
+               do j= Node_D(2)+iDownFF-1,Node_D(2)+iUpFF+1
+                  write(*,*)'Current_G(',Node_D(1)+iDownFF-1,&
+                       ':',Node_D(1)+iUpFF+1,',',j,',',k,')= ',&
+                  Counter_GD(Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
+                             j,k,iDim)
+               end do
+            end do
+            write(*,*)'Sum of currents=',sum(Counter_GD(&
+                         Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
+                         Node_D(2)+iDownFF-1:Node_D(2)+iUpFF+1,&
+                         Node_D(3)+iDownFF-1:Node_D(3)+iUpFF+1,&
+                         iDim))
+                 
+         else
+            do k=Node_D(3)+iDownFF,Node_D(3)+iUpFF
+               do j= Node_D(2)+iDownFF,Node_D(2)+iUpFF
+                  write(*,*)'Current_G(',Node_D(1)+iDownFF,&
+                       ':',Node_D(1)+iUpFF,',',j,',',k,')= ',&
+                  Counter_GD(Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
+                             j,k,iDim)
+               end do
+            end do
+            write(*,*)'Sum of currents=',sum(Counter_GD(&
+                         Node_D(1)+iDownFF  :Node_D(1)+iUpFF  ,&
+                         Node_D(2)+iDownFF  :Node_D(2)+iUpFF  ,&
+                         Node_D(3)+iDownFF  :Node_D(3)+iUpFF  ,&
+                         iDim))
+         end if
+         write(*,*)'Compare with 4*\pi*q*u*dt/Volume=',&
+              4.0*cPi*QPerVDx_D(iDim)*W_D(iDim)*SpeedOfLight_D(iDim)
+      end do
+    end subroutine write_current
+    !===========================
     subroutine add_current_simple(CurrentFragment_GD)
-      real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:lOrderFF+1,1:3),&
+
+      real,dimension(1:iUpFF-iDownFF+1,&
+                     1:iUpFF-iDownFF+1,&
+                     1:iUpFF-iDownFF+1,1:3),&
            intent(inout)::CurrentFragment_GD
-      real,dimension(1:lOrderFF+1,nDim)::DeltaFPlus,DeltaFMinus
-      real,dimension(1:lOrderFF,nDim)::FI
+
+      real,dimension(1:iUpFF-iDownFF+1,nDim)::DeltaFPlus,DeltaFMinus
+      real,dimension(1:iUpFF-iDownFF  ,nDim)::FI
       real,parameter::sqrt13=cOne/1.732050808
       integer::i,j,k,iDim
       !----------------------
@@ -205,12 +283,13 @@ contains
       DeltaFMinus = HighFFNew_ID - HighFF_ID
 
       FI(1,:)=DeltaFMinus(1,:)
+
       !Use recursive formula for FI
-      do i=2,lOrderFF
+      do i=2,iUpFF-iDownFF
          FI(i,:) = FI(i-1,:) + DeltaFMinus(i,:)
       end do
 
-      !To optimize the algebra, multiply FI by -q*4*\pi*dt/4
+      !To optimize algebra, multiply FI by -q*4*\pi*dt/4
       !and divide \DeltaFMinus by sqrt(3):
       do iDim=x_,z_
          FI(:,iDim)=(-QPerVDx_D(iDim)*cPi)*FI(:,iDim)
@@ -219,26 +298,35 @@ contains
       DeltaFMinus=sqrt13*DeltaFMinus
 
       !add current density:
-      do k=1,lOrderFF+1
-         do j=1,lOrderFF+1
-            CurrentFragment_GD(1:lOrderFF,j,k,x_) = &
-                 CurrentFragment_GD(1:lOrderFF,j,k,x_) + &
+      do k=1,iUpFF-iDownFF+1
+         do j=1,iUpFF-iDownFF+1
+            !\
+            !  x_ currents
+            !/
+            CurrentFragment_GD(1:iUpFF-iDownFF,j,k,x_) = &
+                 CurrentFragment_GD(1:iUpFF-iDownFF,j,k,x_) + &
                  FI(:,x_)*(&
                  DeltaFPlus (j,y_)*DeltaFPlus (k,z_)+&
                  DeltaFMinus(j,y_)*DeltaFMinus(k,z_))
          end do
-         do j=1,lOrderFF
-            CurrentFragment_GD(1:lOrderFF+1,j,k,y_) = &
-                 CurrentFragment_GD(1:lOrderFF+1,j,k,y_)+&
+         do j=1,iUpFF-iDownFF
+            !\
+            !  y_ currents
+            !/
+            CurrentFragment_GD(1:iUpFF-iDownFF+1,j,k,y_) = &
+                 CurrentFragment_GD(1:iUpFF-iDownFF+1,j,k,y_)+&
                  FI(j,y_)*(&
                  DeltaFPlus (:,x_)*DeltaFPlus (k,z_)+&
                  DeltaFMinus(:,x_)*DeltaFMinus(k,z_))
          end do
       end do
-      do k=1,lOrderFF
-         do j=1,lOrderFF+1
-            CurrentFragment_GD(1:lOrderFF+1,j,k,z_)=&
-                 CurrentFragment_GD(1:lOrderFF+1,j,k,z_)+&
+      do k=1,iUpFF-iDownFF
+         do j=1,iUpFF-iDownFF+1
+            !\
+            !  z_ currents
+            !/
+            CurrentFragment_GD(1:iUpFF-iDownFF+1,j,k,z_)=&
+                 CurrentFragment_GD(1:iUpFF-iDownFF+1,j,k,z_)+&
                  FI(k,z_)*(&
                  DeltaFPlus (:,x_)*DeltaFPlus (j,y_)+&
                  DeltaFMinus(:,x_)*DeltaFMinus(j,y_))
@@ -248,64 +336,89 @@ contains
     !-------------------------------------------------------------!
     subroutine add_current_extended(CurrentFragment_GD)
       !The same, but with the extended stencil for the current
-      real,dimension(0:lOrderFF+2,0:lOrderFF+2,0:lOrderFF+2,1:3),&
+      real,dimension(0:iUpFF-iDownFF+2,0:iUpFF-iDownFF+2,0:iUpFF-iDownFF+2,1:3),&
            intent(inout)::CurrentFragment_GD
 
 
-      real,dimension(0:lOrderFF+2,nDim)::DeltaFPlus,DeltaFMinus
-      real,dimension(0:lOrderFF+1,nDim)::FI
+      real,dimension(0:iUpFF-iDownFF+2,nDim)::DeltaFPlus,DeltaFMinus
+      real,dimension(0:iUpFF-iDownFF+1,nDim)::FI
       real,parameter::sqrt13=cOne/1.732050808
       integer::i,j,k,iDim
       !---------------
       DeltaFPlus=cZero
+
+      !\     
       !First, add the properly shifted new formfactor
+      !/
       DeltaFPlus(1+NodeNew_D(1)-Node_D(1):&
-           1+NodeNew_D(1)-Node_D(1)+lOrderFF,x_)=&
+           1+NodeNew_D(1)-Node_D(1)+iUpFF-iDownFF,x_)=&
            HighFFNew_ID(:,x_)
+
       DeltaFPlus(1+NodeNew_D(2)-Node_D(2):&
-           1+NodeNew_D(2)-Node_D(2)+lOrderFF,y_)=&
+           1+NodeNew_D(2)-Node_D(2)+iUpFF-iDownFF,y_)=&
            HighFFNew_ID(:,y_)
+
       DeltaFPlus(1+NodeNew_D(3)-Node_D(3):&
-           1+NodeNew_D(3)-Node_D(3)+lOrderFF,z_)=&
+           1+NodeNew_D(3)-Node_D(3)+iUpFF-iDownFF,z_)=&
            HighFFNew_ID(:,z_)
+
       DeltaFMinus=DeltaFPlus
-      !Then add and subtruct the unshifted old formfactor           
-      DeltaFPlus(1:lOrderFF+1,:) =&
-           DeltaFPlus (1:lOrderFF+1,:)+HighFF_ID
-      DeltaFMinus(1:lOrderFF+1,:)=&
-           DeltaFMinus(1:lOrderFF+1,:)-HighFF_ID
+
+      !\
+      !Then add and subtruct the unshifted old formfactor 
+      !/          
+      DeltaFPlus(1:iUpFF-iDownFF+1,:) =&
+           DeltaFPlus (1:iUpFF-iDownFF+1,:)+HighFF_ID
+
+      DeltaFMinus(1:iUpFF-iDownFF+1,:)=&
+           DeltaFMinus(1:iUpFF-iDownFF+1,:)-HighFF_ID
+
+      !\
+      ! Using recurrent relationships, find F_I
+      !/
       FI(0,:)=DeltaFMinus(0,:)
-      !Use recursive formula for FI
-      do i=1,lOrderFF+1
+   
+      do i=1,iUpFF-iDownFF+1
          FI(i,:)=FI(i-1,:)+DeltaFMinus(i,:)
       end do
-      !To optimize the algebra, multiply FI by -q*4*\pi*dt/4
+
+      !To optimize algebra, multiply FI by -q*4*\pi*dt/4
       !and divide \DeltaFMinus by sqrt(3):
       do iDim=x_,z_
          FI(:,iDim)=(-QPerVDx_D(iDim)*cPi)*FI(:,iDim)
       end do
       DeltaFMinus=sqrt13*DeltaFMinus
+
       !add current density:
-      do k=0,lOrderFF+2
-         do j=0,lOrderFF+2
-            CurrentFragment_GD(0:lOrderFF+1,j,k,x_)=&
-                 CurrentFragment_GD(0:lOrderFF+1,j,k,x_)+&
+      do k=0,iUpFF-iDownFF+2
+         do j=0,iUpFF-iDownFF+2
+            !\
+            !  x_ currents
+            !/
+            CurrentFragment_GD(0:iUpFF-iDownFF+1,j,k,x_)=&
+                 CurrentFragment_GD(0:iUpFF-iDownFF+1,j,k,x_)+&
                  FI(:,x_)*(&
                  DeltaFPlus (j,y_)*DeltaFPlus (k,z_)+&
                  DeltaFMinus(j,y_)*DeltaFMinus(k,z_))
          end do
-         do j=0,lOrderFF+1
-            CurrentFragment_GD(0:lOrderFF+2,j,k,y_)=&
-                 CurrentFragment_GD(0:lOrderFF+2,j,k,y_)+&
+         do j=0,iUpFF-iDownFF+1
+            !\
+            !  y_ currents
+            !/
+            CurrentFragment_GD(0:iUpFF-iDownFF+2,j,k,y_)=&
+                 CurrentFragment_GD(0:iUpFF-iDownFF+2,j,k,y_)+&
                  FI(j,y_)*(&
                  DeltaFPlus (:,x_)*DeltaFPlus (k,z_)+&
                  DeltaFMinus(:,x_)*DeltaFMinus(k,z_))
          end do
       end do
-      do k=0,lOrderFF+1
-         do j=0,lOrderFF+2
-            CurrentFragment_GD(0:lOrderFF+2,j,k,z_)=&
-                 CurrentFragment_GD(0:lOrderFF+2,j,k,z_)+&
+      do k=0,iUpFF-iDownFF+1
+         do j=0,iUpFF-iDownFF+2
+            !\
+            !  z_ currents
+            !/
+            CurrentFragment_GD(0:iUpFF-iDownFF+2,j,k,z_)=&
+                 CurrentFragment_GD(0:iUpFF-iDownFF+2,j,k,z_)+&
                  FI(k,z_)*(&
                  DeltaFPlus (:,x_)*DeltaFPlus (j,y_)+&
                  DeltaFMinus(:,x_)*DeltaFMinus(j,y_))
