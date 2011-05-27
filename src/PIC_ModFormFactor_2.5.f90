@@ -52,7 +52,7 @@ contains
        LowFF_ID(2,iDim) = 0.750 - (cHalf - d_D(iDim))**2
        LowFF_ID(3,iDim) = cHalf * d_D(iDim)**2
 
-       HighFFOut_ID(1, iDim) = LowFF_ID(1,iDim)*(1.0 - d _D(iDim))*cThird
+       HighFFOut_ID(1, iDim) = LowFF_ID(1,iDim)*(1.0 - d_D(iDim))*cThird
        HighFFOut_ID(2, iDim) = cSixth*(2.0 - d_D(iDim))**3 - 4.0*HighFFOut_ID(1, iDim)
        HighFFOut_ID(4, iDim) = LowFF_ID(3,iDim)*       d_D(iDim) *cThird
        HighFFOut_ID(3, iDim) = cSixth*(1.0 + d_D(iDim))**3 - 4.0*HighFFOut_ID(4, iDim)
