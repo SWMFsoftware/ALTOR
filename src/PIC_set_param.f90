@@ -1,8 +1,8 @@
 subroutine PIC_set_param(TypeAction)
   use ModReadParam
-  use PIC_ModProc
+  use PIC_ModProc,    ONLY: iProc
   use PIC_ModMain
-  use PIC_ModGrid
+  use PIC_ModSize,    ONLY: nDim
   use PIC_ModParticles
   use PIC_ModLogFile, ONLY: nLogFile
   use PIC_ModThermal, ONLY: read_temperature
