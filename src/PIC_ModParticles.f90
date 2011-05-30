@@ -298,12 +298,16 @@ contains
        
        !Now W_D is the initial momentum, W2=W_D^2
        !Mow Gamma is the initial Gamma-factor multiplied by c
-
+       
+       
        call get_form_factors(X_D,Node_D,HighFF_ID)
+       
 
        !Electric field force
+       call timing_start('electric')
        EForce_D = QDtPerM * e_interpolated_d()
-      
+       call timing_stop('electric')
+
        !Add kinetic energy
 
        Energy_P(iSort) = Energy_P(iSort) + &
@@ -315,8 +319,9 @@ contains
        W_D = W_D + EForce_D
 
        !Get magnetic force
-
+       call timing_start('magnetic')
        BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d()
+       call timing_stop('magnetic')       
 
        !Add a half of the magnetic rotation:
 
@@ -344,8 +349,10 @@ contains
        X_D = X_D + SpeedOfLight_D*W_D(1:nDim)
        
        !New form factor
+       
        call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
- 
+       
+      
        !Contribute to the charge densiry
        call add_density(NodeNew_D,HighFFNew_ID)
    
@@ -354,10 +361,12 @@ contains
        !         call add_current(QPerVDx_D,W_D)
        !      end if
        !Contribute to the current
+       call timing_start('current')
        call add_current(QPerVDx_D,W_D)
+       call timing_stop('current')
 
        iShift_D = floor(X_D/nCell_D)
-       X_D = X_D -nCell_D*iShift_D
+       X_D = X_D - nCell_D*iShift_D
        Coord_VI(1:nDim,iParticle) = X_D
        
        !To be done: for non-zero iShift_D, depending on the choice of 
