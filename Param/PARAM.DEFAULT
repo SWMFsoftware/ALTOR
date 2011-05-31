@@ -26,4 +26,19 @@ standard
 2.50e-3
 2.50e-3
 
+ADDB
+1.0
+0.0
+0.0
+
+#LOGFILE
+1
+
+#TIMESTEP
+0.025
+
+#STOP
+-1
+12.575
+
 #END
