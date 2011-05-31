@@ -152,7 +152,7 @@ test_run:
 	cd ${TESTDIR}; ${MPIRUN} ALTOR.exe > runlog
 
 test_check:
-	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-7 \
+	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
 	Param/TestOutput/log_noise.out \
 	${TESTDIR}/log_n0001.out > test.diff
 	ls -l test.diff
