@@ -1,5 +1,8 @@
 module PIC_ModParticleInField
   use PIC_ModField,get_b_from_a_global=>get_b_from_a
+  use PIC_ModFormFactor, ONLY: lOrderFF, iUpFF, iDownFF, iExt
+  use PIC_ModFormfactor, ONLY: Node_D, NodeNew_D
+  use PIC_ModFormFactor, ONLY: HighFF_ID, HighFFNew_ID, LowFF_ID
   implicit none
   SAVE
 
@@ -264,5 +267,23 @@ contains
       end do
     end subroutine add_current_extended
   end subroutine add_current
+  !=========================
+  real function min_val_rho()
+    min_val_rho = &
+         minval(rho_G(1:nX,1:nY))
+  end function min_val_rho
+  !=======================
+  !=========================
+  real function max_val_rho()
+    max_val_rho = &
+         maxval(rho_G(1:nX,1:nY))
+  end function max_val_rho
+  !=======================
+  real function rho_avr()
+    use PIC_ModSize, ONLY: nCell_D
+    rho_avr = &
+         sum(rho_G(1:nX,1:nY))/product(nCell_D)
+  end function rho_avr
+  !=======================
 end module PIC_ModParticleInField
 !=================================================================!
