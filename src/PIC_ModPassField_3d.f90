@@ -63,26 +63,35 @@ contains
   subroutine pass_current
     integer,parameter::iLength=max(&
        iBuffSizeMax*M/(4*(iRealPrec+1)*(nX+2*iGCN)*(nY+2*iGCN)),1)
-    real,dimension(1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,iLength)::Buff_G
+!    real,dimension(1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,iLength)::Buff_G
+    real,dimension(0:nX,0:nY,0:nZ,3)::Buff_G
     integer::k,kNew,iDim
     !-------------------
     call current_bc_periodic
     if(nProc==1)return
-    do iDim = 1,3
-       k=-iGCN
-       do while(k<nZ+iGCN)
-          kNew=min(nZ+iGCN,k+iLength)
           call MPI_ALLREDUCE(&
-               Counter_GD(1-iGCN,1-iGCN,k+1,iDim),&
-               Buff_G(1-iGCN,1-iGCN,1),&
-               (nX+2*iGCN)*(nY+2*iGCN)*(kNew-k),&
+               Counter_GD(0:nX,0:nY,0:nZ,:),&
+               Buff_G,&
+               (nX+1)*(nY+1)*(nZ+1)*3,&
                MPI_REAL,&
                MPI_SUM,&
                iComm,iError)
-          Counter_GD(:,:,k+1:kNew,iDim) = Buff_G(:,:,1:kNew-k)
-          k=kNew
-       end do
-    end do
+          Counter_GD(0:nX,0:nY,0:nZ,:) = Buff_G 
+!    do iDim = 1,3
+!       k=-iGCN
+!       do while(k<nZ+iGCN)
+!          kNew=min(nZ+iGCN,k+iLength)
+!          call MPI_ALLREDUCE(&
+!               Counter_GD(1-iGCN,1-iGCN,k+1,iDim),&
+!               Buff_G(1-iGCN,1-iGCN,1),&
+!               (nX+2*iGCN)*(nY+2*iGCN)*(kNew-k),&
+!               MPI_REAL,&
+!               MPI_SUM,&
+!               iComm,iError)
+!          Counter_GD(:,:,k+1:kNew,iDim) = Buff_G(:,:,1:kNew-k)
+!          k=kNew
+!       end do
+!    end do
   end subroutine pass_current
   !--------------------------------------------------------------!
 end module PIC_ModMpi

@@ -195,7 +195,7 @@ contains
        CpuTimeAdvance=timing_func_d('sum',1,'advance','PIC')
   
        write(*,'(a,f9.1,a,f9.1,a,i8,a,1p,e10.4,a)') 'Speed is',&
-            sum(nTotal_P) &
+            sum(n_P) &
             /max(1.D-10,CpuTimeAdvance),&
             ' p/s/pe after',&
             CpuTimePIC,&
