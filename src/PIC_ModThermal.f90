@@ -44,7 +44,7 @@ contains
     do iSort = 1,nPType
        call read_var('uT2_P',uT2_P(iSort))
     end do
-    call parallel_init_rand(4*sum(n_P))
+    call parallel_init_rand(6*sum(n_P))
     call thermalize
     call get_energy
     if(iProc==0)then
