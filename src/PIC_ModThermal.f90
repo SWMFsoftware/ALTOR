@@ -25,13 +25,12 @@ contains
     end do
   end subroutine thermalize_particle
   !===============
-  subroutine thermalize
-    integer:: iSort, iP
+  subroutine thermalize(iSort)
+    integer,intent(in):: iSort
+    integer:: iP
     !------------------
-    do iSort = 1, nPType
-       do iP = 1, n_P(iSort)
-          call thermalize_particle(iP, iSort)
-       end do
+    do iP = 1, n_P(iSort)
+       call thermalize_particle(iP, iSort)
     end do
   end subroutine thermalize
   !===========Reading command #THERMALIZE============
@@ -43,9 +42,9 @@ contains
     !--------------
     do iSort = 1,nPType
        call read_var('uT2_P',uT2_P(iSort))
+       call parallel_init_rand(6*n_P(iSort),iSort)
+       call thermalize(iSort)
     end do
-    call parallel_init_rand(6*sum(n_P))
-    call thermalize
     call get_energy
     if(iProc==0)then
        do iSort = 1, nPType
