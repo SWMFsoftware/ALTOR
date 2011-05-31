@@ -17,7 +17,8 @@ end subroutine PIC_init_session
 subroutine PIC_advance(tMax)
   use PIC_ModMain,      ONLY: tSimulation
   use PIC_ModField,     ONLY: update_magnetic, Rho_G, Counter_GD
-  use PIC_ModParticles, ONLY: advance_particles, Energy_P, nPType
+  use PIC_ModParticles, ONLY: advance_particles, Energy_P, nPType,&
+                              pass_energy
   use PIC_ModField,     ONLY: update_e, field_bc_periodic, &
                               current_bc_periodic
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt
@@ -47,6 +48,7 @@ subroutine PIC_advance(tMax)
   do iSort = 1, nPType
      call advance_particles(iSort)
   end do
+  call pass_energy
   call timing_stop('adv_particles')
   if(nLogFile>=1)then
      if(mod(iStep,nLogFile)==0)&

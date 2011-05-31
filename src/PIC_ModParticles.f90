@@ -231,6 +231,19 @@ contains
     end if
   end subroutine get_energy
   !==============================
+  subroutine pass_energy
+    use ModMpi
+    use PIC_ModProc
+
+    real :: E_P(nPType)
+    !-----------------
+
+    if(nProc==1)return
+    E_P = Energy_P
+    call MPI_Reduce(&
+         E_P, Energy_P, nPType, MPI_REAL,MPI_SUM,  0, iComm, iError)
+  end subroutine pass_energy
+  !=========================
   subroutine add_velocity(W_D, iSort)
     real,    intent(in) :: W_D(Wx_:Wz_)
     integer, intent(in) :: iSort
