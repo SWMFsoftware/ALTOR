@@ -1,5 +1,5 @@
 module PIC_ModLogFile
-  use PIC_ModSize, ONLY: nPType
+  use PIC_ModSize, ONLY: nPType, nDim
   implicit none
   SAVE
   PRIVATE !Except
@@ -34,6 +34,7 @@ module PIC_ModLogFile
 
   real  :: Value_V(Time_:ETotal_)
   character(LEN=30) ::NameFormat
+  integer::nToWrite=0, nToWrite_II(3,100) 
 contains
   !======================
   subroutine open_logfile
@@ -41,11 +42,11 @@ contains
      use PIC_ModParticles, ONLY: get_energy
      use PIC_ModProc,      ONLY: iProc
   
-  character(LEN=100) :: Name
-  character(LEN=1  ) :: Name1
+     character(LEN=100) :: Name
+     character(LEN=1  ) :: Name1
   
-  integer :: iP
-  !---------------------
+     integer :: iP
+     !---------------------
      !\
      !Open log file
      !/
@@ -60,6 +61,16 @@ contains
         end do
         Name = trim(Name)//'Bx2 By2 Bz2 Ex2 Ey2 Ez2 ETotal'
         write(iLogUnit,'(a)') Name
+        do iP = 1, nToWrite
+           nToWrite_II(1,iP) = io_unit_new()
+           Name = ' '
+           write(Name,'(a,i4.4,a)')'log_p',iP,'.out'
+           open(nToWrite_II(1,iP),file=Name,status='replace')
+           if(nDim==2)write(nToWrite_II(1,iP),'(a)')&
+             'iStep Time x y Wx Wy Wz'
+           if(nDim==3)write(nToWrite_II(1,iP),'(a)')&
+             'iStep Time x y z Wx Wy Wz'
+        end do
      end if
 
      !\
@@ -70,11 +81,14 @@ contains
   end subroutine open_logfile
   !===========================
   subroutine write_logfile
+    use PIC_ModProc,      ONLY: iProc
     use PIC_ModField,     ONLY: get_field_energy
     use PIC_ModMain,      ONLY: iStep, tSimulation
-    use PIC_ModParticles, ONLY: Energy_P
+    use PIC_ModParticles, ONLY: Energy_P, Of, particles
     use ModUtilities, ONLY: flush_unit
+    integer :: iP
     !-----------------------
+    if(iProc/=0)return
     Value_V = 0.0
     Value_V(Time_) = tSimulation
     Value_V(PartFirst_:PartLast_) = Energy_P
@@ -94,11 +108,22 @@ contains
     Value_V(ETotal_) =  Value_V(ETotal_) / Energy0
     write(iLogUnit,trim(NameFormat))iStep, Value_V
     call flush_unit(iLogUnit)
+    do iP=1, nToWrite
+       write(nToWrite_II(1,iP),'(i10,7es13.5)')iStep, tSimulation, &
+            Of(nToWrite_II(2,iP))%Coords(:,nToWrite_II(2,iP))
+       call flush_unit(nToWrite_II(1,iP))
+    end do
   end subroutine write_logfile
   !===========================
   subroutine close_logfile
     use PIC_ModProc, ONLY: iProc
+    integer :: iP
     !--------------------
-    if(iProc==0)close(iLogUnit)
+    if(iProc==0)then
+       close(iLogUnit)
+       do iP=1, nToWrite
+          close(nToWrite_II(1,iP))
+       end do
+    end if
   end subroutine close_logfile
 end module PIC_ModLogFile
