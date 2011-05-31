@@ -127,3 +127,33 @@ allclean:
 	@touch ${INSTALLFILES}
 	cd src; make distclean
 
+TESTDIR = run_test
+
+test:
+	@echo "test_compile..." > test.diff
+	make test_compile
+	@echo "test_rundir..." >> test.diff
+	make test_rundir
+	@echo "test_run..." >> test.diff
+	make test_run
+	@echo "test_check..." >> test_eosgodunov.diff
+	make test_check
+
+test_compile:
+	./Config.pl -g=64,64,64,2,1
+	make 
+
+test_rundir: 
+	rm -rf ${TESTDIR}
+	make rundir RUNDIR=${TESTDIR} 
+	cd ${TESTDIR}; cp -f Param/PARAM.TEST PARAM.in
+
+test_run:
+	cd ${TESTDIR}; ${MPIRUN} ALTOR.exe > runlog
+
+test_check:
+	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-7 \
+	Param/TestOutput/log_noise.out \
+	${TESTDIR}/log_n0001.out > test.diff
+	ls -l test.diff
+
