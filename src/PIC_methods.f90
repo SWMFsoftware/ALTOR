@@ -22,6 +22,7 @@ subroutine PIC_advance(tMax)
                               current_bc_periodic
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
+  use PIC_ModMpi,       ONLY: pass_current
   implicit none
   real,intent(in) :: tMax
 
@@ -30,40 +31,44 @@ subroutine PIC_advance(tMax)
   character(len=*), parameter :: NameSub='PIC_advance'
   !-----------------
   if(tSimulation > tMax)return
-
+  call timing_start('advance')
   !\
   ! Start update through the time step
   !/
   !1. Update the magnetic field through the half time step
-
+  call timing_start('adv_b')
   call update_magnetic
-
+  call timing_stop('adv_b')
   !2. Prepare to move particles
   Rho_G = 0.0; Counter_GD = 0.0; Energy_P = 0.0
 
   !3. Move particles
-
+  call timing_start('adv_particles')
   do iSort = 1, nPType
      call advance_particles(iSort)
   end do
-
+  call timing_stop('adv_particles')
   if(nLogFile>=1)then
      if(mod(iStep,nLogFile)==0)&
           call write_logfile
   end if
 
+  
   !\
   !4. Update Magnetic field through a half timestep
   !/
+  call timing_start('adv_b')
   call update_magnetic
-
+  call timing_stop('adv_b')
   !5. Collect currents
-  call current_bc_periodic
-
+  call pass_current
+  
   !6. Advance electric field
+  call timing_start('adv_e')
   call update_e
+  call timing_stop('adv_e')
   call field_bc_periodic
-
+  call timing_stop('advance')
   iStep = iStep + 1
   tSimulation = tSimulation + Dt
   
