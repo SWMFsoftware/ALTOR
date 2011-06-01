@@ -355,13 +355,13 @@ contains
     else
        do k=1,nZ; do j=1,nY; do i=1,nX
           Energy_V(1) = Energy_V(1) + 0.1250*&
-               sum(Magnetic_GD(i,j-1:j,k-1:k,x_)**2)
+               sum((Magnetic_GD(i,j-1:j,k-1:k,x_) - B0_D(x_))**2)
 
           Energy_V(2) = Energy_V(2) + 0.1250*&
-               sum(Magnetic_GD(i-1:i,j,k-1:k,y_)**2)
+               sum((Magnetic_GD(i-1:i,j,k-1:k,y_) - B0_D(y_))**2)
 
           Energy_V(3) = Energy_V(3) + 0.1250*&
-               sum(Magnetic_GD(i-1:i,j-1:j,k,z_)**2)
+               sum((Magnetic_GD(i-1:i,j-1:j,k,z_) - B0_D(z_))**2)
 
 
           Energy_V(4) = Energy_V(4) + 0.250*&
