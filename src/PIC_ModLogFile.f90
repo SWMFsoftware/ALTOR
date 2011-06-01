@@ -34,7 +34,7 @@ module PIC_ModLogFile
 
   real  :: Value_V(Time_:ETotal_)
   character(LEN=30) ::NameFormat
-  integer::nToWrite=0, nToWrite_II(3,100) 
+  integer,public::nToWrite=0, nToWrite_II(3,100) 
 contains
   !======================
   subroutine open_logfile
@@ -83,8 +83,8 @@ contains
   subroutine write_logfile
     use PIC_ModProc,      ONLY: iProc
     use PIC_ModField,     ONLY: get_field_energy
-    use PIC_ModMain,      ONLY: iStep, tSimulation
-    use PIC_ModParticles, ONLY: Energy_P, Of, particles
+    use PIC_ModMain,      ONLY: iStep, tSimulation, Dx_D
+    use PIC_ModParticles, ONLY: Energy_P, Of, particles, Wx_,Wz_
     use ModUtilities, ONLY: flush_unit
     integer :: iP
     !-----------------------
@@ -110,7 +110,8 @@ contains
     call flush_unit(iLogUnit)
     do iP=1, nToWrite
        write(nToWrite_II(1,iP),'(i10,7es13.5)')iStep, tSimulation, &
-            Of(nToWrite_II(2,iP))%Coords(:,nToWrite_II(2,iP))
+            Of(nToWrite_II(2,iP))%Coords(1:nDim,nToWrite_II(3,iP))*Dx_D,&
+            Of(nToWrite_II(2,iP))%Coords(Wx_:Wz_,nToWrite_II(3,iP))
        call flush_unit(nToWrite_II(1,iP))
     end do
   end subroutine write_logfile

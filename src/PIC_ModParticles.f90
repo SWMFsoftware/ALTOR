@@ -244,13 +244,18 @@ contains
          E_P, Energy_P, nPType, MPI_REAL,MPI_SUM,  0, iComm, iError)
   end subroutine pass_energy
   !=========================
-  subroutine add_velocity(W_D, iSort)
-    real,    intent(in) :: W_D(Wx_:Wz_)
-    integer, intent(in) :: iSort
+  subroutine add_velocity
+    use ModReadParam, ONLY: read_var
+    real      :: W_D(Wx_:Wz_)
+    integer   :: iSort
 
     real,dimension(:,:),pointer::Coord_VI
     integer :: iP
     !------------------
+    call read_var('iSort',iSort)
+    call read_var('Wx'   ,W_D(Wx_))
+    call read_var('Wy'   ,W_D(Wy_))
+    call read_var('Wz'   ,W_D(Wz_))
     call set_pointer_to_particles(iSort,Coord_VI)
     do iP = 1,n_P(iSort)
        Coord_VI(Wx_:Wz_,iP) = Coord_VI(Wx_:Wz_,iP) + W_D

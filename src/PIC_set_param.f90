@@ -4,7 +4,7 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModMain
   use PIC_ModSize,    ONLY: nDim
   use PIC_ModParticles
-  use PIC_ModLogFile, ONLY: nLogFile
+  use PIC_ModLogFile, ONLY: nLogFile, nToWrite, nToWrite_II
   use PIC_ModThermal, ONLY: read_temperature
   use PIC_ModField,   ONLY: add_e, add_b
   use ModConst
@@ -20,10 +20,12 @@ subroutine PIC_set_param(TypeAction)
   ! The name of the command
   character (len=lStringLine) :: NameCommand, StringLine, NameDescription
   integer :: iSession
-  integer :: iDim, iP
+  integer :: iDim, iP, iVar
   
   character(LEN=10) :: NameNormalization
   integer:: nPPerCrit
+
+  real   :: Value_V(nDim+3)
 
   integer            :: TimingDepth=-1
   character (len=10) :: TimingStyle='cumm'
@@ -125,8 +127,25 @@ subroutine PIC_set_param(TypeAction)
      case('#ADDB')
         call add_b
 
+     case('#ADDVELOCITY')
+        call add_velocity
+
      case('#TIMESTEP')
         call read_var('Dt',Dt)
+    
+     case('#TESTPARTICLE')
+        call read_var('iSort', iP)
+        do iVar = 1, 3 + nDim
+           call read_var('Coords(iVar)', Value_V(iVar))
+        end do
+        if (iProc==0)then
+           nToWrite = nToWrite +1
+           call put_particle(iP,Value_V(1:nDim))
+           Of(iP)% Coords(Wx_:Wz_,n_P(iP)) = Value_V(Wx_:Wz_)
+           nToWrite_II(2,nToWrite) = iP
+           nToWrite_II(3,nToWrite) = n_P(iP)
+        end if
+        
 
      case("#END")
         IslastRead=.true.
