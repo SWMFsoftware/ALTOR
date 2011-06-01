@@ -43,6 +43,7 @@ module PIC_ModField
        1-iGCN:nX+iGCN,&
        1-iGCN:nY+iGCN,&
        1-iGCN:nZ+iGCN)::rho_G
+  real :: B0_D(3) = 0.0
 
  !Methods
 
@@ -74,18 +75,17 @@ contains
   !===================
   subroutine add_b
     use ModReadParam, ONLY: read_var
-    real:: B_D(3)
     integer:: i,j,k,iDim
     !------------
-    call read_var('Bx',B_D(1))
-    call read_var('By',B_D(2))
-    call read_var('Bz',B_D(3))
+    call read_var('Bx',B0_D(1))
+    call read_var('By',B0_D(2))
+    call read_var('Bz',B0_D(3))
     do iDim = 1,3
        do k=1-iGCN,nZ+iGCN
           do j=1-iGCN,nY+iGCN
              do i=1-iGCN,nX+iGCN
                 Magnetic_GD(i,j,k,iDim) = &
-                     Magnetic_GD(i,j,k,iDim) + B_D(iDim)
+                     Magnetic_GD(i,j,k,iDim) + B0_D(iDim)
              end do
           end do
        end do
@@ -334,13 +334,13 @@ contains
        call get_b_from_a()
        do k=1,nZ; do j=1,nY; do i=1,nX
           Energy_V(1) = Energy_V(1) + 0.1250*&
-               sum(Counter_GD(i,j-1:j,k-1:k,x_)**2)
+               sum((Counter_GD(i,j-1:j,k-1:k,x_) - B0_D(x_))**2)
 
           Energy_V(2) = Energy_V(2) + 0.1250*&
-               sum(Counter_GD(i-1:i,j,k-1:k,y_)**2)
+               sum((Counter_GD(i-1:i,j,k-1:k,y_) - B0_D(y_))**2)
 
           Energy_V(3) = Energy_V(3) + 0.1250*&
-               sum(Counter_GD(i-1:i,j-1:j,k,z_)**2)
+               sum((Counter_GD(i-1:i,j-1:j,k,z_) - B0_D(z_))**2)
 
 
           Energy_V(4) = Energy_V(4) + 0.250*&
