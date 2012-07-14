@@ -42,7 +42,7 @@ contains
     !Asterisk means non-zero FF value
     !Node-2!Node-1!Node  !Node+1!           
     !      !      !------!      ! '----' means the particle position
-    !      0      1      2      3 Low
+    !      0*     1*     2*     3* Low
     !      !      !      !      !
     !      !  1*  !  2*  !  3*  ! High
     !      !      !      !      !
@@ -52,40 +52,14 @@ contains
        HighFFOut_ID(1, iDim) = cHalf *( 1.0 - d_D(iDim))**2
        HighFFOut_ID(2, iDim) = 0.750 - (cHalf - d_D(iDim))**2
        HighFFOut_ID(3, iDim) = cHalf * d_D(iDim)**2
+
+       LowFF_ID(0,iDim)      = cHalf * HighFFOut_ID(1, iDim)
+       LowFF_ID(1,iDim)      = cHalf * (HighFFOut_ID(1, iDim) +&
+                                        HighFFOut_ID(2, iDim)  )
+       LowFF_ID(2,iDim)      = cHalf * (HighFFOut_ID(2, iDim) +&
+                                        HighFFOut_ID(3, iDim)  )
+       LowFF_ID(3,iDim)      = cHalf * HighFFOut_ID(3, iDim)
     end do
 
-    NodeAux_D = floor(X_D + cHalf)
-    d_D = X_D + cHalf - real(NodeAux_D)
-
-    iShift_D = NodeAux_D - NodeOut_D
-    !If iShift=0:
-    !Asterisk means non-zero FF value
-    !Node-2!Node-1!Node  !Node+1!           
-    !      !      !   ---!      ! '----' means the particle position
-    !      0      1*     2*     3* Low
-    !      !      !      !      !
-    !      !  1*  !  2*  !  3*  ! High
-    !      !      !      !      !
-    !   Node-2  Node-1 Node   Node+1
-
-    !If iShift=-1:
-    !Asterisk means non-zero FF value
-    !Node-2!Node-1!Node  !Node+1!           
-    !      !      !---   !      ! '----' means the particle position
-    !      0*     1*     2*     3  Low
-    !      !      !      !      !
-    !      !  1*  !  2*  !  3*  ! High
-    !      !      !      !      !
-    !   Node-2  Node-1 Node   Node+1
-
-    do iDim=1,nDim
-   
-       Aux_I(1) = cHalf *( 1.0 - d_D(iDim))**2
-       Aux_I(2) = 0.750 - (cHalf - d_D(iDim))**2
-       Aux_I(3) = cHalf * d_D(iDim)**2
-       LowFF_ID(:,iDim) = 0.0
-       LowFF_ID(1+iShift_D(iDim):3+iShift_D(iDim),iDim) = Aux_I
-    end do
-    
   end subroutine get_form_factors
 end module PIC_ModFormFactor

@@ -54,12 +54,12 @@ contains
         write(Name,'(a,i4.4,a)')'log_n',nLogFile,'.out'
         iLogUnit = io_unit_new()
         open(iLogUnit,file=Name,status='replace')
-        write(Name,'(a)')'iStep Time '
+        write(Name,'(a)')'iStep Time'
         do iP = 1, nPType
            write(Name1,'(i1.1)')iP
-           Name = trim(Name)//'Energy'//Name1//' '
+           Name = trim(Name)//' '//'Energy'//Name1
         end do
-        Name = trim(Name)//'Bx2 By2 Bz2 Ex2 Ey2 Ez2 ETotal'
+        Name = trim(Name)//' Bx2 By2 Bz2 Ex2 Ey2 Ez2 ETotal'
         write(iLogUnit,'(a)') Name
         do iP = 1, nToWrite
            nToWrite_II(1,iP) = io_unit_new()
