@@ -71,7 +71,7 @@ LIBTIMING = ${LIBDIR}/libTIMING.a
 # Libraries should be compiled first, because modules are used in main.
 ${OBJECTS_EXE}: ${LIBSHARE} ${LIBTIMING} ${MY_LIB}
 
-EXE = ${BINDIR}/ALTOR.exe
+EXE = ${PCDIR}/srcQED/ALTOR.exe
 
 ALTOR:
 	make ${EXE}
