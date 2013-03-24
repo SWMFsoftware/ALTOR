@@ -61,7 +61,7 @@ contains
   subroutine MPIerror_report(nError,name,textMessage) !-------------------
     !MPI errors with simple diagnose
     !
-    integer, intent(in) :: nError
+    integer :: nError
     character (len=*) :: name,textMessage
     !
     if(iError==0) then
@@ -97,10 +97,10 @@ contains
     integer, intent(in) :: n
     real, intent(in) :: x(n)
     real, intent(out) :: xGlob(n)
-    !call MPI_ALLREDUCE(x,xGlob,n,MPI_DOUBLE_PRECISION,&
-     !    MPI_MAX,MPI_COMM_WORLD,iError)
-   iError=MPI_ALLREDUCE(x,xGlob,n,MPI_DOUBLE_PRECISION,&
-         MPI_MAX,MPI_COMM_WORLD)
+    call MPI_ALLREDUCE(x,xGlob,n,MPI_DOUBLE_PRECISION,&
+         MPI_MAX,MPI_COMM_WORLD,iError)
+   !iError=MPI_ALLREDUCE(x,xGlob,n,MPI_DOUBLE_PRECISION,&
+    !     MPI_MAX,MPI_COMM_WORLD)
 
     if(iError /= MPI_SUCCESS) &
          call MPIerror_report(0,nameLocal,'ALLREDUCE MAX')
