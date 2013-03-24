@@ -61,7 +61,7 @@ QED:
 	cd ${SHAREDIR};make LIB
 	cd ${TIMINGDIR};make LIB
 	cd srcQED; make LIB
-	cd src; make ALTOR
+	cd srcQED; make ALTOR
 
 NOMPI:
 	cd util/NOMPI/src; make LIB
