@@ -39,7 +39,7 @@ help:
 	@echo '    distclean (equivalent to ./Config.pl -uninstall)'
 	@echo '    dist      (create source distribution tar file)'
 
-INSTALLFILES =	src/Makefile.DEPEND
+INSTALLFILES =	src/Makefile.DEPEND srcQED/Makefile.DEPEND
 
 
 install: src/PIC_ModSize.f90
@@ -55,6 +55,12 @@ ALTOR:
 	cd ${SHAREDIR}; make LIB
 	cd ${TIMINGDIR}; make LIB
 	cd src; make LIB
+	cd src; make ALTOR
+
+QED:
+	cd ${SHAREDIR};make LIB
+	cd ${TIMINGDIR};make LIB
+	cd srcQED; make LIB
 	cd src; make ALTOR
 
 NOMPI:
