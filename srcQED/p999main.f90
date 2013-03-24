@@ -535,9 +535,9 @@ end program focus_atto
 !
 subroutine CON_stop(StringError)
   use ModMpi
-  use PIC_ModProc
   implicit none
   !-------------------
+  integer:: iError=0
   character (len=*), intent(in) :: StringError
   write(*,'(a)')StringError
   
