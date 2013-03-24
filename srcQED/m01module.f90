@@ -10,7 +10,7 @@ module MPImodule
   integer :: mpiProcN ! number of procs 
   integer :: mpiProc  ! current proc
   integer, parameter :: mpiHost=0  ! proc printing reports
-  integer :: mpiError,errorcode
+  integer :: mpiError
   !real (kind=8) :: mpiWtime0 
   !  character (len=MPI_MAX_PROCESSOR_NAME) nameProc
   character (len=MPI_MAX_ERROR_STRING) :: mpiMessage
@@ -45,6 +45,7 @@ contains
     !only MPI errors with complicated diagnose in REDUCE,ALLREDUCE
     !
     integer :: nChar
+    integer :: errorcode=0
     !character (len=*) :: name,text ???
     character (len=*), intent(in) :: name,text
     !
@@ -62,6 +63,7 @@ contains
     !MPI errors with simple diagnose
     !
     integer :: nError
+    integer :: errorcode=0
     character (len=*) :: name,textMessage
     !
     if(iError==0) then
