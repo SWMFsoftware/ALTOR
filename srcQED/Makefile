@@ -34,6 +34,7 @@ OBJECTS= \
 	p107fields_advance.o \
 	p108fields_initiate.o \
 	p109output_field.o \
+	p003qed.o \
 	p999main.o 
 
 
