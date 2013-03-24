@@ -532,3 +532,24 @@ program focus_atto
   call MPIfinalize
   !
 end program focus_atto
+!
+subroutine CON_stop(StringError)
+  use ModMpi
+  use PIC_ModProc
+  implicit none
+  !-------------------
+  character (len=*), intent(in) :: StringError
+  write(*,'(a)')StringError
+  
+  !Finalize MPI
+  call MPI_Finalize(iError)
+  
+  stop
+end subroutine CON_stop
+!============================================================================
+subroutine CON_set_do_test(String,DoTest,DoTestMe)
+  implicit none
+  character (len=*), intent(in)  :: String
+  logical          , intent(out) :: DoTest, DoTestMe
+end subroutine CON_set_do_test
+
