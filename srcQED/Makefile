@@ -34,8 +34,7 @@ OBJECTS= \
 	p107fields_advance.o \
 	p108fields_initiate.o \
 	p109output_field.o \
-	p003qed.o \
-	p999main.o 
+	p003qed.o  
 
 
 #2dperiodicMPI.o
@@ -63,7 +62,7 @@ ${MY_LIB}: ${OBJECTS}
 	${AR} ${MY_LIB} ${OBJECTS}
 
 # Object files not included into the library
-OBJECTS_EXE = PIC_main.o
+OBJECTS_EXE = p999main.o
 
 # Other requireed libraries
 LIBSHARE  = ${LIBDIR}/libSHARE.a
