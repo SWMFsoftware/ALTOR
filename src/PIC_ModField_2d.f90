@@ -273,8 +273,7 @@ contains
           Energy_V(5) = Energy_V(5) + 0.250*&
                sum(E_GD(i,j-1:j,y_)**2)
 
-          Energy_V(6) = Energy_V(6) + 0.50*&
-               sum(E_GD(i,j,z_)**2)
+          Energy_V(6) = Energy_V(6) + 0.50*E_GD(i,j,z_)**2
        end do; end do
     else
        do j=1,nY; do i=1,nX
@@ -294,8 +293,7 @@ contains
           Energy_V(5) = Energy_V(5) + 0.250*&
                sum(E_GD(i,j-1:j,y_)**2)
 
-          Energy_V(6) = Energy_V(6) + 0.50*&
-               sum(E_GD(i,j,z_)**2)
+          Energy_V(6) = Energy_V(6) + 0.50*E_GD(i,j,z_)**2
        end do; end do
     end if
     Energy_V = (CellVolume/(4.0 * cPi)) * Energy_V
@@ -366,163 +364,116 @@ contains
   !=================================
   subroutine current_bc_periodic
     real :: Current_F(0:nX,0:nY)
-    integer :: i, j, k, iInner, jInner, kInner
+    integer :: i, j, iInner, jInner
     !-------------------------------!
     !++++++++++++x_ currents++++++++++++++++=
     Current_F = 0.0
     
     do j=1-iGCN,nY+iGCN
        jInner = j - nY*floor( (j - 0.50) /nY )
+       !select x-faces
+       ! -1
        do i=1-iGCN, -1
           iInner = i + nX
           Current_F(iInner,jInner) = &
                Current_F(iInner,jInner) + &
                Counter_GD(i,j, x_)
        end do
+       !0
        Current_F( 0,jInner) = &
             Current_F( 0,jInner) + &
             Counter_GD( 0,j, x_)      + &
             Counter_GD(nX,j, x_)
-
+       !2,nX-1
        do i=2,nX-1
           iInner = i
           Current_F(iInner,jInner) = &
-                   Current_F(iInner,jInner,kInner) + &
-                   Counter_GD(i,j,k, x_)
-           end do
-           Current_F(nX,jInner,kInner) = &
-                Current_F(nX,jInner,kInner) + &
-                Counter_GD( 0,j,k, x_)      + &
-                Counter_GD(nX,j,k, x_)
-       
-           do i=nX+1, nX+iGCN-1
-              iInner = i - nX
-              Current_F(iInner,jInner,kInner) = &
-                   Current_F(iInner,jInner,kInner) + &
-                   Counter_GD(i,j,k, x_)
-           end do
-        end do
+                   Current_F(iInner,jInner) + &
+                   Counter_GD(i,j, x_)
+       end do
+       !nX
+       Current_F(nX,jInner) = &
+            Current_F(nX,jInner) + &
+            Counter_GD( 0,j,x_)      + &
+            Counter_GD(nX,j,x_)
+       !nX+1
+       do i=nX+1, nX+iGCN-1
+          iInner = i - nX
+          Current_F(iInner,jInner) = &
+               Current_F(iInner,jInner) + &
+               Counter_GD(i,j,x_)
+       end do
      end do
-     Counter_GD(:,:,:,x_) = 0.0
-     Counter_GD(0:nX,1:nY,1:nZ,x_) = Current_F(0:nX,1:nY,1:nZ)
+     Counter_GD(:,:,x_) = 0.0
+     Counter_GD(0:nX,1:nY,x_) = Current_F(0:nX,1:nY)
 
      !++++++++++y_ currents+++++++++++++++
-
-     Current_F = 0.0
-     do k=1-iGCN,nZ+iGCN
-        kInner = k - nZ*floor( (k - 0.50) /nZ )
-        
-        do j=1-iGCN, -1
-           jInner = j + nY
-           do i=1-iGCN,nX+iGCN
-              iInner = i - nX*floor( (i - 0.50) /nX )
-              Current_F(iInner,jInner,kInner) = &
-                   Current_F(iInner,jInner,kInner) + &
-                   Counter_GD(i,j,k, y_)
-           end do
-        end do
+     !Select y faces
+     !-1
+     do j=1-iGCN, -1
+        jInner = j + nY
         do i=1-iGCN,nX+iGCN
            iInner = i - nX*floor( (i - 0.50) /nX )
-           Current_F( iInner,0,kInner) = &
-                Current_F( iInner,0,kInner) + &
-                Counter_GD( i, 0,k, y_)      + &
-                Counter_GD( i,nY,k, y_)
-        end do
-        do j=2,nY-1
-           jInner = j 
-           do i=1-iGCN,nX+iGCN
-              iInner = i - nX*floor( (i - 0.50) /nX )
-              Current_F(iInner,jInner,kInner) = &
-                   Current_F(iInner,jInner,kInner) + &
-                   Counter_GD(i,j,k, y_)
-           end do
-        end do
-        do i=1-iGCN,nX+iGCN
-           iInner = i - nX*floor( (i - 0.50) /nX )
-           Current_F( iInner,nY,kInner) = &
-                Current_F( iInner,nY,kInner) + &
-                Counter_GD( i, 0,k, y_)      + &
-                Counter_GD( i,nY,k, y_)
-        end do
-        do j=nY+1,nY+iGCN-1
-           jInner = j - nY
-           do i=1-iGCN,nX+iGCN
-              iInner = i - nX*floor( (i - 0.50) /nX )
-              Current_F(iInner,jInner,kInner) = &
-                   Current_F(iInner,jInner,kInner) + &
-                   Counter_GD(i,j,k, y_)
-           end do
+           Current_F(iInner,jInner) = &
+                Current_F(iInner,jInner) + &
+                Counter_GD(i,j,y_)
         end do
      end do
-     Counter_GD(:,:,:,y_) = 0.0
-     Counter_GD(1:nX,0:nY,1:nZ,y_) = Current_F(1:nX,0:nY,1:nZ)
+     !0
+     do i=1-iGCN,nX+iGCN
+        iInner = i - nX*floor( (i - 0.50) /nX )
+        Current_F( iInner,0) = &
+             Current_F( iInner,0) + &
+             Counter_GD( i, 0,y_)      + &
+             Counter_GD( i,nY,y_)
+     end do
+     !2,nY-1
+     do j=2,nY-1
+        jInner = j 
+        do i=1-iGCN,nX+iGCN
+           iInner = i - nX*floor( (i - 0.50) /nX )
+           Current_F(iInner,jInner) = &
+                Current_F(iInner,jInner) + &
+                Counter_GD(i,j,y_)
+        end do
+     end do
+     !nY
+     do i=1-iGCN,nX+iGCN
+        iInner = i - nX*floor( (i - 0.50) /nX )
+        Current_F( iInner,nY) = &
+             Current_F( iInner,nY) + &
+             Counter_GD( i, 0,y_)      + &
+             Counter_GD( i,nY,y_)
+     end do
+     !nY+1
+     do j=nY+1,nY+iGCN-1
+        jInner = j - nY
+        do i=1-iGCN,nX+iGCN
+           iInner = i - nX*floor( (i - 0.50) /nX )
+           Current_F(iInner,jInner) = &
+                Current_F(iInner,jInner) + &
+                Counter_GD(i,j,y_)
+        end do
+     end do
+     Counter_GD(:,:,y_) = 0.0
+     Counter_GD(1:nX,0:nY,y_) = Current_F(1:nX,0:nY)
 
      !++++++++++z_ currents+++++++++++++++
 
      Current_F = 0.0
-     do k=1-iGCN,-1
-        kInner = k + nZ
-        do j=1-iGCN,nY+iGCN
-           jInner = j - nY*floor( (j - 0.50) /nY ) 
-           do i=1-iGCN,nX+iGCN
-              iInner = i - nX*floor( (i - 0.50) /nX )
-              Current_F(iInner,jInner,kInner) = &
-                   Current_F(iInner,jInner,kInner) + &
-                   Counter_GD(i,j,k, z_)
-           end do
-        end do
-     end do
- 
+     
      do j=1-iGCN,nY+iGCN
-        jInner = j - nY*floor( (j - 0.50) /nY )
+        jInner = j - nY*floor( (j - 0.50) /nY ) 
         do i=1-iGCN,nX+iGCN
            iInner = i - nX*floor( (i - 0.50) /nX )
-           Current_F( iInner,jInner,0) = &
-                Current_F( iInner,jInner,0) + &
-                Counter_GD( i, j, 0, z_)      + &
-                Counter_GD( i, j,nZ, z_)
-        end do
-     end do
-   
-     do k=2,nZ-1
-        kInner = k
-        do j=1-iGCN,nY+iGCN
-           jInner = j - nY*floor( (j - 0.50) /nY ) 
-           do i=1-iGCN,nX+iGCN
-              iInner = i - nX*floor( (i - 0.50) /nX )
-              Current_F(iInner,jInner,kInner) = &
-                   Current_F(iInner,jInner,kInner) + &
-                   Counter_GD(i,j,k, z_)
-           end do
+           Current_F(iInner,jInner) = &
+                Current_F(iInner,jInner) + &
+                Counter_GD(i,j,z_)
         end do
      end do
 
-     do j=1-iGCN,nY+iGCN
-        jInner = j - nY*floor( (j - 0.50) /nY )
-        do i=1-iGCN,nX+iGCN
-           iInner = i - nX*floor( (i - 0.50) /nX )
-           Current_F( iInner,jInner,nZ) = &
-                Current_F( iInner,jInner,nZ) + &
-                Counter_GD( i, j, 0, z_)      + &
-                Counter_GD( i, j,nZ, z_)
-        end do
-     end do
-
-     do k=nZ+1,nZ+iGCN,-1
-        kInner = k - nZ
-        do j=1-iGCN,nY+iGCN
-           jInner = j - nY*floor( (j - 0.50) /nY ) 
-           do i=1-iGCN,nX+iGCN
-              iInner = i - nX*floor( (i - 0.50) /nX )
-              Current_F(iInner,jInner,kInner) = &
-                   Current_F(iInner,jInner,kInner) + &
-                   Counter_GD(i,j,k, z_)
-           end do
-        end do
-     end do
-
-     Counter_GD(:,:,:,z_) = 0.0
-     Counter_GD(1:nX,1:nY,0:nZ,z_) = Current_F(1:nX,1:nY,0:nZ)
+     Counter_GD(:,:,z_) = 0.0
+     Counter_GD(1:nX,1:nY,z_) = Current_F(1:nX,1:nY)
 
   end subroutine current_bc_periodic
   !======================
