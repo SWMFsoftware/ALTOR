@@ -205,6 +205,121 @@ contains
        end do
     end do
   end subroutine uniform
+
+  !==========================================
+  !=========reading command #FOIL============
+  !==========================================
+  subroutine read_foil
+    use ModReadParam,ONLY: read_var
+    use PIC_ModProc
+    use ModConst,    ONLY: cDegToRqd
+    use PIC_ModMpi,  ONLY: pass_density
+    use ModMpi
+
+    integer:: nPPerCell_P(nPType)=0
+    integer:: iSort
+    real :: xFoilCenter(nDim)
+    real :: xFoilWidth(nDim)
+    real :: angleFoil
+    !--------------
+    do iSort = 1,nPType
+       call read_var('nPPerCell',nPPerCell_P(iSort))
+       if(nPPerCell_P(iSort)<0.and.iProc==0)&
+            write(*,*)'Particles will neutralize electrons'
+    end do
+    call read_var('xFoilCenter',xFoilCenter(1))
+    call read_var('yFoilCenter',xFoilCenter(2))
+    call read_var('zFoilCenter',xFoilCenter(3))
+    call read_var('xFoilWidth',xFoilWidth(1))
+    call read_var('yFoilWidth',xFoilWidth(2))
+    call read_var('zFoilWidth',xFoilWidth(3))
+    call read_var('angleFoil',angleFoil)
+    !
+    rho_G = 0.0
+    call foil(nPPerCell_P)
+    if(nProc==1)then
+       nTotal_P = n_P
+    else
+       call MPI_reduce(n_P, nTotal_P, nPType, MPI_INTEGER,&
+            MPI_SUM, 0, iComm, iError)
+    end if
+    call pass_density(0)
+    if(iProc==0)then
+       write(*,*)'Particles are distributed'
+       do iSort = 1, nPType
+          write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
+       end do
+       write(*,*)'Particle density max:',max_val_rho()
+       write(*,*)'Particle density min:',min_val_rho()
+       write(*,*)'Particle density average:',rho_avr()
+    end if
+  contains
+    !
+    !================================
+    subroutine foil(nPPerCellIn_P)
+      use PIC_ModProc
+      use PIC_ModRandom
+      integer, intent(in) :: nPPerCellIn_P(nPType)
+      integer             :: nPPerCell_P(nPType)
+      integer :: nPPerPE, nResidual, NPTotal, iSort, iDim, iP
+      real    :: Coord_D(nDim) 
+      real    :: xPrime(nDim)
+      real    :: angleSin, angleCos
+      logical :: UseQuasineutral
+      !--------------------------
+      angleSin=sin(angleFoil*cDegToRad)
+      angleCos=cos(angleFoil*cDegToRad)
+      do iSort = 1, nPType
+         
+         if(nPPerCellIn_P(iSort)==0)CYCLE
+         
+         if(nPPerCellIn_P(iSort) > 0)then
+            nPPerCell_P(iSort) = nPPerCellIn_P(iSort)
+            UseQuasiNeutral = .false.
+         else
+            nPPerCell_P(iSort) = -nPPerCellIn_P(iSort)
+            UseQuasiNeutral = .true.
+         end if
+
+         NPTotal = xFoilWidth*yFoilWidth*zFoilWidth/CellVolume &
+              *nPPerCell_P(iSort)
+         nPPerPE = NPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
+         
+         if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
+         
+         if(UseQuasiNeutral)then
+            !Initialize the same random number sequence as 
+            !for electrons
+            call parallel_init_rand(nDim * nPPerPE, Electrons_)
+         else
+            call parallel_init_rand(nDim * nPPerPE, iSort)
+         end if
+         !
+         PART:        do iP = 1, nPPerPE
+            !
+            do iDim = 1,nDim
+               xPrime(iDim) = xFoilWidth(iDim)*(RAND()-0.5))
+            end do
+            !
+            Coord_D(1) = xPrime(2)*angleSin+xPrime(1)*angleCos
+            Coord_D(2) = xPrime(2)*angleCos-xPrime(1)*angleSin
+            Coord_D(3) = xPrime(3)
+            !
+            do iDim = 1,nDim
+               Coord_D(iDim) = (xFoilCenter(iDim)+Coord_D(iDim))/Dx_D(iDim)
+            end do
+            if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. nCell_D(1) &
+                 Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. nCell_D(2) &
+                 Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. nCell_D(3) &
+                 ) cycle PART
+            call put_particle(iSort, Coord_D)
+            call get_form_factors(Coord_D,Node_D,HighFF_ID)
+            call add_density(Node_D,HighFF_ID)
+         end do PART
+    end do
+  end subroutine foil
+  !
+end subroutine read_foil
   !====================
   subroutine get_energy
     use ModMpi
