@@ -118,6 +118,9 @@ subroutine PIC_set_param(TypeAction)
      case('#UNIFORM')
         call read_uniform
 
+     case('#FOIL')
+        call read_foil
+
      case('#THERMALIZE')
         call read_temperature
         
