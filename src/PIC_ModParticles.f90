@@ -212,7 +212,7 @@ contains
   subroutine read_foil
     use ModReadParam,ONLY: read_var
     use PIC_ModProc
-    use ModConst,    ONLY: cDegToRqd
+    use ModConst,    ONLY: cDegToRad
     use PIC_ModMpi,  ONLY: pass_density
     use ModMpi
 
@@ -281,7 +281,7 @@ contains
             UseQuasiNeutral = .true.
          end if
 
-         NPTotal = xFoilWidth*yFoilWidth*zFoilWidth/CellVolume &
+         NPTotal = product(xFoilWidth)/CellVolume &
               *nPPerCell_P(iSort)
          nPPerPE = NPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
          
@@ -298,7 +298,7 @@ contains
          PART:        do iP = 1, nPPerPE
             !
             do iDim = 1,nDim
-               xPrime(iDim) = xFoilWidth(iDim)*(RAND()-0.5))
+               xPrime(iDim) = xFoilWidth(iDim)*(RAND()-0.5)
             end do
             !
             Coord_D(1) = xPrime(2)*angleSin+xPrime(1)*angleCos
@@ -308,9 +308,9 @@ contains
             do iDim = 1,nDim
                Coord_D(iDim) = (xFoilCenter(iDim)+Coord_D(iDim))/Dx_D(iDim)
             end do
-            if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. nCell_D(1) &
-                 Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. nCell_D(2) &
-                 Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. nCell_D(3) &
+            if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. real(nCell_D(1)) &
+                 Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. real(nCell_D(2)) &
+                 Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. real(nCell_D(3)) &
                  ) cycle PART
             call put_particle(iSort, Coord_D)
             call get_form_factors(Coord_D,Node_D,HighFF_ID)
