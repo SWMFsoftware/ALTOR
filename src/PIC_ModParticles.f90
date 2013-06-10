@@ -45,6 +45,7 @@ contains
   subroutine set_pointer_to_particles(iSort,PointerToSet)
     integer,intent(in)::iSort
     real,dimension(:,:),pointer::PointerToSet
+    nullify(PointerToSet)
     PointerToSet=>Of(iSort)%Coords
   end subroutine set_pointer_to_particles
   
@@ -308,8 +309,8 @@ contains
             do iDim = 1,nDim
                Coord_D(iDim) = (xFoilCenter(iDim)+Coord_D(iDim))/Dx_D(iDim)
             end do
-            if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. real(nCell_D(1)) &
-                 Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. real(nCell_D(2)) &
+            if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. real(nCell_D(1)) .or.&
+                 Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. real(nCell_D(2)) .or.&
                  Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. real(nCell_D(3)) &
                  ) cycle PART
             call put_particle(iSort, Coord_D)
