@@ -139,59 +139,7 @@ contains
  
   end function b_interpolated_d
   !============================
-  !===========================
-  !function b_interpolated_d()
-  !  !Sets the pointer to the fragment of the magnetic field array to 
-  !  !interpolate B
-  !  real,dimension(1:3)::b_interpolated_d
-  !  real,dimension(1-iExt:lOrderFF+1,&
-  !                 1-iExt:lOrderFF+1,&
-  !                 1-iExt:lOrderFF+1,1:3)&
-  !       ::BOut_GD
-  !  if(UseVectorPotential)then
-  !     call get_b_from_a(BOut_GD)
-  !     call interpolate_b(BOut_GD)
-  !  else   
-  !     call interpolate_b(Magnetic_GD(&
-  !                       Node_D(1)+iDownFF-iExt:Node_D(1)+iUpFF,&
-  !                       Node_D(2)+iDownFF-iExt:Node_D(2)+iUpFF,&
-  !                       Node_D(3)+iDownFF-iExt:Node_D(3)+iUpFF,1:3))
-  !  end if
-  !contains
-  !  subroutine interpolate_b(BIn_GD)
-  !    !calculate the interpolated value of the magnetic field
-  !    !Optimized loops are used, the ranges of indexes being
-  !    !declared as parameters
-  !    real,dimension(1-iExt:lOrderFF+1,&
-  !                   1-iExt:lOrderFF+1,&
-  !                   1-iExt:lOrderFF+1,1:3),&
-  !         intent(in)::BIn_GD
-  !    integer::i,j,k
-  !    !--------------
-  !    b_interpolated_d = 0.0
-  !
-  !    do k=1-iExt,lOrderFF+iExt
-  !       do j=1-iExt,lOrderFF+iExt
-  !          b_interpolated_d(x_)= b_interpolated_d(x_)+ &
-  !          sum(BIn_GD(1:lOrderFF+1,j,k,x_)*HighFF_ID(:,x_))&
-  !               *LowFF_ID(j,y_)*LowFF_ID(k,z_)
-  !       end do
-  !       do j=1,lOrderFF+1
-  !          b_interpolated_d(y_)= b_interpolated_d(y_)+ &
-  !          sum(BIn_GD(1-iExt:lOrderFF+iExt,j,k,y_)*LowFF_ID(:,x_))&
-  !               *HighFF_ID(j,y_)*LowFF_ID(k,z_)
-  !       end do
-  !    end do
-  !    do k=1,lOrderFF+1
-  !       do j=1-iExt,lOrderFF+iExt
-  !          b_interpolated_d(z_)= b_interpolated_d(z_)+ &
-  !          sum(BIn_GD(1-iExt:lOrderFF+iExt,j,k,z_)*LowFF_ID(:,x_))&
-  !               *LowFF_ID(j,y_)*HighFF_ID(k,z_)
-  !       end do
-  !    end do
-  !  end subroutine interpolate_b
-  !end function b_interpolated_d
-  !=============================
+ 
   subroutine add_density(NodeIn_D,HighFFIn_ID)
     !Adds an input to the density, from a given particle
     integer,dimension(nDim),intent(in)::NodeIn_D
@@ -235,12 +183,7 @@ contains
     !-------------------
     IsExtended = any(Node_D/=NodeNew_D)
 
-    !\
-    !For testing 
-    !
-    ! call write_current
-    ! For testing the extended version 
-    ! if(IsExtended)Counter_GD=0.0
+   
 
     if(IsExtended)then
        call get_current_extended
@@ -322,147 +265,8 @@ contains
           end do
        end do
     end if
-    !\
-    !For testing 
-    !
-    ! call write_current
-    ! For testing the extended version 
-    ! 
-    ! if(IsExtended)then
-    !   call write_current
-    !   stop
-    ! end if
+
   contains
-    !  !=========================
-!  subroutine add_current(QPerVDx_D,W_D) 
-!    real,intent(in)::QPerVDx_D(x_:z_),W_D(x_:z_)
-!    optional::W_D
-!    logical:: IsExtended
-!    !\
-!    ! For simple case
-!    !/
-!
-!    real :: CurrentFragment_GD(1:iUpFF-iDownFF+1,&
-!                               1:iUpFF-iDownFF+1,&
-!                               1:iUpFF-iDownFF+1,1:3)
-!    !\
-!    ! For extended stencil
-!    !/
-!    real :: CurrentFragmentExt_GD(0:iUpFF-iDownFF+2,&
-!                                  0:iUpFF-iDownFF+2,&
-!                                  0:iUpFF-iDownFF+2,1:3)
-!    integer :: iD_D(3), iU_D(3)
-!    real,parameter::sqrt13=cOne/1.732050808
-!    integer::i, j, k, iDim
-!    !-------------------
-!    IsExtended = any(Node_D/=NodeNew_D)
-!
-!    !\
-!    !For testing 
-!    !
-!    ! call write_current
-!    ! For testing the extended version 
-!    ! if(IsExtended)Counter_GD=0.0
-!
-!    if(IsExtended)then
-!       call get_current_extended
-!
-!       iD_D = min(NodeNew_D - Node_D,0)
-!       iU_D = max(NodeNew_D - Node_D,0)
-!
-!       Counter_GD(&
-!                         Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
-!                         Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
-!                         Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),1:3) = &
-!             Counter_GD( Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
-!                         Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
-!                         Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),1:3) + & 
-!             CurrentFragmentExt_GD(      1+iD_D(1):iUpFF-iDownFF+1+iU_D(1),&
-!                                         1+iD_D(2):iUpFF-iDownFF+1+iU_D(2),&
-!                                         1+iD_D(3):iUpFF-iDownFF+1+iU_D(3),1:3)                
-!    else
-!       call get_current_simple
-!
-!       Counter_GD(       Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
-!                         Node_D(2)+iDownFF:Node_D(2)+iUpFF,&
-!                         Node_D(3)+iDownFF:Node_D(3)+iUpFF,1:3) = &
-!             Counter_GD( Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
-!                         Node_D(2)+iDownFF:Node_D(2)+iUpFF,&
-!                         Node_D(3)+iDownFF:Node_D(3)+iUpFF,1:3) + &  
-!             CurrentFragment_GD(         1:iUpFF-iDownFF+1,&
-!                                         1:iUpFF-iDownFF+1,&
-!                                         1:iUpFF-iDownFF+1,  1:3)
-!    end if
-!    !\
-!    !For testing 
-!    !
-!    ! call write_current
-!    ! For testing the extended version 
-!    ! 
-!    ! if(IsExtended)then
-!    !   call write_current
-!    !   stop
-!    ! end if
-!  contains
-!    !============================
-!    subroutine get_current_simple
-!      real,dimension(1:iUpFF-iDownFF+1,nDim)::DeltaFPlus,DeltaFMinus
-!      real,dimension(1:iUpFF-iDownFF  ,nDim)::FI
-!      !----------------------
-!      CurrentFragment_GD = 0.0
-!
-!      DeltaFPlus  = HighFFNew_ID + HighFF_ID
-!      DeltaFMinus = HighFFNew_ID - HighFF_ID
-!
-!      FI(1,:)=DeltaFMinus(1,:)
-!
-!      !Use recursive formula for FI
-!      do i=2,iUpFF-iDownFF
-!         FI(i,:) = FI(i-1,:) + DeltaFMinus(i,:)
-!      end do
-!
-!      !To optimize algebra, multiply FI by -q*4*\pi*dt/4
-!      !and divide \DeltaFMinus by sqrt(3):
-!      do iDim=x_,z_
-!         FI(:,iDim)=(-QPerVDx_D(iDim)*cPi)*FI(:,iDim)
-!      end do
-!
-!      DeltaFMinus=sqrt13*DeltaFMinus
-!
-!      !add current density:
-!      do k=1,iUpFF-iDownFF+1
-!         do j=1,iUpFF-iDownFF+1
-!            !\
-!            !  x_ currents
-!            !/
-!            CurrentFragment_GD(1:iUpFF-iDownFF,j,k,x_) = &
-!                 FI(:,x_)*(&
-!                 DeltaFPlus (j,y_)*DeltaFPlus (k,z_)+&
-!                 DeltaFMinus(j,y_)*DeltaFMinus(k,z_))
-!         end do
-!         do j=1,iUpFF-iDownFF
-!            !\
-!            !  y_ currents
-!            !/
-!            CurrentFragment_GD(1:iUpFF-iDownFF+1,j,k,y_) = &
-!                 FI(j,y_)*(&
-!                 DeltaFPlus (:,x_)*DeltaFPlus (k,z_)+&
-!                 DeltaFMinus(:,x_)*DeltaFMinus(k,z_))
-!         end do
-!      end do
-!      do k=1,iUpFF-iDownFF
-!         do j=1,iUpFF-iDownFF+1
-!            !\
-!            !  z_ currents
-!            !/
-!            CurrentFragment_GD(1:iUpFF-iDownFF+1,j,k,z_)=&
-!                 FI(k,z_)*(&
-!                 DeltaFPlus (:,x_)*DeltaFPlus (j,y_)+&
-!                 DeltaFMinus(:,x_)*DeltaFMinus(j,y_))
-!         end do
-!      end do
-!    end subroutine get_current_simple
-!    !==============================
     subroutine get_current_extended
       real,dimension(0:iUpFF-iDownFF+2,nDim)::DeltaFPlusExt,DeltaFMinusExt
       real,dimension(0:iUpFF-iDownFF+1,nDim)::FIExt
