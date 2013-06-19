@@ -60,7 +60,7 @@ module PIC_ModMain
   !
   !Implemented types: periodic, noreflect, laserbeam
   
-  character(LEN=10) :: TypeFieldBC_S(1:2*nDim)
+  character(LEN=10) :: TypeFieldBC_S(1:2*nDim)='periodic'
   
   
   logical:: IsPeriodicField_D(nDim) = .true.

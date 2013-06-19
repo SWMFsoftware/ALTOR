@@ -20,7 +20,7 @@ subroutine PIC_set_param(TypeAction)
   ! The name of the command
   character (len=lStringLine) :: NameCommand, StringLine, NameDescription
   integer :: iSession
-  integer :: iDim, iP, iVar
+  integer :: iDim, iP, iVar, iSide
   
   character(LEN=10) :: NameNormalization
   integer:: nPPerCrit
@@ -148,7 +148,23 @@ subroutine PIC_set_param(TypeAction)
            nToWrite_II(2,nToWrite) = iP
            nToWrite_II(3,nToWrite) = n_P(iP)
         end if
-        
+  
+     case('#FIELDBC')
+        do iSide = 1, 2*nDim 
+           call read_var('TypeFieldBc_S(iSide)',TypeFieldBc_S(iSide))
+        end do
+        !\
+        !Assign array IsPeriodicField_D
+        !/
+        IsPeriodicField_D = .false.
+        do iDim=1,nDim
+           if(any(TypeFieldBC_S(2*iDim-1:2*iDim)=='periodic'))then
+              IsPeriodicField_D(iDim)=.true.
+              if(iProc==0)write(*,*)&
+                   'Periodic Boundary Conditions for fields along the direction iDim=',iDim
+              TypeFieldBC_S(2*iDim-1:2*iDim) = 'periodic'
+           end if
+        end do
 
      case("#END")
         IslastRead=.true.
