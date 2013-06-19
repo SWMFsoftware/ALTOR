@@ -82,7 +82,8 @@ program PIC
 
 
      TIMELOOP: do
-        if(stop_condition_true())EXIT SESSIONLOOP
+        if(stop_condition_true())EXIT TIMELOOP
+        if(is_time_to_stop())exit SESSIONLOOP
         call timing_step(iStep + 1)
         if(tMax > 0.0)then
            call PIC_advance(tMax)
