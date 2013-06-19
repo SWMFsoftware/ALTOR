@@ -20,6 +20,7 @@ OBJECTS= \
 	PIC_ModProc.o \
 	PIC_ModMain.o \
 	PIC_ModFormFactor_${FF}.o \
+	PIC_ModLaserBeam.o \
 	PIC_ModField_${nDim}d.o \
 	PIC_ModParticleInField_${nDim}d.o \
 	PIC_ModPassField_${nDim}d.o \
