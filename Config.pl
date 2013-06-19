@@ -84,7 +84,7 @@ sub set_grid_size{
 
     $GridSize = $NewGridSize;
 
-    if($GridSize=~/^[1-9]\d*,[1-9]\d*,[1-9]\d*,[1-9]\d*,[1-9]\d*
+    if($GridSize=~/^[1-9]\d*,[1-9]\d*,[1-9]\d*,[0-9]\d*,[1-9]\d*
        $/x){
 	($nX,$nY,$nZ,$nPType,$MaxBlock)= split(',', $GridSize);
     }elsif($GridSize){
