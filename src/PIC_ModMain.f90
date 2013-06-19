@@ -41,4 +41,28 @@ module PIC_ModMain
   ! Timing variables
   logical:: UseTiming = .true.
   integer:: nTiming = -2
+  
+  !\
+  ! Boundary condition for the electric field
+  !/
+  !Read by the command
+  !#FIELDBC
+  !Example:
+  !
+  !#FIELDBC
+  !laserbeam            TypeFieldBC_S(x<0)
+  !noreflect            TypeFieldBC_S(x>nX.dx)
+  !periodic             TypeFieldBC_S(y<0)
+  !periodic             TypeFieldBC_S(y>nY.dy)
+  !periodic             TypeFieldBC_S(z<0)
+  !periodic             TypeFieldBC_S(z>nZ.dz)
+  !
+  !
+  !Implemented types: periodic, noreflect, laserbeam
+  
+  character(LEN=10) :: TypeFieldBC_S(1:2*nDim)
+  
+  
+  logical:: IsPeriodicField_D(nDim) = .true.
+  
 end module PIC_ModMain
