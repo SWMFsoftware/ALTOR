@@ -142,7 +142,7 @@ test:
 	make test_rundir
 	@echo "test_run..." >> test.diff
 	make test_run
-	@echo "test_check..." >> test_eosgodunov.diff
+	@echo "test_check..." >> test.diff
 	make test_check
 
 test_compile:
