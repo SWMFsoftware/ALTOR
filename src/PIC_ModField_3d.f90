@@ -332,7 +332,7 @@ contains
     do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
        do j=0-i1_D(y_),nY+i1_D(y_);
           E_GD(i,j,k,y_) = E_GD(i,j,k,y_)*(1 - SpeedOfLight_D(x_)) + &
-               SpeedOfLight_D(y_)*E_GD(i+1,j,k,y_)
+               SpeedOfLight_D(x_)*E_GD(i+1,j,k,y_)
           if(TypeFieldBC_S(1)=='laserbeam')&
                call laser_beam(iDir=y_,       &
                x=(i-0.50)*Dx_D(x_),&
