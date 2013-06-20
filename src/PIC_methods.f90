@@ -98,7 +98,6 @@ subroutine PIC_advance(tMax)
   iStep = iStep + 1
   tSimulation = tSimulation + Dt
   call field_bc
-  call timing_stop('advance')
  
   call timing_start('adv_e')
   call update_e
