@@ -2,38 +2,38 @@
 3 dimensional version
 
 #CHECKGRID
-200
-200
-200
+80
+64
+64
 2
 
 #DXYZ
-0.05
-0.05
-0.05
+0.5
+0.5
+0.5
 
 #NORMALIZATION
 standard
-2
--1.0
+1
 1.0
+1836.0
 
 UNIFORM
-1
-1
+2
+-2
 
-#FOIL
-100              nPPerCell_P_1
-100              nPPerCell_P_2
+FOIL
+10              nPPerCell_P_1
+-10              nPPerCell_P_2
 5.0              xFoilCenter
-5.0              yFoilCenter
-5.0              zFoilCenter
-1.0              xFoilWidth
-16.0             yFoilWidth
-10.0             zFoilWidth
-30.0             angleFoilInDegrees
+4.0              yFoilCenter
+4.0              zFoilCenter
+6.0              xFoilWidth
+7.0              yFoilWidth
+7.0              zFoilWidth
+0.0             angleFoilInDegrees
 
-#THERMALIZE
+THERMALIZE
 2.50e-3
 2.50e-3
 
@@ -42,14 +42,38 @@ ADDB
 0.0
 0.0
 
+#LASERBEAM
+1.0              laserAmplitude2
+0.0              laserAmplitude3
+0.0              phaseShift
+12.56              pulseWidth1
+-20.0              pulseWidth2
+20.0              pulseWidth3
+25.0              xFocus1
+16.0              xFocus2
+16.0              xFocus3
+
+#FIELDBC                                                                       
+laserbeam            TypeFieldBC_S(x<0)                                        
+noreflect            TypeFieldBC_S(x>nX.dx)                                    
+periodic             TypeFieldBC_S(y<0)                                     
+periodic             TypeFieldBC_S(y>nY.dy)                                    
+periodic             TypeFieldBC_S(z<0)                                        
+periodic             TypeFieldBC_S(z>nZ.dz)
+
 #LOGFILE
 1
 
-#TIMESTEP
-0.025
+#OUTFIELD
+0                  nStepOutMin
+32                  nStepOut
 
-#STOP
--1
-12.575
+#TIMESTEP
+0.25
+
+#STOP 
+320                  FinalStepIfPositiveOr
+-12.575            FinalTimeIfPositive
+
 
 #END

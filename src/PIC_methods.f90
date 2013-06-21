@@ -23,14 +23,16 @@ subroutine PIC_advance(tMax)
                               current_bc_periodic, field_bc_periodic
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt, IsPeriodicField_D
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
+  use PIC_ModOutput,    ONLY: write_density,write_field, nStepOutMin,nStepOut
   use PIC_ModMpi,       ONLY: pass_current
   implicit none
   real,intent(in) :: tMax
 
-  integer :: iSort
+  integer :: iSort,ii
 
   character(len=*), parameter :: NameSub='PIC_advance'
   !-----------------
+
   if(tSimulation > tMax)return
   call timing_start('advance')
   !\
@@ -54,12 +56,17 @@ subroutine PIC_advance(tMax)
   ! behind.
   !/
   !2. Prepare to move particles
-  Rho_G = 0.0; Counter_GD = 0.0; Energy_P = 0.0
+  Counter_GD = 0.0; Energy_P = 0.0
 
   !3. Move particles
   call timing_start('adv_particles')
   do iSort = 1, nPType
+     Rho_G = 0.0
      call advance_particles(iSort)
+     if(nStepOut>=1.and.nStepOutMin<=iStep+1)then
+        if(mod(iStep+1,nStepOut)==0)&
+             call write_density(iSort)
+     end if
   end do
   call pass_energy
   !\
@@ -75,7 +82,6 @@ subroutine PIC_advance(tMax)
      if(mod(iStep,nLogFile)==0)&
           call write_logfile
   end if
-
   
   !\
   !4. Update Magnetic field through a half timestep
@@ -102,14 +108,25 @@ subroutine PIC_advance(tMax)
   call timing_start('adv_e')
   call update_e
   call timing_stop('adv_e')
+
+  !call field_bc_absorption
+  !if(laser_pulse > 0) call laser_pulse_init
   !\
   ! Electric fields are at the beginning of 
   ! the time step. The particle coordinates are at the end of the timestep.
   ! The particle velocities and magnetic fields are in the middle of the timestep.
   !/
   if(any(IsPeriodicField_D))call field_bc_periodic
+
   call timing_stop('advance')
-  
+
+  do ii = 1, 3
+     if(nStepOut>=1.and.nStepOutMin<=iStep)then
+        if(mod(iStep,nStepOut)==0)&
+             call write_field(ii)
+     end if
+  end do
+  ! 
 end subroutine PIC_advance
 !==============================
 

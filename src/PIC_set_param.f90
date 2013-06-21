@@ -5,8 +5,10 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModSize,    ONLY: nDim
   use PIC_ModParticles
   use PIC_ModLogFile, ONLY: nLogFile, nToWrite, nToWrite_II
+  use PIC_ModOutput, ONLY: nStepOut, nStepOutMin
   use PIC_ModThermal, ONLY: read_temperature
-  use PIC_ModField,   ONLY: add_e, add_b
+  use PIC_ModField,   ONLY: add_e, add_b 
+  use PIC_ModLaserBeam, ONLY: read_laser_beam
   use ModConst
   implicit none
 
@@ -121,6 +123,9 @@ subroutine PIC_set_param(TypeAction)
      case('#FOIL')
         call read_foil
 
+     case('#LASERBEAM')
+        call read_laser_beam
+
      case('#THERMALIZE')
         call read_temperature
         
@@ -195,6 +200,11 @@ subroutine PIC_set_param(TypeAction)
      case('#LOGFILE')
         if(iSession /=1 )CYCLE READPARAM
         call read_var('nLogFile',nLogFile)
+
+     case('#OUTFIELD')
+
+        call read_var('nStepOutMin', nStepOutMin)
+        call read_var('nStepOut', nStepOut)
 
      case default
         if(iProc==0) then
