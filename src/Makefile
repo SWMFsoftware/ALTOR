@@ -85,6 +85,8 @@ ${EXE}: ${OBJECTS_EXE}
 		${Lflag1}
 	rm -rf Tmp_ 
 
+clean: cleanfiles
+
 distclean: clean
 	rm -f PIC_ModSize.f90
 

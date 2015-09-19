@@ -7,7 +7,12 @@ SCRIPTDIR = ${PCDIR}/share/Scripts
 LIBDIR    = ${PCDIR}/src
 RUNDIR    = ${PCDIR}/run
 BINDIR    = ${PCDIR}/src
+INCLDIR   = ${DIR}/share/include
 SHAREDIR  = ${PCDIR}/share/Library/src
+UTILDIR   = ${PCDIR}/util
+
+TIMINGDIR      = ${UTILDIR}/TIMING/src
+#TIMINGDIR     = ${UTILDIR}/TIMING/srcEmpty
 
 TIMINGDIR = ${PCDIR}/util/TIMING/src
 #TIMINGDIR = ${PCDIR}/util/TIMING/srcEmpty

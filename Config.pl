@@ -1,8 +1,10 @@
 #!/usr/bin/perl -i
+#  Copyright (C) 2002 Regents of the University of Michigan, portions used with permission 
+#  For more information, see http://csem.engin.umich.edu/tools/swmf
 use strict;
 
 our $Component = "PC";
-our $Code = "ALTOP";
+our $Code = "ALTOR";
 our $MakefileDefOrig = 'src/Makefile.def';
 our @Arguments = @ARGV;
 
@@ -22,6 +24,7 @@ our $Verbose;
 our $Show;
 our $ShowGridSize;
 our $NewGridSize;
+our $NewGhostCell;
 
 &print_help if $Help;
 
@@ -128,7 +131,7 @@ sub current_settings{
 sub print_help{
 
     print "
-Additional options for BATSRUS/Config.pl:
+Additional options for ALTOR/Config.pl:
 
 -g=NI,NJ,NK,MAXBLK   
                 Set grid size. NI, NJ and NK are the number of cells 
@@ -136,7 +139,7 @@ Additional options for BATSRUS/Config.pl:
                 MAXBLK is the maximum number of blocks per processor.
 
 
-Examples for BATSRUS/Config.pl:
+Examples for ALTOR/Config.pl:
 
 
 Set block size to 8x8x8, number of blocks to 400",
