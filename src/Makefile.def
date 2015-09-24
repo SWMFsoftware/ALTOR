@@ -17,6 +17,3 @@ TIMINGDIR      = ${UTILDIR}/TIMING/src
 TIMINGDIR = ${PCDIR}/util/TIMING/src
 #TIMINGDIR = ${PCDIR}/util/TIMING/srcEmpty
 
-nDim = 3
-
-FF = 1.5

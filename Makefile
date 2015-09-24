@@ -8,6 +8,10 @@ default : ${DEFAULT_TARGET}
 
 include Makefile.def
 
+nDim = 3
+
+FF = 1.5
+
 #
 # Menu of make options
 #
@@ -49,18 +53,18 @@ src/PIC_ModSize.f90: src/PIC_ModSize_${nDim}d.f90
 	cp -f src/PIC_ModSize_${nDim}d.f90 src/PIC_ModSize.f90
 
 LIB:
-	cd src; make LIB
+	cd src; make LIB nDim=${nDim} FF=${FF}
 
 ALTOR:
 	cd ${SHAREDIR}; make LIB
 	cd ${TIMINGDIR}; make LIB
-	cd src; make LIB
-	cd src; make ALTOR
+	cd src; make LIB nDim=${nDim} FF=${FF}
+	cd src; make ALTOR nDim=${nDim} FF=${FF}
 
 QED:
 	cd ${SHAREDIR};make LIB
 	cd ${TIMINGDIR};make LIB
-	cd srcQED; make LIB
+	cd srcQED; make LIB nDim=${nDim} FF=${FF}
 	cd srcQED; make ALTOR
 
 NOMPI:
