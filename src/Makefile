@@ -8,6 +8,9 @@ SEARCH_EXTRA =
 include ../Makefile.conf
 include Makefile.DEPEND
 
+PIC_ModRandom.o: PIC_ModRandom.f90
+	${COMPILE.f90} ${Cflag0} PIC_ModRandom.f90
+
 #
 #	Makefile for parallel code ALTOR
 #

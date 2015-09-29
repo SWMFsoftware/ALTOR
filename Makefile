@@ -159,7 +159,7 @@ test_rundir:
 	cd ${TESTDIR}; cp -f Param/PARAM.TEST PARAM.in
 
 test_run:
-	cd ${TESTDIR}; ${MPIRUN} ALTOR.exe > runlog
+	cd ${TESTDIR}; ${MPIRUN} ./ALTOR.exe > runlog
 
 test_check:
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
