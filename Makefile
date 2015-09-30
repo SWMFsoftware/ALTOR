@@ -89,21 +89,24 @@ NOMPI:
 #
 # The default is the short name of the current machine
 MACHINE = `hostname | sed -e 's/\..*//;s/[0-9]*$$//'`
-COMPONENT = PC 
+COMPONENT = PC
 
 rundir:
 	mkdir -p ${RUNDIR}/${COMPONENT}
+	cd ${RUNDIR}/${COMPONENT}; \
+		ln -s ${PCDIR}/Param .
 	@(if [ "$(STANDALONE)" != "NO" ]; then \
-		touch ${DIR}/share/JobScripts/TMP_${MACHINE}; \
-		cp ${DIR}/share/JobScripts/*${MACHINE}* ${RUNDIR}/; \
-		rm -f ${RUNDIR}/TMP_${MACHINE}; \
-		rm -f ${DIR}/share/JobScripts/TMP_${MACHINE}; \
+		touch ${DIR}/share/JobScripts/job._TMP_${MACHINE}; \
+		touch ${DIR}/share/JobScripts/_TMP_.${MACHINE}.pl; \
+		cp ${DIR}/share/JobScripts/job.*${MACHINE}* ${RUNDIR}/; \
+		cp ${DIR}/share/JobScripts/*.${MACHINE}.pl ${RUNDIR}/; \
+		rm -f ${RUNDIR}/*_TMP_* ${DIR}/share/JobScripts/*_TMP_*; \
+		cp -f Param/PARAM.DEFAULT ${RUNDIR}/PARAM.in; \
 		touch ${RUNDIR}/core; chmod 444 ${RUNDIR}/core; \
 		cd ${RUNDIR}; ln -s ${BINDIR}/${DEFAULT_EXE} .; \
-		ln -s ../Param .; cp Param/PARAM.DEFAULT PARAM.in; \
+		ln -s ${COMPONENT}/* .; \
 	fi);
-
-                        
+ 
 #
 #       Run the default code on NP processors
 #
