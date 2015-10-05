@@ -158,7 +158,7 @@ test_compile:
 
 test_rundir: 
 	rm -rf ${TESTDIR}
-	make rundir RUNDIR=${TESTDIR} 
+	make rundir RUNDIR=${TESTDIR} STANDALONE=YES PCDIR=`pwd`
 	cd ${TESTDIR}; cp -f Param/PARAM.TEST PARAM.in
 
 test_run:
