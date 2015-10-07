@@ -56,16 +56,16 @@ LIB:
 	cd src; make LIB nDim=${nDim} FF=${FF}
 
 ALTOR:
-	cd ${SHAREDIR}; make LIB
-	cd ${TIMINGDIR}; make LIB
-	cd src; make LIB nDim=${nDim} FF=${FF}
-	cd src; make ALTOR nDim=${nDim} FF=${FF}
+	cd ${SHAREDIR}; ${MAKE} LIB
+	cd ${TIMINGDIR}; ${MAKE} LIB
+	cd src; ${MAKE} LIB nDim=${nDim} FF=${FF}
+	cd src; ${MAKE} ALTOR nDim=${nDim} FF=${FF}
 
 QED:
-	cd ${SHAREDIR};make LIB
-	cd ${TIMINGDIR};make LIB
-	cd srcQED; make LIB nDim=${nDim} FF=${FF}
-	cd srcQED; make ALTOR
+	cd ${SHAREDIR}; ${MAKE} LIB
+	cd ${TIMINGDIR}; ${MAKE} LIB
+	cd srcQED; ${MAKE} LIB nDim=${nDim} FF=${FF}
+	cd srcQED; ${MAKE} ALTOR
 
 NOMPI:
 	cd util/NOMPI/src; make LIB
@@ -143,30 +143,32 @@ allclean:
 TESTDIR = run_test
 
 test:
-	@echo "test_compile..." > test.diff
-	make test_compile
-	@echo "test_rundir..." >> test.diff
-	make test_rundir
-	@echo "test_run..." >> test.diff
-	make test_run
-	@echo "test_check..." >> test.diff
-	make test_check
+	-@(${MAKE} test_altor)
 
-test_compile:
+test_altor:
+	@echo "test_altor_compile..." > test_altor.diff
+	${MAKE} test_altor_compile
+	@echo "test_altor_rundir..." >> test_altor.diff
+	${MAKE} test_altor_rundir
+	@echo "test_altor_run..." >> test_altor.diff
+	${MAKE} test_altor_run
+	@echo "test_altor_check..." >> test_altor.diff
+	${MAKE} test_altor_check
+
+test_altor_compile:
 	./Config.pl -g=64,64,64,2,1
-	make 
+	${MAKE} 
 
-test_rundir: 
+test_altor_rundir: 
 	rm -rf ${TESTDIR}
-	make rundir RUNDIR=${TESTDIR} STANDALONE=YES PCDIR=`pwd`
+	${MAKE} rundir RUNDIR=${TESTDIR} STANDALONE=YES PCDIR=`pwd`
 	cd ${TESTDIR}; cp -f Param/PARAM.TEST PARAM.in
 
-test_run:
+test_altor_run:
 	cd ${TESTDIR}; ${MPIRUN} ./ALTOR.exe > runlog
 
-test_check:
+test_altor_check:
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
 	Param/TestOutput/log_noise.out \
-	${TESTDIR}/log_n0001.out > test.diff
-	ls -l test.diff
-
+	${TESTDIR}/log_n0001.out > test_altor.diff
+	ls -l test_altor.diff
