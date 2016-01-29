@@ -43,11 +43,17 @@ help:
 	@echo '    distclean (equivalent to ./Config.pl -uninstall)'
 	@echo '    dist      (create source distribution tar file)'
 
-INSTALLFILES =	src/Makefile.DEPEND srcQED/Makefile.DEPEND
+INSTALLFILES =	src/Makefile.DEPEND srcBATL/Makefile.DEPEND
 
 
-install: src/PIC_ModSize.f90
+install: src/PIC_ModSize.f90 srcBATL/Makefile
 	touch ${INSTALLFILES}
+
+srcBATL/Makefile:
+	rm -rf srcBATL; mkdir srcBATL 
+	cd srcBATL_orig; cp BATL*.f90 Makefile* ../srcBATL; \
+	cd ../srcBATL; ${SCRIPTDIR}/Methods.pl PC *.f90; \
+	${SCRIPTDIR}/Rename.pl -w -r -common=PC *.f90
 
 src/PIC_ModSize.f90: src/PIC_ModSize_${nDim}d.f90
 	cp -f src/PIC_ModSize_${nDim}d.f90 src/PIC_ModSize.f90
@@ -135,6 +141,7 @@ clean:
 
 distclean: 
 	./Config.pl -uninstall
+	rm -rf srcBATL
 
 allclean:
 	@touch ${INSTALLFILES}
