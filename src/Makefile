@@ -49,6 +49,7 @@ DEPEND:
 
 
 MY_LIB  = libALTOR.a
+LIB_BATL = ../srcBATL/libBATL.a
 
 LIB:	DEPEND
 	make ${MY_LIB}
@@ -56,8 +57,10 @@ LIB:	DEPEND
 	@echo ${MY_LIB} has been brought up to date.
 	@echo
 
+
 ${MY_LIB}: ${OBJECTS}
 	rm -f ${MY_LIB}
+	cp -f ${LIB_BATL} ${MY_LIB}
 	${AR} ${MY_LIB} ${OBJECTS}
 
 # Object files not included into the library

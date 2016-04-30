@@ -43,7 +43,8 @@ help:
 	@echo '    distclean (equivalent to ./Config.pl -uninstall)'
 	@echo '    dist      (create source distribution tar file)'
 
-INSTALLFILES =	src/Makefile.DEPEND srcBATL/Makefile.DEPEND
+INSTALLFILES =	src/Makefile.DEPEND srcBATL/Makefile.DEPEND \
+	srcInterface/Makefile.DEPEND
 
 
 install: src/PIC_ModSize.f90 srcBATL/Makefile srcBATL/BATL_size.f90
@@ -65,6 +66,7 @@ srcBATL/BATL_size.f90: srcBATL/BATL_size_orig.f90
 LIB:
 	cd srcBATL; make LIB
 	cd src; make LIB nDim=${nDim} FF=${FF}
+	cd srcInterface; make LIB
 
 ALTOR:
 	cd ${SHAREDIR}; ${MAKE} LIB

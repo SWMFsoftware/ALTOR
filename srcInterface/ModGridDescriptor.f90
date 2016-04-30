@@ -21,7 +21,7 @@ module PC_domain_decomposition
 
   ! Local variables and constants
   logical:: UseMHGridDescriptor=.true. 
-  integer, private:: iLastGrid = -1, iLastDecomposition = -1
+  
   
   integer, parameter, private::    &
        PELast_      = 5, &
@@ -48,7 +48,7 @@ contains
 
   !===========================================================================
   subroutine show_domain_decomp(Dd)
-    use ModProcMH, ONLY: iProc
+    use PIC_ModProc, ONLY: iProc
 
     type(DomainDecompositionType),intent(in):: Dd
     integer:: iNode, iChild
@@ -98,7 +98,7 @@ contains
   subroutine get_batl_tree(DomainDecomposition)
 
     ! Avoid name conflict with Parent_ in the SWMF coupling toolkit
-    use BATL_tree, ParentBatl_ => Parent_
+    use PC_BATL_tree, ParentBatl_ => Parent_
 
     type(DomainDecompositionType),intent(inout)::DomainDecomposition
 
@@ -162,7 +162,7 @@ contains
   !===========================================================================
   subroutine PC_get_roots_dd(DomainDecomposition)                         
 
-    use BATL_lib, ONLY: nIJK_D, IsPeriodic_D, nRoot_D, CoordMin_D, CoordMax_D
+    use PC_BATL_lib, ONLY: nIJK_D, IsPeriodic_D, nRoot_D, CoordMin_D, CoordMax_D
 
     type(DomainDecompositionType),intent(inout)::DomainDecomposition  
     !-------------------------------------------------------------------------
@@ -180,7 +180,7 @@ contains
   !===========================================================================
   subroutine PC_get_roots_id(GridID_)                         
 
-    use BATL_lib, ONLY: nIJK_D, IsPeriodic_D, nRoot_D, CoordMin_D, CoordMax_D
+    use PC_BATL_lib, ONLY: nIJK_D, IsPeriodic_D, nRoot_D, CoordMin_D, CoordMax_D
 
     integer, intent(in):: GridID_  
     !-------------------------------------------------------------------------
@@ -197,21 +197,13 @@ contains
 
   !==========================================================================
   subroutine PC_update_local_decomposition(DomainDecomposition)
-    use ModMain, ONLY: iNewGrid, iNewDecomposition
 
     type(DomainDecompositionType), intent(inout):: DomainDecomposition
     !-----------------------------------------------------------------------
-
-    if(iNewGrid==iLastGrid .and. iNewDecomposition == iLastDecomposition &
-         .and. DomainDecomposition%iRealization /= 0) &
-         RETURN
-
     call get_batl_tree(DomainDecomposition)
 
     DomainDecomposition%iRealization = &
          mod(DomainDecomposition%iRealization+1, 1000)
-    iLastDecomposition = iNewDecomposition
-    iLastGrid          = iNewGrid
     call complete_grid(DomainDecomposition)
 
   end subroutine PC_update_local_decomposition
