@@ -46,24 +46,30 @@ help:
 INSTALLFILES =	src/Makefile.DEPEND srcBATL/Makefile.DEPEND
 
 
-install: src/PIC_ModSize.f90 srcBATL/Makefile
+install: src/PIC_ModSize.f90 srcBATL/Makefile srcBATL/BATL_size.f90
 	touch ${INSTALLFILES}
 
 srcBATL/Makefile:
 	rm -rf srcBATL; mkdir srcBATL 
 	cd srcBATL_orig; cp BATL*.f90 Makefile* ../srcBATL; \
 	cd ../srcBATL; ${SCRIPTDIR}/Methods.pl PC *.f90; \
-	${SCRIPTDIR}/Rename.pl -w -r -common=PC *.f90
+	${SCRIPTDIR}/Rename.pl -w -r -common=PC *.f90; \
+	rm -f *~
 
 src/PIC_ModSize.f90: src/PIC_ModSize_${nDim}d.f90
 	cp -f src/PIC_ModSize_${nDim}d.f90 src/PIC_ModSize.f90
 
+srcBATL/BATL_size.f90: srcBATL/BATL_size_orig.f90
+	cp -f srcBATL/BATL_size_orig.f90 srcBATL/BATL_size.f90
+
 LIB:
+	cd srcBATL; make LIB
 	cd src; make LIB nDim=${nDim} FF=${FF}
 
 ALTOR:
 	cd ${SHAREDIR}; ${MAKE} LIB
 	cd ${TIMINGDIR}; ${MAKE} LIB
+	cd srcBATL; make LIB
 	cd src; ${MAKE} LIB nDim=${nDim} FF=${FF}
 	cd src; ${MAKE} ALTOR nDim=${nDim} FF=${FF}
 
