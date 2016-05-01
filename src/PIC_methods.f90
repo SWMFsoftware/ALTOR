@@ -9,7 +9,8 @@ subroutine PIC_setup
  
 end subroutine PIC_setup
 !==========================
-subroutine PIC_init_session
+subroutine PIC_init_session(iSession)
+  integer, intent(in) :: iSession
   character(len=*), parameter :: NameSub='PIC_init_session'
   !-------------------------
 end subroutine PIC_init_session
@@ -150,3 +151,23 @@ subroutine PIC_finalize
   !--------------------
   if(nLogFile >=1)call close_logfile
 end subroutine PIC_finalize
+!=============================
+!=====================================================================
+subroutine user_specify_region(iArea, iBlock, nValue, NameLocation, &
+     IsInside, IsInside_I, Value_I)
+  implicit none
+
+  integer,   intent(in):: iArea        ! area index in BATL_region
+  integer,   intent(in):: iBlock       ! block index
+  integer,   intent(in):: nValue       ! number of output values
+  character, intent(in):: NameLocation ! c, g, x, y, z, or n
+
+  logical, optional, intent(out) :: IsInside
+  logical, optional, intent(out) :: IsInside_I(nValue)
+  real,    optional, intent(out) :: Value_I(nValue)
+
+  character(len=*), parameter :: NameSub = 'user_specify_region'
+  !-------------------------------------------------------------------
+end subroutine user_specify_region
+
+!=====================================================================
