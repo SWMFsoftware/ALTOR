@@ -34,7 +34,7 @@ subroutine PIC_set_param(TypeAction)
   !------------------
   iSession = i_session_read()
   select case(TypeAction)
-  case('CHECK')
+  case('CHECK','Check','check')
      if(iProc==0)write(*,*) NameSub,': CHECK iSession =',iSession
      SpeedOfLight_D = Dt * c / Dx_D
      if(iProc==0)then

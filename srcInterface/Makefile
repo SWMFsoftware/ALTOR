@@ -11,6 +11,7 @@ include Makefile.DEPEND
 
 
 OBJECTS = \
+	PC_wrapper.o \
 	ModGridDescriptor.o
 
 SEARCHDIR = -I${SHAREDIR} -I${COUPLERDIR} -I${LIBRARYDIR}  \
