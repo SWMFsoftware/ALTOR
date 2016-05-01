@@ -3,7 +3,7 @@ SHELL = /bin/sh
 
 include ../Makefile.def
 
-SEARCH_EXTRA =  
+INCL_EXTRA = -I../srcBATL  
 
 include ../Makefile.conf
 include Makefile.DEPEND
@@ -44,7 +44,7 @@ ANALYZE: Analyzer2D.o
 ############################################################################
 
 DEPEND:
-	@perl ${SCRIPTDIR}/depend.pl ${SEARCH} \
+	@perl ${SCRIPTDIR}/depend.pl ${INCL_EXTRA} \
 		${OBJECTS}
 
 

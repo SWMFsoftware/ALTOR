@@ -156,6 +156,8 @@ distclean:
 allclean:
 	@touch ${INSTALLFILES}
 	cd src; make distclean
+	rm -rf srcBATL
+	cd srcInterface; make distclean
 
 TESTDIR = run_test
 

@@ -33,9 +33,10 @@ my $Src         = 'src';
 
 
 # Grid size variables
+my $NameSizeFile1 = "srcBATL/BATL_size.f90";
 my $NameSizeFile = "$Src/PIC_ModSize.f90";
 my $GridSize;
-my ($nX, $nY, $nZ, $nPType, $MaxBlock);
+my ($nI, $nJ, $nK, $nPType, $MaxBlock);
 
 # Read previous grid size, equation and user module
 &get_settings;
@@ -48,7 +49,7 @@ foreach (@Arguments){
 
 &set_grid_size if $NewGridSize and $NewGridSize ne $GridSize;
 # Show grid size in a compact form if requested
-print "Config.pl -g=$nX,$nY,$nZ,$nPType,$MaxBlock",
+print "Config.pl -g=$nI,$nJ,$nK,$nPType,$MaxBlock",
     ,"\n" if $ShowGridSize and not $Show;
 
 
@@ -62,13 +63,18 @@ exit 0;
 sub get_settings{
 
     # Read size of the grid from $NameSizeFile
+    open(FILE, $NameSizeFile1) or die "$ERROR could not open $NameSizeFile\n";
+    while(<FILE>){
+	next if /^\s*!/; # skip commented out lines
+        $nI=$1           if /\bnI\s*=\s*(\d+)/i;
+	$nJ=$1           if /\bnJ\s*=\s*(\d+)/i;
+	$nK=$1           if /\bnK\s*=\s*(\d+)/i;
+        $MaxBlock=$1     if /\bMaxBlock\s*=\s*(\d+)/i;
+    }
+    close FILE;
     open(FILE, $NameSizeFile) or die "$ERROR could not open $NameSizeFile\n";
     while(<FILE>){
 	next if /^\s*!/; # skip commented out lines
-        $nX=$1           if /\bnX\s*=\s*(\d+)/i;
-	$nY=$1           if /\bnY\s*=\s*(\d+)/i;
-	$nZ=$1           if /\bnZ\s*=\s*(\d+)/i;
-        $MaxBlock=$1     if /\bMaxBlock\s*=\s*(\d+)/i;
 	$nPType=$1        if /\bnPType\s*=\s*(\d+)/i;
     }
     close FILE;
@@ -77,7 +83,7 @@ sub get_settings{
 	unless length($MaxBlock);
 
 
-    $GridSize = "$nX,$nY,$nZ,$nPType,$MaxBlock";
+    $GridSize = "$nI,$nJ,$nK,$nPType,$MaxBlock";
 
 }
 
@@ -89,7 +95,7 @@ sub set_grid_size{
 
     if($GridSize=~/^[1-9]\d*,[1-9]\d*,[1-9]\d*,[0-9]\d*,[1-9]\d*
        $/x){
-	($nX,$nY,$nZ,$nPType,$MaxBlock)= split(',', $GridSize);
+	($nI,$nJ,$nK,$nPType,$MaxBlock)= split(',', $GridSize);
     }elsif($GridSize){
 	die "$ERROR -g=$GridSize should be ".
 	    #"4". 
@@ -103,11 +109,16 @@ sub set_grid_size{
     @ARGV = ($NameSizeFile);
     while(<>){
 	if(/^\s*!/){print; next} # Skip commented out lines
-	s/\b(MaxBlock\s*=[^0-9]*)(\d+)/$1$MaxBlock/i;
-	s/\b(nX\s*=[^0-9]*)(\d+)/$1$nX/i;
-	s/\b(nY\s*=[^0-9]*)(\d+)/$1$nY/i;
-	s/\b(nZ\s*=[^0-9]*)(\d+)/$1$nZ/i;
 	s/\b(nPType\s*=[^0-9]*)(\d+)/$1$nPType/i;
+	print;
+    }
+    @ARGV = ($NameSizeFile1);
+    while(<>){
+	if(/^\s*!/){print; next} # Skip commented out lines
+	s/\b(MaxBlock\s*=[^0-9]*)(\d+)/$1$MaxBlock/i;
+	s/\b(nI\s*=[^0-9]*)(\d+)/$1$nI/i;
+	s/\b(nJ\s*=[^0-9]*)(\d+)/$1$nJ/i;
+	s/\b(nK\s*=[^0-9]*)(\d+)/$1$nK/i;
 	print;
     }
 }
@@ -118,7 +129,7 @@ sub set_grid_size{
 sub current_settings{
 
     $Settings = 
-	"Number of cells in a block        : nX=$nX, nY=$nY, nZ=$nZ\n";
+	"Number of cells in a block        : nI=$nI, nJ=$nJ, nK=$nK\n";
     $Settings .= 
 	"Number of different types of particles        : nPType=$nPType\n";
     $Settings .= 
