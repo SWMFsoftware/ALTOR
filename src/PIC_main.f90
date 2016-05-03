@@ -69,18 +69,15 @@ program PIC
      if(iSession==1)then
         call timing_start('PIC')
         call timing_start('setup')
-        call PIC_setup
-        call PIC_init_session
+     end if
+     call PIC_init_session(iSession)
+     if(iSession==1)then
         call timing_stop('setup')
         if(nTiming > -3)call timing_report_total
         if(iProc==0)write(*,*)'Resetting timing counters after setup.'
         call timing_reset('#all',3)
-     else
-        call PIC_init_session
      end if
   
-
-
      TIMELOOP: do
         if(stop_condition_true())EXIT TIMELOOP
         if(is_time_to_stop())exit SESSIONLOOP
