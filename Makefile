@@ -55,6 +55,8 @@ srcBATL/Makefile:
 	cd srcBATL_orig; cp BATL*.f90 Makefile* ../srcBATL; \
 	cd ../srcBATL; ${SCRIPTDIR}/Methods.pl PC *.f90; \
 	${SCRIPTDIR}/Rename.pl -w -r -common=PC *.f90; \
+	perl -i -pe \
+		's/user_specify_region/PC_user_specify_region/' *.f90; \
 	rm -f *~
 
 src/PIC_ModSize.f90: src/PIC_ModSize_${nDim}d.f90

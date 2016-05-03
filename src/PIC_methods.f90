@@ -12,7 +12,10 @@ end subroutine PIC_setup
 subroutine PIC_init_session(iSession)
   integer, intent(in) :: iSession
   character(len=*), parameter :: NameSub='PIC_init_session'
-  !-------------------------
+  logical, save:: IsInitialized = .false.
+    !--------------------------------------------------------------------------
+  if(.not.IsInitialized)call PIC_setup
+  IsInitialized = .true.
 end subroutine PIC_init_session
 !==========================
 subroutine PIC_advance(tMax)
@@ -153,7 +156,7 @@ subroutine PIC_finalize
 end subroutine PIC_finalize
 !=============================
 !=====================================================================
-subroutine user_specify_region(iArea, iBlock, nValue, NameLocation, &
+subroutine PC_user_specify_region(iArea, iBlock, nValue, NameLocation, &
      IsInside, IsInside_I, Value_I)
   implicit none
 
@@ -168,6 +171,6 @@ subroutine user_specify_region(iArea, iBlock, nValue, NameLocation, &
 
   character(len=*), parameter :: NameSub = 'user_specify_region'
   !-------------------------------------------------------------------
-end subroutine user_specify_region
+end subroutine PC_user_specify_region
 
 !=====================================================================
