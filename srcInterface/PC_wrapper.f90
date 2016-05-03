@@ -53,11 +53,7 @@ contains
     use PIC_ModMain,      ONLY: tSimulation
     integer,  intent(in) :: iSession         ! session number (starting from 1)
     real,     intent(in) :: TimeSimulation   ! seconds from start time
-
-    logical, save:: IsInitialized = .false.
-    !--------------------------------------------------------------------------
-    if(.not.IsInitialized)call PIC_setup
-    IsInitialized = .true.
+    !----------------------
     call PIC_init_session(iSession)
     tSimulation = TimeSimulation
   end subroutine PC_init_session
