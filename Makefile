@@ -177,7 +177,7 @@ test_altor:
 	${MAKE} test_altor_check
 
 test_altor_compile:
-	./Config.pl -g=64,64,64,2,1
+	./Config.pl -g=64,64,64,1,2,10000000
 	${MAKE} 
 
 test_altor_rundir: 

@@ -33,10 +33,10 @@ my $Src         = 'src';
 
 
 # Grid size variables
-my $NameSizeFile1 = "srcBATL/BATL_size.f90";
+my $NameBatlFile = "srcBATL/BATL_size.f90";
 my $NameSizeFile = "$Src/PIC_ModSize.f90";
 my $GridSize;
-my ($nI, $nJ, $nK, $nPType, $MaxBlock);
+my ($nI, $nJ, $nK, $MaxBlock, $nPType, $nElectronMax);
 
 # Read previous grid size, equation and user module
 &get_settings;
@@ -49,7 +49,7 @@ foreach (@Arguments){
 
 &set_grid_size if $NewGridSize and $NewGridSize ne $GridSize;
 # Show grid size in a compact form if requested
-print "Config.pl -g=$nI,$nJ,$nK,$nPType,$MaxBlock",
+print "Config.pl -g=$nI,$nJ,$nK,$MaxBlock,$nPType,$nElectronMax",
     ,"\n" if $ShowGridSize and not $Show;
 
 
@@ -63,19 +63,21 @@ exit 0;
 sub get_settings{
 
     # Read size of the grid from $NameSizeFile
-    open(FILE, $NameSizeFile1) or die "$ERROR could not open $NameSizeFile\n";
+    open(FILE, $NameBatlFile) or die "$ERROR could not open $NameSizeFile\n";
     while(<FILE>){
 	next if /^\s*!/; # skip commented out lines
         $nI=$1           if /\bnI\s*=\s*(\d+)/i;
 	$nJ=$1           if /\bnJ\s*=\s*(\d+)/i;
 	$nK=$1           if /\bnK\s*=\s*(\d+)/i;
-        $MaxBlock=$1     if /\bMaxBlock\s*=\s*(\d+)/i;
+	$nPType=$1       if /\bnKindParticle\s*=\s*(\d+)/i;
+	
     }
     close FILE;
     open(FILE, $NameSizeFile) or die "$ERROR could not open $NameSizeFile\n";
     while(<FILE>){
 	next if /^\s*!/; # skip commented out lines
-	$nPType=$1        if /\bnPType\s*=\s*(\d+)/i;
+        $MaxBlock=$1     if /\bMaxBlock\s*=\s*(\d+)/i;
+	$nElectronMax=$1        if /\bnElectronMax\s*=\s*(\d+)/i;
     }
     close FILE;
 
@@ -83,7 +85,7 @@ sub get_settings{
 	unless length($MaxBlock);
 
 
-    $GridSize = "$nI,$nJ,$nK,$nPType,$MaxBlock";
+    $GridSize = "$nI,$nJ,$nK,$MaxBlock,$nPType,$nElectronMax";
 
 }
 
@@ -93,9 +95,9 @@ sub set_grid_size{
 
     $GridSize = $NewGridSize;
 
-    if($GridSize=~/^[1-9]\d*,[1-9]\d*,[1-9]\d*,[0-9]\d*,[1-9]\d*
+    if($GridSize=~/^[1-9]\d*,[1-9]\d*,[1-9]\d*,[0-9]\d*,[1-9]\d*,[1-9]\d*
        $/x){
-	($nI,$nJ,$nK,$nPType,$MaxBlock)= split(',', $GridSize);
+	($nI,$nJ,$nK,$MaxBlock,$nPType,$nElectronMax)= split(',', $GridSize);
     }elsif($GridSize){
 	die "$ERROR -g=$GridSize should be ".
 	    #"4". 
@@ -109,13 +111,14 @@ sub set_grid_size{
     @ARGV = ($NameSizeFile);
     while(<>){
 	if(/^\s*!/){print; next} # Skip commented out lines
-	s/\b(nPType\s*=[^0-9]*)(\d+)/$1$nPType/i;
+	s/\b(nElectronMax\s*=[^0-9]*)(\d+)/$1$nElectronMax/i;
+	s/\b(MaxBlock\s*=[^0-9]*)(\d+)/$1$MaxBlock/i;
 	print;
     }
-    @ARGV = ($NameSizeFile1);
+    @ARGV = ($NameBatlFile);
     while(<>){
 	if(/^\s*!/){print; next} # Skip commented out lines
-	s/\b(MaxBlock\s*=[^0-9]*)(\d+)/$1$MaxBlock/i;
+	s/\b(nKindParticle\s*=[^0-9]*)(\d+)/$1$nPType/i;
 	s/\b(nI\s*=[^0-9]*)(\d+)/$1$nI/i;
 	s/\b(nJ\s*=[^0-9]*)(\d+)/$1$nJ/i;
 	s/\b(nK\s*=[^0-9]*)(\d+)/$1$nK/i;
@@ -134,6 +137,8 @@ sub current_settings{
 	"Number of different types of particles        : nPType=$nPType\n";
     $Settings .= 
 	"Max. number of blocks/PE          : MaxBlock=$MaxBlock\n";
+    $Settings .= 
+	"Max. number of electrons          : nElectronMax=$nElectronMax\n";
 
 }
 
