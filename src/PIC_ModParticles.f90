@@ -10,6 +10,7 @@ module PIC_ModParticles
                               Node_D, NodeNew_D, get_form_factors
   use PIC_ModProc,      ONLY:iProc,iError
   use ModNumConst,      ONLY: cHalf
+  use PC_BATL_particles, ONLY:allocate_particles, Of=>Particle_I
   implicit none
   integer,parameter :: W_ = nDim
   integer,parameter :: Wx_ = W_+x_, Wy_ = W_+y_, Wz_ = W_+z_
@@ -19,14 +20,6 @@ module PIC_ModParticles
   !Structures
   real,dimension(nPType) :: M_P, Q_P
   !Particle's mass and charge
-
-  type particles
-     real,dimension(:,:),pointer::Coords
-     !Particle coordinates in the phase space. First nDim components 
-     !are the cartezian coordinates, the other are velocities, or
-     !the momentum components (if .not.SaveVelocity)
-  end type particles
-  type(particles),dimension(nPType) :: Of
  
   integer,dimension(nPType) :: n_P,nMax_P
   real,dimension(nPType)    :: Energy_P
@@ -46,7 +39,7 @@ contains
     integer,intent(in)::iSort
     real,dimension(:,:),pointer::PointerToSet
     nullify(PointerToSet)
-    PointerToSet=>Of(iSort)%Coords
+    PointerToSet=>Of(iSort)%State_VI
   end subroutine set_pointer_to_particles
   
   !=============================
@@ -64,7 +57,7 @@ contains
        if(iProc==0)write(*,*)&
             'Particle arrays are deallocated, information is lost'
        do iSort=Electrons_,nPType
-          deallocate(Of(iSort)%Coords)
+          deallocate(Of(iSort)%State_VI,Of(iSort)%iIndex_II)
        end do
     end if
     !Max number of particles is max number of electrons per the
@@ -72,16 +65,12 @@ contains
     nMax_P= nint(nElectronMax * abs(Q_P(Electron_)/Q_P) )
     
     do iSort=Electrons_,nPType
-       nullify(Of(iSort)%Coords)
-       allocate(Of(iSort)%Coords(&
-            x_:Wz_,1:nMax_P(iSort)),&
-            stat=iError)
-       if(iError>0)write(*,*)'Cannot allocate of sort=',iSort,&
-            'particles at PE=',iProc
-       Of(iSort)%Coords = 0.0
+       Of(iSort)%nVar=Wz_
+       Of(iSort)%nIndex=0
+       Of(iSort)%nParticleMax=nMax_P(iSort)
     end do
+    call allocate_particles
   end subroutine set_particle_param
-  
   !===============
   
   subroutine put_particle(iSort,PhaseCoords_D)
@@ -94,8 +83,8 @@ contains
             'Cannot put particle of sort ', iSort,' at PE=',iProc
        call CON_stop('Simulation stops')
     end if
-    Of(iSort)%Coords(x_:nDim,n_P(iSort)) = PhaseCoords_D
-    Of(iSort)%Coords(nDim+1:nDim+3,n_P(iSort)) = 0.0
+    Of(iSort)%State_VI(x_:nDim,n_P(iSort)) = PhaseCoords_D
+    Of(iSort)%State_VI(nDim+1:nDim+3,n_P(iSort)) = 0.0
 
   end subroutine put_particle
   !===========================

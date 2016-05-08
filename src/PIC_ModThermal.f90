@@ -3,7 +3,7 @@ Module PIC_ModThermal
   use PIC_ModMain,      ONLY: c2
   use PIC_ModRandom
   use PIC_ModParticles, ONLY: Wx_, Wz_, n_P, parallel_init_rand
-  use PIC_ModParticles, ONLY: particles, Of, Energy_P, nTotal_P, M_P
+  use PIC_ModParticles, ONLY: Of, Energy_P, nTotal_P, M_P
   use ModNumConst,      ONLY: cTwoPi
   implicit none
 
@@ -20,7 +20,7 @@ contains
        Energy=-uT2_P(iSort)*LOG(RAND())
 
        MomentumAvr=sqrt(2.0*Energy)
-       Of(iSort)%Coords(iW,iP) = Of(iSort)%Coords(iW,iP) + &
+       Of(iSort)%State_VI(iW,iP) = Of(iSort)%State_VI(iW,iP) + &
             MomentumAvr*COS(cTwoPi*RAND())
     end do
   end subroutine thermalize_particle

@@ -149,7 +149,7 @@ subroutine PIC_set_param(TypeAction)
         if (iProc==0)then
            nToWrite = nToWrite +1
            call put_particle(iP,Value_V(1:nDim))
-           Of(iP)% Coords(Wx_:Wz_,n_P(iP)) = Value_V(Wx_:Wz_)
+           Of(iP)% State_VI(Wx_:Wz_,n_P(iP)) = Value_V(Wx_:Wz_)
            nToWrite_II(2,nToWrite) = iP
            nToWrite_II(3,nToWrite) = n_P(iP)
         end if
