@@ -1,21 +1,21 @@
 ! This file contains the top level methods for ALTOR
 !==========================
 subroutine PIC_setup
+  use PIC_ModMain,      ONLY: IsPeriodicField_D, IsInitialized
   use PIC_ModLogFile,   ONLY: open_logfile, nLogFile
   implicit none
   character(len=*), parameter :: NameSub='PIC_setup'
   !-------------------------
   if(nLogFile >=1) call open_logfile
- 
+  IsInitialized = .true.
 end subroutine PIC_setup
 !==========================
 subroutine PIC_init_session(iSession)
+  use PIC_ModMain, ONLY:IsInitialized
   integer, intent(in) :: iSession
   character(len=*), parameter :: NameSub='PIC_init_session'
-  logical, save:: IsInitialized = .false.
-    !--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
   if(.not.IsInitialized)call PIC_setup
-  IsInitialized = .true.
 end subroutine PIC_init_session
 !==========================
 subroutine PIC_advance(tMax)

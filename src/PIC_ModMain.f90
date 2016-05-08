@@ -2,11 +2,13 @@ module PIC_ModMain
   use ModNumConst
   use PIC_ModSize, ONLY: nDim
   implicit none
+  SAVE
   !-----------------------
   !If UseSharedField==.true. at all processaros
   !The field is the same, only particles are distributed.
   logical, parameter:: UseSharedField = .true.
  
+  logical:: IsInitialized = .false.
 
   logical::UseVectorPotential = .false.
 
