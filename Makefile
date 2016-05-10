@@ -59,8 +59,8 @@ srcBATL/Makefile:
 		's/user_specify_region/PC_user_specify_region/' *.f90; \
 	rm -f *~
 
-src/PIC_ModSize.f90: src/PIC_ModSize_${nDim}d.f90
-	cp -f src/PIC_ModSize_${nDim}d.f90 src/PIC_ModSize.f90
+src/PIC_ModSize.f90: src/PIC_ModSize_orig.f90
+	cp -f src/PIC_ModSize_orig.f90 src/PIC_ModSize.f90
 
 srcBATL/BATL_size.f90: srcBATL/BATL_size_orig.f90
 	cp -f srcBATL/BATL_size_orig.f90 srcBATL/BATL_size.f90
