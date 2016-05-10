@@ -24,7 +24,8 @@ module PIC_ModParticleInField
   public::add_current !Adds an input to an electric current
 contains
 
-  subroutine get_b_from_a_local(BOut_GD)    
+  subroutine get_b_from_a_local(iBlock,BOut_GD)  
+    integer,intent(in)::iBlock
     real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:lOrderFF+1,1:3),&
            intent(out)::BOut_GD
     integer::i,j,k,i1,j1,k1
@@ -50,28 +51,29 @@ contains
              i1=i1+1
              BOut_GD(i1,j1,k1,x_) = &
                   SpeedOfLight_D(y_)*&
-                  (Magnetic_GD(i,  j+1,k  ,z_) - Magnetic_GD(i,j,k,z_)) - &
-                  SpeedOfLight_D(z_)*&
-                  (Magnetic_GD(i,  j,  k+1,y_) - Magnetic_GD(i,j,k,y_))
+                  (Magnetic_GDB(i,j+1,k,z_,iBlock) - Magnetic_GDB(i,j,k,z_,iBlock)) &
+                  - SpeedOfLight_D(z_)*&
+                  (Magnetic_GDB(i,j,k+1,y_,iBlock) - Magnetic_GDB(i,j,k,y_,iBlock))
              
              BOut_GD(i1,j1,k1,y_) = &
                   SpeedOfLight_D(z_)*&
-                  (Magnetic_GD(i,  j,  k+1,x_) - Magnetic_GD(i,j,k,x_))-&
-                  SpeedOfLight_D(x_)*&
-                  (Magnetic_GD(i+1,j,  k  ,z_) - Magnetic_GD(i,j,k,z_))
+                  (Magnetic_GDB(i,j,k+1,x_,iBlock) - Magnetic_GDB(i,j,k,x_,iBlock)) &
+                  - SpeedOfLight_D(x_)*&
+                  (Magnetic_GDB(i+1,j,k,z_,iBlock) - Magnetic_GDB(i,j,k,z_,iBlock))
              
              BOut_GD(i1,j1,k1,z_) = &
                   SpeedOfLight_D(x_)*&
-                  (Magnetic_GD(i+1,j,  k  ,y_) - Magnetic_GD(i,j,k,y_))-&
-                  SpeedOfLight_D(y_)*& 
-                  (Magnetic_GD(i,  j+1,k  ,x_) - Magnetic_GD(i,j,k,x_))
+                  (Magnetic_GDB(i+1,j,k,y_,iBlock) - Magnetic_GDB(i,j,k,y_,iBlock)) &
+                  - SpeedOfLight_D(y_)*& 
+                  (Magnetic_GDB(i,j+1,k,x_,iBlock) - Magnetic_GDB(i,j,k,x_,iBlock))
           end do
        end do
     end do
   end subroutine get_b_from_a_local
   !================================
-  function e_interpolated_d()
-    !Sets the pointer to the fragment of E_GD array to interpolate E
+  function e_interpolated_d(iBlock)
+    integer, intent(in)::iBlock
+    !Sets the pointer to the fragment of E_GDB array to interpolate E
     real,dimension(1:3)::e_interpolated_d
     integer::i, j, k, n_D(3), n1_D(3)
     !----------------
@@ -82,29 +84,30 @@ contains
     do k=1, lOrderFF + 1
        do j=1, lOrderFF + 1
           e_interpolated_d(x_)= e_interpolated_d(x_)+ &
-               sum(E_GD(n_D(1)-iExt:lOrderFF+iExt+n1_D(1), &
-               j+n1_D(2), k+n1_d(3), x_)*LowFF_ID(:, x_))&
+               sum(E_GDB(n_D(1)-iExt:lOrderFF+iExt+n1_D(1), &
+               j+n1_D(2), k+n1_d(3), x_,iBlock)*LowFF_ID(:, x_))&
                *HighFF_ID(j, y_)*HighFF_ID(k, z_)
        end do
        do j=1-iExt,lOrderFF+iExt
           e_interpolated_d(y_)= e_interpolated_d(y_)+ &
-               sum(E_GD(n_D(1):lOrderFF+n_D(1), &
-               j+n1_D(2), k+n1_D(3), y_)*HighFF_ID(:,x_))&
+               sum(E_GDB(n_D(1):lOrderFF+n_D(1), &
+               j+n1_D(2), k+n1_D(3), y_,iBlock)*HighFF_ID(:,x_))&
                *LowFF_ID(j,y_)*HighFF_ID(k,z_)
        end do
     end do
     do k=1-iExt,lOrderFF+iExt
        do j=1,lOrderFF+1
           e_interpolated_d(z_)= e_interpolated_d(z_)+ &
-               sum(E_GD(n_D(1):lOrderFF+n_D(1),&
-               j+n1_D(2),k+n1_D(3),z_)*HighFF_ID(:,x_))&
+               sum(E_GDB(n_D(1):lOrderFF+n_D(1),&
+               j+n1_D(2),k+n1_D(3),z_,iBlock)*HighFF_ID(:,x_))&
                *HighFF_ID(j,y_)*LowFF_ID(k,z_)
        end do
     end do
   end function e_interpolated_d
 
   !===========================
-  function b_interpolated_d()
+  function b_interpolated_d(iBlock)
+    integer,intent(in)::iBlock
     !Sets the pointer to the fragment of the magnetic field array to 
     !interpolate B
     real,dimension(1:3)::b_interpolated_d
@@ -117,22 +120,22 @@ contains
     do k=1-iExt,lOrderFF+iExt
        do j=1-iExt,lOrderFF+iExt
           b_interpolated_d(x_)= b_interpolated_d(x_)+ &
-               sum(Magnetic_GD(n_D(1):lOrderFF+n_D(1),&
-               j+n1_D(2),k+n1_D(3),x_)*HighFF_ID(:,x_))&
+               sum(Magnetic_GDB(n_D(1):lOrderFF+n_D(1),&
+               j+n1_D(2),k+n1_D(3),x_,iBlock)*HighFF_ID(:,x_))&
                *LowFF_ID(j,y_)*LowFF_ID(k,z_)
        end do
        do j=1,lOrderFF+1
           b_interpolated_d(y_)= b_interpolated_d(y_)+ &
-               sum(Magnetic_GD(n_D(1)-iExt:lOrderFF+iExt+n1_D(1),&
-               j+n1_D(2),k+n1_D(3),y_)*LowFF_ID(:,x_))&
+               sum(Magnetic_GDB(n_D(1)-iExt:lOrderFF+iExt+n1_D(1),&
+               j+n1_D(2),k+n1_D(3),y_,iBlock)*LowFF_ID(:,x_))&
                *HighFF_ID(j,y_)*LowFF_ID(k,z_)
        end do
     end do
     do k=1,lOrderFF+1
        do j=1-iExt,lOrderFF+iExt
           b_interpolated_d(z_)= b_interpolated_d(z_)+ &
-               sum(Magnetic_GD(n_D(1)-iExt:n1_D(1)+lOrderFF+iExt,&
-               j+n1_D(2),k+n1_D(3),z_)*LowFF_ID(:,x_))&
+               sum(Magnetic_GDB(n_D(1)-iExt:n1_D(1)+lOrderFF+iExt,&
+               j+n1_D(2),k+n1_D(3),z_,iBlock)*LowFF_ID(:,x_))&
                *LowFF_ID(j,y_)*HighFF_ID(k,z_)
        end do
     end do
@@ -140,10 +143,11 @@ contains
   end function b_interpolated_d
   !============================
  
-  subroutine add_density(NodeIn_D,HighFFIn_ID)
+  subroutine add_density(NodeIn_D,HighFFIn_ID,iBlock)
     !Adds an input to the density, from a given particle
     integer,dimension(nDim),intent(in)::NodeIn_D
-    real,dimension(1+lOrderFF,nDim)::HighFFIn_ID
+    real,dimension(1+lOrderFF,nDim),intent(in)::HighFFIn_ID
+    integer,intent(in)::iBlock
     integer::i,j,k,i1,j1,k1
     real::FFProduct
     !------------------
@@ -157,15 +161,16 @@ contains
           FFProduct=HighFFIn_ID(k1,z_)*HighFFIn_ID(j1,y_)
           do i=NodeIn_D(1)+iDownFF,NodeIn_D(1)+iUpFF
              i1=i1+1
-             rho_G(i,j,k)=rho_G(i,j,k) + HighFFIn_ID(i1,x_)*&
+             Rho_GB(i,j,k,iBlock)=Rho_GB(i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
                   FFProduct   !Add the product of formfactors
           end do
        end do
     end do
   end subroutine add_density
   !=========================
-  subroutine add_current(QPerVDx_D,W_D) 
+  subroutine add_current(QPerVDx_D,W_D,iBlock) 
     real,intent(in)::QPerVDx_D(x_:z_),W_D(x_:z_)
+    integer,intent(in)::iBlock
     optional::W_D
     logical:: IsExtended
     !\
@@ -191,16 +196,19 @@ contains
        iD_D = min(NodeNew_D - Node_D,0)
        iU_D = max(NodeNew_D - Node_D,0)
 
-       Counter_GD(&
+       Counter_GDB(&
                          Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
                          Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
-                         Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),1:3) = &
-             Counter_GD( Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
+                         Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),&
+                         1:3,iBlock) = &
+             Counter_GDB( Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
                          Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
-                         Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),1:3) + & 
+                         Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),&
+                         1:3,iBlock) + & 
              CurrentFragmentExt_GD(      1+iD_D(1):iUpFF-iDownFF+1+iU_D(1),&
                                          1+iD_D(2):iUpFF-iDownFF+1+iU_D(2),&
-                                         1+iD_D(3):iUpFF-iDownFF+1+iU_D(3),1:3)                
+                                         1+iD_D(3):iUpFF-iDownFF+1+iU_D(3),&
+                                         1:3)                
     else
        DeltaFPlus  = HighFFNew_ID + HighFF_ID
        DeltaFMinus = HighFFNew_ID - HighFF_ID
@@ -229,10 +237,10 @@ contains
              !\
              !  x_ currents
              !/
-             Counter_GD(n_D(1):lOrderFF+n1_D(1),&
-                  j+n1_D(2),k+n1_D(3),x_) = &
-                  Counter_GD(n_D(1):lOrderFF+n1_D(1),&
-                  j+n1_D(2),k+n1_D(3),x_) +&
+             Counter_GDB(n_D(1):lOrderFF+n1_D(1),&
+                  j+n1_D(2),k+n1_D(3),x_,iBlock) = &
+                  Counter_GDB(n_D(1):lOrderFF+n1_D(1),&
+                  j+n1_D(2),k+n1_D(3),x_,iBlock) +&
                   FI(:,x_)*(&
                   DeltaFPlus (j,y_)*DeltaFPlus (k,z_)+&
                   DeltaFMinus(j,y_)*DeltaFMinus(k,z_))
@@ -241,10 +249,10 @@ contains
              !\
              !  y_ currents
              !/
-             Counter_GD(n_D(1):lOrderFF+n_D(1),&
-                  j+n1_D(2),k+n1_D(3),y_) = &
-                  Counter_GD(n_D(1):lOrderFF+n_D(1),&
-                  j+n1_D(2),k+n1_D(3),y_) + &
+             Counter_GDB(n_D(1):lOrderFF+n_D(1),&
+                  j+n1_D(2),k+n1_D(3),y_,iBlock) = &
+                  Counter_GDB(n_D(1):lOrderFF+n_D(1),&
+                  j+n1_D(2),k+n1_D(3),y_,iBlock) + &
                   FI(j,y_)*(&
                   DeltaFPlus (:,x_)*DeltaFPlus (k,z_)+&
                   DeltaFMinus(:,x_)*DeltaFMinus(k,z_))
@@ -255,10 +263,10 @@ contains
              !\
              !  z_ currents
              !/
-             Counter_GD(n_D(1):lOrderFF+n_D(1),&
-                  j+n1_D(2),k+n1_D(3),z_) = &
-                  Counter_GD(n_D(1):lOrderFF+n_D(1),&
-                  j+n1_D(2),k+n1_D(3),z_) + &
+             Counter_GDB(n_D(1):lOrderFF+n_D(1),&
+                  j+n1_D(2),k+n1_D(3),z_,iBlock) = &
+                  Counter_GDB(n_D(1):lOrderFF+n_D(1),&
+                  j+n1_D(2),k+n1_D(3),z_,iBlock) + &
                   FI(k,z_)*(&
                   DeltaFPlus (:,x_)*DeltaFPlus (j,y_)+&
                   DeltaFMinus(:,x_)*DeltaFMinus(j,y_))
@@ -350,8 +358,9 @@ contains
       end do
     end subroutine get_current_extended
     !===================
-    subroutine write_current
+    subroutine write_current(iBlock)
       use PIC_ModMain, ONLY: Dt, SpeedOfLight_D
+      integer,intent(in)::iBlock
       integer::i,j,k,iDim
       !-------------------
       write(*,*)'cPi*QPerVDx_D, Dt=',cPi*QPerVDx_D, Dt
@@ -371,30 +380,30 @@ contains
                do j= Node_D(2)+iDownFF-1,Node_D(2)+iUpFF+1
                   write(*,*)'Current_G(',Node_D(1)+iDownFF-1,&
                        ':',Node_D(1)+iUpFF+1,',',j,',',k,')= ',&
-                  Counter_GD(Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
-                             j,k,iDim)
+                  Counter_GDB(Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
+                             j,k,iDim,iBlock)
                end do
             end do
-            write(*,*)'Sum of currents=',sum(Counter_GD(&
+            write(*,*)'Sum of currents=',sum(Counter_GDB(&
                          Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
                          Node_D(2)+iDownFF-1:Node_D(2)+iUpFF+1,&
                          Node_D(3)+iDownFF-1:Node_D(3)+iUpFF+1,&
-                         iDim))
+                         iDim,iBlock))
                  
          else
             do k=Node_D(3)+iDownFF,Node_D(3)+iUpFF
                do j= Node_D(2)+iDownFF,Node_D(2)+iUpFF
                   write(*,*)'Current_G(',Node_D(1)+iDownFF,&
                        ':',Node_D(1)+iUpFF,',',j,',',k,')= ',&
-                  Counter_GD(Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
-                             j,k,iDim)
+                  Counter_GDB(Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
+                             j,k,iDim,iBlock)
                end do
             end do
-            write(*,*)'Sum of currents=',sum(Counter_GD(&
+            write(*,*)'Sum of currents=',sum(Counter_GDB(&
                          Node_D(1)+iDownFF  :Node_D(1)+iUpFF  ,&
                          Node_D(2)+iDownFF  :Node_D(2)+iUpFF  ,&
                          Node_D(3)+iDownFF  :Node_D(3)+iUpFF  ,&
-                         iDim))
+                         iDim,iBlock))
          end if
          write(*,*)'Compare with 4*\pi*q*u*dt/Volume=',&
               4.0*cPi*QPerVDx_D(iDim)*W_D(iDim)*SpeedOfLight_D(iDim)
@@ -405,19 +414,19 @@ contains
   !=========================
   real function min_val_rho()
     min_val_rho = &
-         minval(rho_G(1:nX,1:nY,1:nZ))
+         minval(Rho_GB(1:nX,1:nY,1:nZ,:))
   end function min_val_rho
   !=======================
   !=========================
   real function max_val_rho()
     max_val_rho = &
-         maxval(rho_G(1:nX,1:nY,1:nZ))
+         maxval(Rho_GB(1:nX,1:nY,1:nZ,:))
   end function max_val_rho
   !=======================
   real function rho_avr()
     use PIC_ModSize, ONLY: nCell_D
     rho_avr = &
-         sum(rho_G(1:nX,1:nY,1:nZ))/product(nCell_D)
+         sum(Rho_GB(1:nX,1:nY,1:nZ,:))/product(nCell_D)
   end function rho_avr
   !=======================
 end module PIC_ModParticleInField

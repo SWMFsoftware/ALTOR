@@ -3,9 +3,12 @@
 subroutine PIC_setup
   use PIC_ModMain,      ONLY: IsPeriodicField_D, IsInitialized
   use PIC_ModLogFile,   ONLY: open_logfile, nLogFile
+  use PC_BATL_geometry, ONLY: init_geometry
   implicit none
   character(len=*), parameter :: NameSub='PIC_setup'
   !-------------------------
+  call init_geometry(TypeGeometryIn='cartesian',&
+       IsPeriodicIn_D=IsPeriodicField_D)
   if(nLogFile >=1) call open_logfile
   IsInitialized = .true.
 end subroutine PIC_setup
@@ -20,7 +23,7 @@ end subroutine PIC_init_session
 !==========================
 subroutine PIC_advance(tMax)
   use PIC_ModMain,      ONLY: tSimulation
-  use PIC_ModField,     ONLY: update_magnetic, Rho_G, Counter_GD
+  use PIC_ModField,     ONLY: update_magnetic, Rho_GB, Counter_GDB
   use PIC_ModParticles, ONLY: advance_particles, Energy_P, nPType,&
                               pass_energy
   use PIC_ModField,     ONLY: update_e, field_bc, &
@@ -32,7 +35,7 @@ subroutine PIC_advance(tMax)
   implicit none
   real,intent(in) :: tMax
 
-  integer :: iSort,ii
+  integer :: iSort,ii, iBlock
 
   character(len=*), parameter :: NameSub='PIC_advance'
   !-----------------
@@ -60,12 +63,12 @@ subroutine PIC_advance(tMax)
   ! behind.
   !/
   !2. Prepare to move particles
-  Counter_GD = 0.0; Energy_P = 0.0
+  Counter_GDB = 0.0; Energy_P = 0.0
 
   !3. Move particles
   call timing_start('adv_particles')
   do iSort = 1, nPType
-     Rho_G = 0.0
+     Rho_GB = 0.0
      call advance_particles(iSort)
      if(nStepOut>=1.and.nStepOutMin<=iStep+1)then
         if(mod(iStep+1,nStepOut)==0)&
@@ -110,7 +113,7 @@ subroutine PIC_advance(tMax)
   call field_bc
  
   call timing_start('adv_e')
-  call update_e
+     call update_e
   call timing_stop('adv_e')
 
   !call field_bc_absorption
@@ -120,7 +123,7 @@ subroutine PIC_advance(tMax)
   ! the time step. The particle coordinates are at the end of the timestep.
   ! The particle velocities and magnetic fields are in the middle of the timestep.
   !/
-  if(any(IsPeriodicField_D))call field_bc_periodic
+  if(any(IsPeriodicField_D))call field_bc_periodic(1)
 
   call timing_stop('advance')
 

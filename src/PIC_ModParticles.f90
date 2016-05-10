@@ -3,7 +3,7 @@ module PIC_ModParticles
   use PIC_ModSize,ONLY: nPType, nElectronMax,nDim, x_, y_, z_
   use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, CellVolume, SpeedOfLight_D
-  use PIC_ModParticleInField,ONLY: rho_G,add_density,add_current
+  use PIC_ModParticleInField,ONLY: Rho_GB,add_density,add_current
   use PIC_ModParticleInField,ONLY: b_interpolated_d,e_interpolated_d
   use PIC_ModParticleInField,ONLY: min_val_rho, max_val_rho, rho_avr
   use PIC_ModFormFactor,ONLY: HighFF_ID, HighFFNew_ID,&
@@ -131,7 +131,7 @@ contains
        if(nPPerCell_P(iSort)<0.and.iProc==0)&
             write(*,*)'Particles will neutralize electrons'
     end do
-    rho_G = 0.0
+    Rho_GB = 0.0
     call uniform(nPPerCell_P)
     if(nProc==1)then
        nTotal_P = n_P
@@ -191,7 +191,7 @@ contains
           end do
           call put_particle(iSort, Coord_D)
           call get_form_factors(Coord_D,Node_D,HighFF_ID)
-          call add_density(Node_D,HighFF_ID)
+          call add_density(Node_D,HighFF_ID,1)
        end do
     end do
   end subroutine uniform
@@ -225,7 +225,7 @@ contains
     call read_var('zFoilWidth',xFoilWidth(3))
     call read_var('angleFoil',angleFoil)
     !
-    rho_G = 0.0
+    Rho_GB = 0.0
     call foil(nPPerCell_P)
     if(nProc==1)then
        nTotal_P = n_P
@@ -304,7 +304,7 @@ contains
                  ) cycle PART
             call put_particle(iSort, Coord_D)
             call get_form_factors(Coord_D,Node_D,HighFF_ID)
-            call add_density(Node_D,HighFF_ID)
+            call add_density(Node_D,HighFF_ID,1)
          end do PART
     end do
   end subroutine foil
@@ -379,7 +379,7 @@ end subroutine read_foil
     !real::Energy,
     real::W2
 
-    integer::iParticle
+    integer::iParticle, iBlock
 
     real,dimension(nDim)::X_D
 
@@ -422,13 +422,19 @@ end subroutine read_foil
        !Now W_D is the initial momentum, W2=W_D^2
        !Mow Gamma is the initial Gamma-factor multiplied by c
        
+
+       !\
+       ! Get block number
+       !/
+       iBlock = 1
+
        !call timing_start('formfactor')
        call get_form_factors(X_D,Node_D,HighFF_ID)
        !call timing_stop('formfactor')
-
+       
        !Electric field force
        !call timing_start('electric')
-       EForce_D = QDtPerM * e_interpolated_d()
+       EForce_D = QDtPerM * e_interpolated_d(iBlock)
        !call timing_stop('electric')
 
        !Add kinetic energy
@@ -443,7 +449,7 @@ end subroutine read_foil
 
        !Get magnetic force
        !call timing_start('magnetic')
-       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d()
+       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d(iBlock)
        !call timing_stop('magnetic')       
 
        !Add a half of the magnetic rotation:
@@ -478,7 +484,7 @@ end subroutine read_foil
       
        !Contribute to the charge densiry
        !call timing_start('density')
-       call add_density(NodeNew_D,HighFFNew_ID)
+       call add_density(NodeNew_D,HighFFNew_ID,iBlock)
        !call timing_stop('density')
        !      if(nDim<3)then
        !         W_D=QcDtPerV*W_D !For nDim=3 velocity is not used
@@ -486,7 +492,7 @@ end subroutine read_foil
        !      end if
        !Contribute to the current
        !call timing_start('current')
-       call add_current(QPerVDx_D,W_D)
+       call add_current(QPerVDx_D,W_D,iBlock)
        !call timing_stop('current')
 
        iShift_D = floor(X_D/nCell_D)

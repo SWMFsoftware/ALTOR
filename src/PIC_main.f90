@@ -6,6 +6,7 @@ program PIC
   use ModReadParam
   use ModIoUnit,ONLY:UNITTMP_
   use ModMpi
+  use PIC_ModField,     ONLY:allocate_fields
   implicit none
 
   integer:: iSession = 1
@@ -46,12 +47,12 @@ program PIC
 
   end if
 
+  call allocate_fields
   !\
   ! Read input parameter file. Provide the default restart file for #RESTART
   !/
   call read_file('PARAM.in',iComm)
-
-
+ 
   SESSIONLOOP: do
      call read_init('  ', iSessionIn=iSession)
 
