@@ -84,7 +84,8 @@ contains
     use PIC_ModProc,      ONLY: iProc
     use PIC_ModField,     ONLY: get_field_energy
     use PIC_ModMain,      ONLY: iStep, tSimulation, Dx_D
-    use PIC_ModParticles, ONLY: Energy_P, Of, Wx_,Wz_
+    use PIC_ModParticles, ONLY: Energy_P, Wx_, Wz_
+    use PC_BATL_particles, ONLY: Particle_I
     use ModUtilities, ONLY: flush_unit
     integer :: iP
     !-----------------------
@@ -110,8 +111,8 @@ contains
     call flush_unit(iLogUnit)
     do iP=1, nToWrite
        write(nToWrite_II(1,iP),'(i10,7es13.5)')iStep, tSimulation, &
-            Of(nToWrite_II(2,iP))%State_VI(1:nDim,nToWrite_II(3,iP))*Dx_D,&
-            Of(nToWrite_II(2,iP))%State_VI(Wx_:Wz_,nToWrite_II(3,iP))
+            Particle_I(nToWrite_II(2,iP))%State_VI(1:nDim,nToWrite_II(3,iP))*Dx_D,&
+            Particle_I(nToWrite_II(2,iP))%State_VI(Wx_:Wz_,nToWrite_II(3,iP))
        call flush_unit(nToWrite_II(1,iP))
     end do
   end subroutine write_logfile
