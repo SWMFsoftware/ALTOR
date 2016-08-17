@@ -3,7 +3,8 @@ Module PIC_ModThermal
   use PIC_ModMain,      ONLY: c2
   use PIC_ModRandom
   use PIC_ModParticles, ONLY: Wx_, Wz_, n_P, parallel_init_rand
-  use PIC_ModParticles, ONLY: Of, Energy_P, nTotal_P, M_P
+  use PIC_ModParticles, ONLY: Energy_P, nTotal_P, M_P
+  use PC_BATL_particles, ONLY: Particle_I
   use ModNumConst,      ONLY: cTwoPi
   implicit none
 
@@ -20,7 +21,7 @@ contains
        Energy=-uT2_P(iSort)*LOG(RAND())
 
        MomentumAvr=sqrt(2.0*Energy)
-       Of(iSort)%State_VI(iW,iP) = Of(iSort)%State_VI(iW,iP) + &
+       Particle_I(iSort)%State_VI(iW,iP) = Particle_I(iSort)%State_VI(iW,iP) + &
             MomentumAvr*COS(cTwoPi*RAND())
     end do
   end subroutine thermalize_particle
@@ -48,7 +49,7 @@ contains
     call get_energy
     if(iProc==0)then
        do iSort = 1, nPType
-          write(*,*)'For paticle of sort ',iSort,&
+          write(*,*)'For particle of sort ',iSort,&
                ' averaged energy is ',Energy_P(iSort)/nTotal_P(iSort),&
                ' should be ', 1.50 * M_P(iSort) * uT2_P(iSort)*&
                (1.0 -1.250*uT2_P(iSort)/c2)
