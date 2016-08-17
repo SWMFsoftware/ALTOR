@@ -1,53 +1,46 @@
 program PIC
   use PIC_ModProc
   use PIC_ModParticles
+  use ModUtilities, ONLY: remove_file, touch_file
   use PIC_ModRandom
   use PIC_ModMain
   use ModReadParam
   use ModIoUnit,ONLY:UNITTMP_
   use ModMpi
   use PIC_ModField,     ONLY:allocate_fields
+  use PIC_ModOutput, ONLY: PIC_save_files
+  
   implicit none
 
   integer:: iSession = 1
   logical:: IsFound
-
+  
   real(Real8_) :: CpuTimeStart
 
-  !---------------
-  !Initialize MPI
+  !------------------------------------------------
+  !\                                                                        
+  ! Initialization of MPI/parallel message passing.                        
+  !/ 
   call MPI_INIT(iError)
   iComm=MPI_COMM_WORLD
-  call MPI_COMM_RANK(iComm,iProc,iError)
-  call MPI_COMM_SIZE(iComm,nProc,iError)
-
+  call MPI_COMM_RANK(iComm, iProc, iError)
+  call MPI_COMM_SIZE(iComm, nProc, iError)
 
   !\
   ! Initialize time which is used to check CPU time
   !/
   CpuTimeStart = MPI_WTIME()
 
-
   !\
   ! Delete PIC.SUCCESS and PIC.STOP files if found
   !/
   if(iProc==0)then
-
-     inquire(file='PIC.SUCCESS',EXIST=IsFound)
-     if(IsFound)then
-        open(UNITTMP_, file = 'PIC.SUCCESS')
-        close(UNITTMP_,STATUS = 'DELETE')
-     end if
-
-     inquire(file='PIC.STOP',EXIST=IsFound)
-     if (IsFound) then
-        open(UNITTMP_, file = 'PIC.STOP')
-        close(UNITTMP_, STATUS = 'DELETE')
-     endif
-
+     call remove_file('PIC.SUCCESS')
+     call remove_file('PIC.STOP')
   end if
 
   call allocate_fields
+  
   !\
   ! Read input parameter file. Provide the default restart file for #RESTART
   !/
@@ -57,7 +50,7 @@ program PIC
      call read_init('  ', iSessionIn=iSession)
 
      if(iProc==0)&
-          write(*,*)'----- Starting Session ',iSession,' ------'
+         write(*,*)'----- Starting Session ',iSession,' ------'
      !\
      ! Set and check input parameters for this session
      !/
@@ -74,25 +67,31 @@ program PIC
      call PIC_init_session(iSession)
      if(iSession==1)then
         call timing_stop('setup')
-        if(nTiming > -3)call timing_report_total
-        if(iProc==0)write(*,*)'Resetting timing counters after setup.'
+        if(nTiming > -3) call timing_report_total
+        if(iProc==0) write(*,*)'Resetting timing counters after setup.'
         call timing_reset('#all',3)
      end if
-  
+ 
+     !Save the initial outputs
+     call PIC_save_files('INITIAL')
+
      TIMELOOP: do
-        if(stop_condition_true())EXIT TIMELOOP
+        if(stop_condition_true())exit TIMELOOP
         if(is_time_to_stop())exit SESSIONLOOP
         call timing_step(iStep + 1)
+        
         if(tMax > 0.0)then
            call PIC_advance(tMax)
         else
            call PIC_advance(huge(0.0))
         end if
-
+        
         call show_progress
+        
+        call PIC_save_files('NORMAL')
 
      end do TIMELOOP
-     if(IsLastRead)EXIT SESSIONLOOP
+     if(IsLastRead)exit SESSIONLOOP
      if(iProc==0) &
           write(*,*)'----- End of Session   ',iSession,' ------'   
      iSession=iSession+1
@@ -108,9 +107,9 @@ program PIC
 
   if (nTiming > -2) call timing_report
 
- 
-  call PIC_save_files('FINALWITHRESTART')
- 
+  call PIC_save_files('FINAL') 
+
+  !call PIC_save_files('FINALWITHRESTART')
 
   if(iProc==0)then
      write(*,*)
@@ -122,29 +121,26 @@ program PIC
 
   if(nTiming > -3)call timing_report_total
 
+  !Finish writting to log file
   call PIC_finalize
+
   !\
   ! Touch PIC.SUCCESS
   !/
-  if(iProc==0)then
-     open(UNITTMP_, file = 'PIC.SUCCESS')
-     close(UNITTMP_)
-  end if
-
+  if(iProc==0) call touch_file('PIC.SUCCESS')
 
   !Finalize MPI
   call MPI_Finalize(iError)
-  stop
+  
 contains
-   function stop_condition_true() result(StopConditionTrue)
+   function stop_condition_true() result(UseStopCondition)
 
-    logical :: StopConditionTrue
+    logical :: UseStopCondition
 
-    StopConditionTrue = .false.
+    UseStopCondition = .false.
 
-    
-    if(nIter >= 0 .and. iStep >= nIter) StopConditionTrue = .true.
-    if(tMax > 0.0 .and. tSimulation >= tMax) StopConditionTrue = .true.
+    if(nIter >= 0 .and. iStep >= nIter) UseStopCondition = .true.
+    if(tMax > 0.0 .and. tSimulation >= tMax) UseStopCondition = .true.
 
   end function stop_condition_true
   !===============================
