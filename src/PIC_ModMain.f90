@@ -4,18 +4,18 @@ module PIC_ModMain
   implicit none
   SAVE
   !-----------------------
-  !If UseSharedField==.true. at all processaros
-  !The field is the same, only particles are distributed.
+  !If UseSharedField==.true. at all processors
+  !the field is the same, only particles are distributed.
   logical, parameter:: UseSharedField = .true.
  
   logical:: IsInitialized = .false.
 
-  logical::UseVectorPotential = .false.
+  logical:: UseVectorPotential = .false.
 
   ! logical::DoAccelerateLight = .false.
 
   real :: c = cHalf, c2 = 0.25
-  real,dimension(nDim)::SpeedOfLight_D = cHalf
+  real,dimension(nDim):: SpeedOfLight_D = cHalf
 
   !\
   ! Time stepping parameters and values.
@@ -23,7 +23,7 @@ module PIC_ModMain
   real :: tSimulation = 0.0
   integer :: iStep = 0
   real :: Dt= 0.0
-  real ::CellVolume=cOne, Dx_D(nDim)=cOne
+  real :: CellVolume=1.0, Dx_D(nDim)=1.0
 
   !\
   ! Stopping conditions. These variables are only used in stand alone mode.
@@ -40,9 +40,10 @@ module PIC_ModMain
   integer :: nProgress1=10, nProgress2=100
 
   
-  ! Timing variables
+  !Timing variables
   logical:: UseTiming = .true.
   integer:: nTiming = -2
+
   
   !\
   ! Boundary condition for the electric field
