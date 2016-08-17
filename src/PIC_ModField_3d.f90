@@ -15,11 +15,10 @@ module PIC_ModField
 
   SAVE
 
-
   !Introduce the number of ghostcells (iGCN)
   integer,parameter:: iGCN=&
        1 &    !because even with the first order formfactor the 
-                                !particle can escape the domain within a time step
+              !particle can escape the domain within a time step
        +lOrderFF/2 
   !because for lOrderFF>1 the particle form-factor
   !is wider than a mesh size
@@ -40,11 +39,13 @@ module PIC_ModField
   !     E_GDB        = 0.0,& !This is the electric field
   !     Magnetic_GDB = 0.0,& !vector-potential if used, magnetic field otherwise
   !     Counter_GDB  = 0.0   !Counter for electric current
+  !     V_GDB        = 0.0   !Cell-centered velocity
   real,allocatable:: E_GDB(:,:,:,:,:)
   real,allocatable:: Magnetic_GDB(:,:,:,:,:)
   real,allocatable:: Counter_GDB(:,:,:,:,:)
 
-  real,allocatable::Rho_GB(:,:,:,:)
+  real,allocatable:: Rho_GB(:,:,:,:)
+  real,allocatable:: V_GDB(:,:,:,:,:)
   real :: B0_D(3) = 0.0
 
   !Methods
@@ -56,6 +57,7 @@ module PIC_ModField
 contains
   !=======================
   subroutine allocate_fields
+    
     allocate(E_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
          1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); E_GDB = 0.0
     allocate(Magnetic_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
@@ -63,7 +65,10 @@ contains
     allocate(Counter_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
          1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); Counter_GDB = 0.0 
     allocate(Rho_GB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
-         1-iGCN:nZ+iGCN, MaxBlock)); Rho_GB = 0.0 
+         1-iGCN:nZ+iGCN, MaxBlock)); Rho_GB = 0.0
+    allocate(V_GDB(1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,&
+         1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); V_GDB = 0.0
+
   end subroutine allocate_fields
   !================
   subroutine add_e
@@ -101,7 +106,7 @@ contains
           do j=1-iGCN,nY+iGCN
              do i=1-iGCN,nX+iGCN
                 Magnetic_GDB(i,j,k,iDim,iBlock) = &
-                     Magnetic_GDB(i,j,k,iBlock,iDim) + B0_D(iDim)
+                     Magnetic_GDB(i,j,k,iDim,iBlock) + B0_D(iDim)
              end do
           end do
        end do
@@ -348,134 +353,134 @@ contains
     ! the faces inside the extended domain are filled in here
     !/
     where(.not.IsPeriodicField_D)i1_D=1
-      
+
     i0_D=0; where(IsPeriodicField_D)i0_D=0
 
 
-    if(IsPeriodicField_D(x_))goto 100
-    ! Face X < 0    
-    i=1-iGCN
-    do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
-       do j=0-i1_D(y_),nY+i1_D(y_);
-          E_GDB(i,j,k,y_,1) = E_GDB(i,j,k,y_,1)*(1 - SpeedOfLight_D(x_)) + &
-               SpeedOfLight_D(x_)*E_GDB(i+1,j,k,y_,1)
-          if(TypeFieldBC_S(1)=='laserbeam')&
-               call laser_beam(iDir=y_,       &
-               x=(i-0.50)*Dx_D(x_),&
-               y=j       *Dx_D(y_),&
-               z=(k-0.50)*Dx_D(z_),&
-               EField=E_GDB(i,j,k,y_,1) )
+    if(.not.IsPeriodicField_D(x_))then
+       ! Face X < 0    
+       i=1-iGCN
+       do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
+          do j=0-i1_D(y_),nY+i1_D(y_);
+             E_GDB(i,j,k,y_,1) = E_GDB(i,j,k,y_,1)*(1 - SpeedOfLight_D(x_)) + &
+                  SpeedOfLight_D(x_)*E_GDB(i+1,j,k,y_,1)
+             if(TypeFieldBC_S(1)=='laserbeam')&
+                  call laser_beam(iDir=y_,       &
+                  x=(i-0.50)*Dx_D(x_),&
+                  y=j       *Dx_D(y_),&
+                  z=(k-0.50)*Dx_D(z_),&
+                  EField=E_GDB(i,j,k,y_,1) )
 
 
+          end do
        end do
-    end do
 
-    do k=0-i1_D(z_),nZ+i1_D(z_)
-       do j=1-iGCN*i0_D(y_),nY+iGCN*i0_D(y_)
-          E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(x_))+&
-               SpeedOfLight_D(x_)*E_GDB(i+1,j,k,z_,1)
-          if(TypeFieldBC_S(1)=='laserbeam')&
-               call laser_beam(iDir=z_,       &
-               x=(i-0.50)*Dx_D(x_),&
-               y=(j-0.50)*Dx_D(y_),&
-               z=k       *Dx_D(z_),&
-               EField=E_GDB(i,j,k,z_,1) )
+       do k=0-i1_D(z_),nZ+i1_D(z_)
+          do j=1-iGCN*i0_D(y_),nY+iGCN*i0_D(y_)
+             E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(x_))+&
+                  SpeedOfLight_D(x_)*E_GDB(i+1,j,k,z_,1)
+             if(TypeFieldBC_S(1)=='laserbeam')&
+                  call laser_beam(iDir=z_,       &
+                  x=(i-0.50)*Dx_D(x_),&
+                  y=(j-0.50)*Dx_D(y_),&
+                  z=k       *Dx_D(z_),&
+                  EField=E_GDB(i,j,k,z_,1) )
+          end do
        end do
-    end do
 
 
-    !face X > dx.nX    
+       !face X > dx.nX    
 
-    do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
-       do j=0-i1_D(y_),nY+i1_D(y_);
-          i=nX+iGCN
-          E_GDB(i,j,k,y_,1) = E_GDB(i,j,k,y_,1)*(1 - SpeedOfLight_D(x_)) + &
-               SpeedOfLight_D(x_)* E_GDB(i-1,j,k,y_,1)
-          if(TypeFieldBC_S(2)=='laserbeam')&
-               call laser_beam(iDir=y_,       &
-               x=(i-0.50)*Dx_D(x_),&
-               y=j       *Dx_D(y_),&
-               z=(k-0.50)*Dx_D(z_),&
-               EField=E_GDB(i,j,k,y_,1) )
+       do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
+          do j=0-i1_D(y_),nY+i1_D(y_);
+             i=nX+iGCN
+             E_GDB(i,j,k,y_,1) = E_GDB(i,j,k,y_,1)*(1 - SpeedOfLight_D(x_)) + &
+                  SpeedOfLight_D(x_)* E_GDB(i-1,j,k,y_,1)
+             if(TypeFieldBC_S(2)=='laserbeam')&
+                  call laser_beam(iDir=y_,       &
+                  x=(i-0.50)*Dx_D(x_),&
+                  y=j       *Dx_D(y_),&
+                  z=(k-0.50)*Dx_D(z_),&
+                  EField=E_GDB(i,j,k,y_,1) )
+          end do
        end do
-    end do
-    do k=0-i1_D(z_),nZ+i1_D(z_)
-       do j=1-iGCN*i0_D(y_),nY+iGCN*i0_D(y_)
-          i=nX+iGCN
-          E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(x_)) + &
-               SpeedOfLight_D(x_)*E_GDB(i-1,j,k,z_,1)
-          if(TypeFieldBC_S(2)=='laserbeam')&
-               call laser_beam(iDir=z_,       &
-               x=(i-0.50)*Dx_D(x_),&
-               y=(j-0.50)*Dx_D(y_),&
-               z=k       *Dx_D(z_),&
-               EField=E_GDB(i,j,k,z_,1) )
+       do k=0-i1_D(z_),nZ+i1_D(z_)
+          do j=1-iGCN*i0_D(y_),nY+iGCN*i0_D(y_)
+             i=nX+iGCN
+             E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(x_)) + &
+                  SpeedOfLight_D(x_)*E_GDB(i-1,j,k,z_,1)
+             if(TypeFieldBC_S(2)=='laserbeam')&
+                  call laser_beam(iDir=z_,       &
+                  x=(i-0.50)*Dx_D(x_),&
+                  y=(j-0.50)*Dx_D(y_),&
+                  z=k       *Dx_D(z_),&
+                  EField=E_GDB(i,j,k,z_,1) )
+          end do
        end do
-    end do
-100 continue
+    end if
 
-    if(IsPeriodicField_D(y_))goto 200
-    !\
-    ! Face Y<0
-    !/ 
-    j=1-iGCN
-    do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
-       do i=0-i1_D(x_),nX+i1_D(x_)
-          E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(y_)) + &
-               SpeedOfLight_D(y_)*E_GDB(i,j+1,k,x_,1)
-          if(TypeFieldBC_S(3)=='laserbeam')&
-               call laser_beam(iDir=x_,       &
-               x= i      *Dx_D(x_),&
-               y=(j-0.50)*Dx_D(y_),&
-               z=(k-0.50)*Dx_D(z_),&
-               EField=E_GDB(i,j,k,x_,1) )
+    if(.not.IsPeriodicField_D(y_))then
+       !\
+       ! Face Y<0
+       !/ 
+       j=1-iGCN
+       do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
+          do i=0-i1_D(x_),nX+i1_D(x_)
+             E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(y_)) + &
+                  SpeedOfLight_D(y_)*E_GDB(i,j+1,k,x_,1)
+             if(TypeFieldBC_S(3)=='laserbeam')&
+                  call laser_beam(iDir=x_,       &
+                  x= i      *Dx_D(x_),&
+                  y=(j-0.50)*Dx_D(y_),&
+                  z=(k-0.50)*Dx_D(z_),&
+                  EField=E_GDB(i,j,k,x_,1) )
+          end do
        end do
-    end do
 
-    do k=0-i1_D(z_),nZ+i1_D(z_)
-       do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
-          E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(y_)) +&
-               SpeedOfLight_D(y_)*E_GDB(i,j+1,k,z_,1)
-          if(TypeFieldBC_S(3)=='laserbeam')&
-               call laser_beam(iDir=z_,       &
-               x=(i-0.50)*Dx_D(x_),&
-               y=(j-0.50)*Dx_D(y_),&
-               z=k       *Dx_D(z_),&
-               EField=E_GDB(i,j,k,z_,1) )
+       do k=0-i1_D(z_),nZ+i1_D(z_)
+          do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
+             E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(y_)) +&
+                  SpeedOfLight_D(y_)*E_GDB(i,j+1,k,z_,1)
+             if(TypeFieldBC_S(3)=='laserbeam')&
+                  call laser_beam(iDir=z_,       &
+                  x=(i-0.50)*Dx_D(x_),&
+                  y=(j-0.50)*Dx_D(y_),&
+                  z=k       *Dx_D(z_),&
+                  EField=E_GDB(i,j,k,z_,1) )
+          end do
        end do
-    end do
-    !\
-    ! Face Y>nY.dy
-    !/    
-    j=nY+iGCN
-    do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
-       do i=0-i1_D(x_),nX+i1_D(x_)
-          E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(y_)) + &
-               SpeedOfLight_D(y_)*E_GDB(i,j-1,k,x_,1)
-          if(TypeFieldBC_S(4)=='laserbeam')&
-               call laser_beam(iDir=x_,       &
-               x= i      *Dx_D(x_),&
-               y=(j-0.50)*Dx_D(y_),&
-               z=(k-0.50)*Dx_D(z_),&
-               EField=E_GDB(i,j,k,x_,1) )
+       !\
+       ! Face Y>nY.dy
+       !/    
+       j=nY+iGCN
+       do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
+          do i=0-i1_D(x_),nX+i1_D(x_)
+             E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(y_)) + &
+                  SpeedOfLight_D(y_)*E_GDB(i,j-1,k,x_,1)
+             if(TypeFieldBC_S(4)=='laserbeam')&
+                  call laser_beam(iDir=x_,       &
+                  x= i      *Dx_D(x_),&
+                  y=(j-0.50)*Dx_D(y_),&
+                  z=(k-0.50)*Dx_D(z_),&
+                  EField=E_GDB(i,j,k,x_,1) )
+          end do
        end do
-    end do
 
-    do k=0-i1_D(z_),nZ+i1_D(z_)
-       do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
-          E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(y_)) + &
-               SpeedOfLight_D(y_)*E_GDB(i,j-1,k,z_,1)
-          if(TypeFieldBC_S(4)=='laserbeam')&
-               call laser_beam(iDir=z_,       &
-               x=(i-0.50)*Dx_D(x_),&
-               y=(j-0.50)*Dx_D(y_),&
-               z=k       *Dx_D(z_),&
-               EField=E_GDB(i,j,k,z_,1) )
+       do k=0-i1_D(z_),nZ+i1_D(z_)
+          do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
+             E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(y_)) + &
+                  SpeedOfLight_D(y_)*E_GDB(i,j-1,k,z_,1)
+             if(TypeFieldBC_S(4)=='laserbeam')&
+                  call laser_beam(iDir=z_,       &
+                  x=(i-0.50)*Dx_D(x_),&
+                  y=(j-0.50)*Dx_D(y_),&
+                  z=k       *Dx_D(z_),&
+                  EField=E_GDB(i,j,k,z_,1) )
+          end do
        end do
-    end do
 
-200 continue
-    if(IsPeriodicField_D(z_))return
+    end if
+    if(IsPeriodicField_D(z_)) RETURN
     !\
     ! Face Z<0
     !/
