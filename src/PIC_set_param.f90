@@ -4,6 +4,7 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModMain
   use PIC_ModSize,    ONLY: nDim
   use PIC_ModParticles
+  use PC_BATL_particles, ONLY: Particle_I
   use PIC_ModLogFile, ONLY: nLogFile, nToWrite, nToWrite_II
   use PIC_ModOutput, ONLY: nStepOut, nStepOutMin
   use PIC_ModThermal, ONLY: read_temperature
@@ -109,7 +110,7 @@ subroutine PIC_set_param(TypeAction)
            do iP=2, nPType
               call read_var('Q_P/| Q_P(Electron_) |',Q_P(iP))
               Q_P(iP) = Q_P(iP) *  CellVolume/(4*cPi*nPPerCrit)
-              call read_var('M_P/|M_P(Electron_)',M_P(iP))
+              call read_var('M_P/ M_P(Electron_)',M_P(iP))
               M_P(iP) = M_P(iP) *  CellVolume/(4*cPi*nPPerCrit)
            end do
         case default
@@ -136,7 +137,7 @@ subroutine PIC_set_param(TypeAction)
         call add_b
 
      case('#ADDVELOCITY')
-        call add_velocity
+        call add_velocity_init
 
      case('#TIMESTEP')
         call read_var('Dt',Dt)
@@ -149,7 +150,7 @@ subroutine PIC_set_param(TypeAction)
         if (iProc==0)then
            nToWrite = nToWrite +1
            call put_particle(iP,Value_V(1:nDim))
-           Of(iP)% State_VI(Wx_:Wz_,n_P(iP)) = Value_V(Wx_:Wz_)
+           Particle_I(iP)% State_VI(Wx_:Wz_,n_P(iP)) = Value_V(Wx_:Wz_)
            nToWrite_II(2,nToWrite) = iP
            nToWrite_II(3,nToWrite) = n_P(iP)
         end if
