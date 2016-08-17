@@ -1,5 +1,5 @@
 module PIC_ModParticleInField
-  use PIC_ModField,get_b_from_a_global=>get_b_from_a
+  use PIC_ModField, get_b_from_a_global=>get_b_from_a
   use PIC_ModFormFactor, ONLY: lOrderFF, iUpFF, iDownFF, iExt
   use PIC_ModFormfactor, ONLY: Node_D, NodeNew_D
   use PIC_ModFormFactor, ONLY: HighFF_ID, HighFFNew_ID, LowFF_ID
@@ -21,9 +21,10 @@ module PIC_ModParticleInField
   public::b_interpolated_d !Interpolated magnetic field
   public::add_density      !Adds an input to a density, 
                            !from a given particle
+  public::add_velocity     !Adds an input to cell-centered velocity
   public::add_current !Adds an input to an electric current
 contains
-
+  !=============================================================
   subroutine get_b_from_a_local(iBlock,BOut_GD)  
     integer,intent(in)::iBlock
     real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:lOrderFF+1,1:3),&
@@ -168,6 +169,36 @@ contains
     end do
   end subroutine add_density
   !=========================
+  subroutine add_velocity(V_D,NodeIn_D,HighFFIn_ID,iBlock)
+    !Adds an input to the velocity, from a given particle
+    !following the same scheme as number density
+    real :: V_D(1:nDim)
+    integer,dimension(nDim),intent(in)::NodeIn_D
+    real,dimension(1+lOrderFF,nDim),intent(in)::HighFFIn_ID
+    integer,intent(in)::iBlock
+    integer::i,j,k,i1,j1,k1
+    real::FFProduct
+    !----------------------                                     
+    k1=0
+    do k=NodeIn_D(3)+iDownFF,NodeIn_D(3)+iUpFF
+       k1=k1+1
+       j1=0
+       do j=NodeIn_D(2)+iDownFF,NodeIn_D(2)+iUpFF
+          j1=j1+1
+          i1=0
+          FFProduct=HighFFIn_ID(k1,z_)*HighFFIn_ID(j1,y_)
+          do i=NodeIn_D(1)+iDownFF,NodeIn_D(1)+iUpFF
+             i1=i1+1
+             !Add the product of formfactors
+             V_GDB(i,j,k,:,iBlock)=V_GDB(i,j,k,:,iBlock) + HighFFIn_ID(i1,x_)*&
+                  FFProduct*V_D  
+          end do
+       end do
+    end do
+
+  end subroutine add_velocity
+
+  !=========================
   subroutine add_current(QPerVDx_D,W_D,iBlock) 
     real,intent(in)::QPerVDx_D(x_:z_),W_D(x_:z_)
     integer,intent(in)::iBlock
@@ -177,8 +208,8 @@ contains
     ! For extended stencil
     !/
     real :: CurrentFragmentExt_GD(0:iUpFF-iDownFF+2,&
-                                  0:iUpFF-iDownFF+2,&
-                                  0:iUpFF-iDownFF+2,1:3)
+         0:iUpFF-iDownFF+2,&
+         0:iUpFF-iDownFF+2,1:3)
     integer :: iD_D(3), iU_D(3)
     real,parameter::sqrt13=cOne/1.732050808
 
@@ -188,7 +219,7 @@ contains
     !-------------------
     IsExtended = any(Node_D/=NodeNew_D)
 
-   
+
 
     if(IsExtended)then
        call get_current_extended
@@ -197,18 +228,18 @@ contains
        iU_D = max(NodeNew_D - Node_D,0)
 
        Counter_GDB(&
-                         Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
-                         Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
-                         Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),&
-                         1:3,iBlock) = &
-             Counter_GDB( Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
-                         Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
-                         Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),&
-                         1:3,iBlock) + & 
-             CurrentFragmentExt_GD(      1+iD_D(1):iUpFF-iDownFF+1+iU_D(1),&
-                                         1+iD_D(2):iUpFF-iDownFF+1+iU_D(2),&
-                                         1+iD_D(3):iUpFF-iDownFF+1+iU_D(3),&
-                                         1:3)                
+            Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
+            Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
+            Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),&
+            1:3,iBlock) = &
+            Counter_GDB( Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
+            Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
+            Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),&
+            1:3,iBlock) + & 
+            CurrentFragmentExt_GD(      1+iD_D(1):iUpFF-iDownFF+1+iU_D(1),&
+            1+iD_D(2):iUpFF-iDownFF+1+iU_D(2),&
+            1+iD_D(3):iUpFF-iDownFF+1+iU_D(3),&
+            1:3)                
     else
        DeltaFPlus  = HighFFNew_ID + HighFF_ID
        DeltaFMinus = HighFFNew_ID - HighFF_ID
@@ -225,11 +256,11 @@ contains
        do iDim=x_,z_
           FI(:,iDim)=(-QPerVDx_D(iDim)*cPi)*FI(:,iDim)
        end do
-       
+
        DeltaFMinus=sqrt13*DeltaFMinus
-       
+
        n_D = Node_D + iDownFF; n1_d = n_D -1
-       
+
 
        !add current density:
        do k=1,lOrderFF+1
@@ -286,16 +317,16 @@ contains
       !First, add the properly shifted new formfactor
       !/
       DeltaFPlusExt(1+NodeNew_D(1)-Node_D(1):&
-                 1+NodeNew_D(1)-Node_D(1)+iUpFF-iDownFF,x_)=&
-                                         HighFFNew_ID(:,x_)
+           1+NodeNew_D(1)-Node_D(1)+iUpFF-iDownFF,x_)=&
+           HighFFNew_ID(:,x_)
 
       DeltaFPlusExt(1+NodeNew_D(2)-Node_D(2):&
-                 1+NodeNew_D(2)-Node_D(2)+iUpFF-iDownFF,y_) = &
-                                         HighFFNew_ID(:,y_)
+           1+NodeNew_D(2)-Node_D(2)+iUpFF-iDownFF,y_) = &
+           HighFFNew_ID(:,y_)
 
       DeltaFPlusExt(1+NodeNew_D(3)-Node_D(3):&
-                 1+NodeNew_D(3)-Node_D(3)+iUpFF-iDownFF,z_) = &
-                                         HighFFNew_ID(:,z_)
+           1+NodeNew_D(3)-Node_D(3)+iUpFF-iDownFF,z_) = &
+           HighFFNew_ID(:,z_)
 
       DeltaFMinusExt = DeltaFPlusExt
 
@@ -312,7 +343,7 @@ contains
       ! Using recurrent relationships, find F_I
       !/
       FIExt(0,:)=DeltaFMinusExt(0,:)
-   
+
       do i=1,iUpFF-iDownFF+1
          FIExt(i,:) = FIExt(i-1,:) + DeltaFMinusExt(i,:)
       end do
@@ -380,30 +411,30 @@ contains
                do j= Node_D(2)+iDownFF-1,Node_D(2)+iUpFF+1
                   write(*,*)'Current_G(',Node_D(1)+iDownFF-1,&
                        ':',Node_D(1)+iUpFF+1,',',j,',',k,')= ',&
-                  Counter_GDB(Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
-                             j,k,iDim,iBlock)
+                       Counter_GDB(Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
+                       j,k,iDim,iBlock)
                end do
             end do
             write(*,*)'Sum of currents=',sum(Counter_GDB(&
-                         Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
-                         Node_D(2)+iDownFF-1:Node_D(2)+iUpFF+1,&
-                         Node_D(3)+iDownFF-1:Node_D(3)+iUpFF+1,&
-                         iDim,iBlock))
-                 
+                 Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
+                 Node_D(2)+iDownFF-1:Node_D(2)+iUpFF+1,&
+                 Node_D(3)+iDownFF-1:Node_D(3)+iUpFF+1,&
+                 iDim,iBlock))
+
          else
             do k=Node_D(3)+iDownFF,Node_D(3)+iUpFF
                do j= Node_D(2)+iDownFF,Node_D(2)+iUpFF
                   write(*,*)'Current_G(',Node_D(1)+iDownFF,&
                        ':',Node_D(1)+iUpFF,',',j,',',k,')= ',&
-                  Counter_GDB(Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
-                             j,k,iDim,iBlock)
+                       Counter_GDB(Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
+                       j,k,iDim,iBlock)
                end do
             end do
             write(*,*)'Sum of currents=',sum(Counter_GDB(&
-                         Node_D(1)+iDownFF  :Node_D(1)+iUpFF  ,&
-                         Node_D(2)+iDownFF  :Node_D(2)+iUpFF  ,&
-                         Node_D(3)+iDownFF  :Node_D(3)+iUpFF  ,&
-                         iDim,iBlock))
+                 Node_D(1)+iDownFF  :Node_D(1)+iUpFF  ,&
+                 Node_D(2)+iDownFF  :Node_D(2)+iUpFF  ,&
+                 Node_D(3)+iDownFF  :Node_D(3)+iUpFF  ,&
+                 iDim,iBlock))
          end if
          write(*,*)'Compare with 4*\pi*q*u*dt/Volume=',&
               4.0*cPi*QPerVDx_D(iDim)*W_D(iDim)*SpeedOfLight_D(iDim)
