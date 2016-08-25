@@ -21,7 +21,7 @@ module PIC_ModParticleInField
   public::b_interpolated_d !Interpolated magnetic field
   public::add_density      !Adds an input to a density, 
                            !from a given particle
-  public::add_velocity     !Adds an input to cell-centered velocity
+  public::add_DensityVelocity  !Adds an input to cell-centered velocity
   public::add_current !Adds an input to an electric current
 contains
   !=============================================================
@@ -52,21 +52,21 @@ contains
              i1=i1+1
              BOut_GD(i1,j1,k1,x_) = &
                   SpeedOfLight_D(y_)*&
-                  (Magnetic_GDB(i,j+1,k,z_,iBlock) - Magnetic_GDB(i,j,k,z_,iBlock)) &
+                  (B_GDB(i,j+1,k,z_,iBlock) - B_GDB(i,j,k,z_,iBlock)) &
                   - SpeedOfLight_D(z_)*&
-                  (Magnetic_GDB(i,j,k+1,y_,iBlock) - Magnetic_GDB(i,j,k,y_,iBlock))
+                  (B_GDB(i,j,k+1,y_,iBlock) - B_GDB(i,j,k,y_,iBlock))
              
              BOut_GD(i1,j1,k1,y_) = &
                   SpeedOfLight_D(z_)*&
-                  (Magnetic_GDB(i,j,k+1,x_,iBlock) - Magnetic_GDB(i,j,k,x_,iBlock)) &
+                  (B_GDB(i,j,k+1,x_,iBlock) - B_GDB(i,j,k,x_,iBlock)) &
                   - SpeedOfLight_D(x_)*&
-                  (Magnetic_GDB(i+1,j,k,z_,iBlock) - Magnetic_GDB(i,j,k,z_,iBlock))
+                  (B_GDB(i+1,j,k,z_,iBlock) - B_GDB(i,j,k,z_,iBlock))
              
              BOut_GD(i1,j1,k1,z_) = &
                   SpeedOfLight_D(x_)*&
-                  (Magnetic_GDB(i+1,j,k,y_,iBlock) - Magnetic_GDB(i,j,k,y_,iBlock)) &
+                  (B_GDB(i+1,j,k,y_,iBlock) - B_GDB(i,j,k,y_,iBlock)) &
                   - SpeedOfLight_D(y_)*& 
-                  (Magnetic_GDB(i,j+1,k,x_,iBlock) - Magnetic_GDB(i,j,k,x_,iBlock))
+                  (B_GDB(i,j+1,k,x_,iBlock) - B_GDB(i,j,k,x_,iBlock))
           end do
        end do
     end do
@@ -121,13 +121,13 @@ contains
     do k=1-iExt,lOrderFF+iExt
        do j=1-iExt,lOrderFF+iExt
           b_interpolated_d(x_)= b_interpolated_d(x_)+ &
-               sum(Magnetic_GDB(n_D(1):lOrderFF+n_D(1),&
+               sum(B_GDB(n_D(1):lOrderFF+n_D(1),&
                j+n1_D(2),k+n1_D(3),x_,iBlock)*HighFF_ID(:,x_))&
                *LowFF_ID(j,y_)*LowFF_ID(k,z_)
        end do
        do j=1,lOrderFF+1
           b_interpolated_d(y_)= b_interpolated_d(y_)+ &
-               sum(Magnetic_GDB(n_D(1)-iExt:lOrderFF+iExt+n1_D(1),&
+               sum(B_GDB(n_D(1)-iExt:lOrderFF+iExt+n1_D(1),&
                j+n1_D(2),k+n1_D(3),y_,iBlock)*LowFF_ID(:,x_))&
                *HighFF_ID(j,y_)*LowFF_ID(k,z_)
        end do
@@ -135,7 +135,7 @@ contains
     do k=1,lOrderFF+1
        do j=1-iExt,lOrderFF+iExt
           b_interpolated_d(z_)= b_interpolated_d(z_)+ &
-               sum(Magnetic_GDB(n_D(1)-iExt:n1_D(1)+lOrderFF+iExt,&
+               sum(B_GDB(n_D(1)-iExt:n1_D(1)+lOrderFF+iExt,&
                j+n1_D(2),k+n1_D(3),z_,iBlock)*LowFF_ID(:,x_))&
                *LowFF_ID(j,y_)*HighFF_ID(k,z_)
        end do
@@ -169,15 +169,15 @@ contains
     end do
   end subroutine add_density
   !=========================
-  subroutine add_velocity(V_D,NodeIn_D,HighFFIn_ID,iBlock)
-    !Adds an input to the velocity, from a given particle
-    !following the same scheme as number density
-    real :: V_D(1:nDim)
+  subroutine add_DensityVelocity(V_D,NodeIn_D,HighFFIn_ID,iBlock)
+    !Adds an input to the density and velocity, from a given particle
+    !using the same form factors
+    real, dimension(nDim),intent(in) :: V_D
     integer,dimension(nDim),intent(in)::NodeIn_D
     real,dimension(1+lOrderFF,nDim),intent(in)::HighFFIn_ID
-    integer,intent(in)::iBlock
-    integer::i,j,k,i1,j1,k1
-    real::FFProduct
+    integer,intent(in):: iBlock
+    integer:: i,j,k,i1,j1,k1
+    real:: FFProduct
     !----------------------                                     
     k1=0
     do k=NodeIn_D(3)+iDownFF,NodeIn_D(3)+iUpFF
@@ -190,13 +190,15 @@ contains
           do i=NodeIn_D(1)+iDownFF,NodeIn_D(1)+iUpFF
              i1=i1+1
              !Add the product of formfactors
-             V_GDB(i,j,k,:,iBlock)=V_GDB(i,j,k,:,iBlock) + HighFFIn_ID(i1,x_)*&
+             Rho_GB(i,j,k,iBlock)=Rho_GB(i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
+                  FFProduct
+             V_GDB(:,i,j,k,iBlock)=V_GDB(:,i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
                   FFProduct*V_D  
           end do
        end do
     end do
 
-  end subroutine add_velocity
+  end subroutine add_DensityVelocity
 
   !=========================
   subroutine add_current(QPerVDx_D,W_D,iBlock) 
