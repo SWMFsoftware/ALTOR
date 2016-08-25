@@ -30,8 +30,9 @@ subroutine PIC_set_param(TypeAction)
 
   real   :: Value_V(nDim+3)
 
-  integer            :: TimingDepth=-1
-  character (len=10) :: TimingStyle='cumm'
+  integer           :: TimingDepth=-1
+  character(len=10) :: TimingStyle='cumm'
+  character(len=30) :: NameVar
   !------------------
   iSession = i_session_read()
   select case(TypeAction)
@@ -83,9 +84,15 @@ subroutine PIC_set_param(TypeAction)
         call read_var('nPType',iP)
         if(iP /= nPType)call CON_stop('nPType differs, reconfigure ALTOR')
      case('#DXYZ')
-        do iDim=1,nDim
-           call read_var('Dx_D(iDim)', Dx_D(iDim))
-        end do
+        if(nDim==3)then
+           call read_var('Dx_D(1)', Dx_D(1))
+           call read_var('Dx_D(2)', Dx_D(2))
+           call read_var('Dx_D(3)', Dx_D(3))
+        else
+           call read_var('Dx_D(1)', Dx_D(1))
+           call read_var('Dx_D(2)', Dx_D(2))
+        end if
+        
         CellVolume = product(Dx_D)
         
      case('#NORMALIZATION')
@@ -99,6 +106,9 @@ subroutine PIC_set_param(TypeAction)
               call read_var('M_P(iP)',M_P(iP))
            end do
         case('standard')
+           !Charge is normalized to electron charge, mass is normalized 
+           !to electron mass, speed of light is set to 1, number density
+           !is divided by 4*cPi*nPPerCrit s.t. electron frequency is 1.
            !c=1, (e/m)=1 for electron and \omega=1
            !For critical density nPPerCell particles per
            !cell give the omega_Pe=\omega=1
@@ -108,9 +118,11 @@ subroutine PIC_set_param(TypeAction)
            Q_P(Electron_) = - CellVolume/(4*cPi*nPPerCrit)
            M_P(Electron_) =   CellVolume/(4*cPi*nPPerCrit)
            do iP=2, nPType
-              call read_var('Q_P/| Q_P(Electron_) |',Q_P(iP))
+              write(NameVar,'(a23,i1,a1)') 'Q_P/| Q_P(Electron_) |(',iP,')'
+              call read_var(NameVar,Q_P(iP))
               Q_P(iP) = Q_P(iP) *  CellVolume/(4*cPi*nPPerCrit)
-              call read_var('M_P/ M_P(Electron_)',M_P(iP))
+              write(NameVar,'(a20,i1,a1)') 'M_P/ M_P(Electron_)(',iP,')'
+              call read_var(NameVar,M_P(iP))
               M_P(iP) = M_P(iP) *  CellVolume/(4*cPi*nPPerCrit)
            end do
         case default
@@ -150,7 +162,7 @@ subroutine PIC_set_param(TypeAction)
         if (iProc==0)then
            nToWrite = nToWrite +1
            call put_particle(iP,Value_V(1:nDim))
-           Particle_I(iP)% State_VI(Wx_:Wz_,n_P(iP)) = Value_V(Wx_:Wz_)
+           Particle_I(iP)%State_VI(Wx_:Wz_,n_P(iP)) = Value_V(Wx_:Wz_)
            nToWrite_II(2,nToWrite) = iP
            nToWrite_II(3,nToWrite) = n_P(iP)
         end if
@@ -202,7 +214,7 @@ subroutine PIC_set_param(TypeAction)
         if(iSession /=1 )CYCLE READPARAM
         call read_var('nLogFile',nLogFile)
 
-     case('#OUTFIELD')
+     case('#OUTPUT')
 
         call read_var('nStepOutMin', nStepOutMin)
         call read_var('nStepOut', nStepOut)
