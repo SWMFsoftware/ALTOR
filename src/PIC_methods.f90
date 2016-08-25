@@ -24,15 +24,15 @@ end subroutine PIC_init_session
 !==========================
 subroutine PIC_advance(tMax)
   use PIC_ModField,     ONLY: update_magnetic, Rho_GB, Counter_GDB,V_GDB
-  use PIC_ModParticles, ONLY: advance_particles, Energy_P, nPType,&
-                              pass_energy
+  use PIC_ModParticles, ONLY: Energy_P, nPType, pass_energy
+  use PIC_ModParticles, ONLY: advance_particles_full, advance_particles_quick
   use PIC_ModField,     ONLY: update_e, field_bc, &
                               current_bc_periodic, field_bc_periodic
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt, IsPeriodicField_D
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
   use PIC_ModOutput,    ONLY: nStepOutMin,nStepOut
 
-  use PIC_ModOutput,    ONLY: write_density_test,write_momentum
+  use PIC_ModOutput,    ONLY: write_moments
 
   use PIC_ModMpi,       ONLY: pass_current
 
@@ -69,18 +69,24 @@ subroutine PIC_advance(tMax)
 
   !3. Move particles
   call timing_start('adv_particles')
-  do iSort = 1, nPType
-     Rho_GB = 0.0
-     V_GDB = 0.0
-     call advance_particles(iSort)
-     if(nStepOut>=1.and.nStepOutMin<=iStep.and.mod(iStep,nStepOut)==0)then
-        !Save the number density
-        call write_density_test(iSort)
-        !Save the cell-centered bulk velocity
-        call write_momentum(iSort)
+
+  do iSort=1, nPType
+     if(nStepOut>=1.and.nStepOutMin<=iStep.and.mod(iStep+1,nStepOut)==0)then
+        Rho_GB = 0.0; V_GDB = 0.0
+        !Calculate cell-centered number density and velocity while
+        !advancing the particles
+        call advance_particles_full(iSort)
+        !Save the moments
+        call write_moments(iSort)
+     else
+        !Advance the particles without calculating cell-centered
+        !number density and velocity
+        call advance_particles_quick(iSort)
      end if
   end do
+
   call pass_energy
+
   !\
   ! Electromagnetic fields and the particle energies are at the beginning of 
   ! the time step. Density and the particle coordinates are at the end of the 
