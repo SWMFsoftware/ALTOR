@@ -4,7 +4,7 @@ module PIC_ModParticles
   use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, CellVolume, SpeedOfLight_D
   use PIC_ModParticleInField,ONLY: Rho_GB,add_density,add_current
-  use PIC_ModParticleInField,ONLY: add_velocity
+  use PIC_ModParticleInField,ONLY: add_DensityVelocity
   use PIC_ModParticleInField,ONLY: b_interpolated_d,e_interpolated_d
   use PIC_ModParticleInField,ONLY: min_val_rho, max_val_rho, rho_avr
   use PIC_ModFormFactor,ONLY: HighFF_ID, HighFFNew_ID,&
@@ -38,7 +38,8 @@ module PIC_ModParticles
   public::set_particle_param       !Assigns M_P, Q_P and allocates coordinate
                                    ! arrays
   public::put_particle             !Add particle with known coordinates
-  public::advance_particles        
+  public::advance_particles_full   !Advance particles and collect moments info
+  public::advance_particles_quick  !Advance particles only
 contains
   !=============================
   subroutine set_pointer_to_particles(iSort,PointerToSet)
@@ -77,7 +78,7 @@ contains
     end do
     call allocate_particles
   end subroutine set_particle_param
-  !===============
+  !===============================
 
   subroutine put_particle(iSort,PhaseCoords_D)
     integer,intent(in)::iSort
@@ -96,8 +97,8 @@ contains
   !===========================
   !== This routine allows to get reproducible random distribution independent 
   !== to the number of processors involved. This is extremely expensive way,
-  !== as long as the operation of the random number calculation actually becomes
-  !== serial 
+  !== as long as the operation of the random number calculation actually 
+  !== becomes serial 
   !===========================
   subroutine parallel_init_rand(nCall,iSeed)
     use ModMpi
@@ -131,14 +132,15 @@ contains
 
     integer:: nPPerCell_P(nPType)=0
     integer:: iSort
+    character(len=12) :: NameVar
     !--------------
     do iSort = 1,nPType
-       call read_var('nPPerCell',nPPerCell_P(iSort))
+       write(NameVar,'(a10,i1,a1)') 'nPPerCell(',iSort,')'
+       call read_var(NameVar,nPPerCell_P(iSort))
        if(nPPerCell_P(iSort)<0.and.iProc==0)&
             write(*,*)'Particles will neutralize electrons'
     end do
 
-    Rho_GB = 0.0
     call uniform(nPPerCell_P)
 
     if(nProc==1)then
@@ -147,16 +149,12 @@ contains
        call MPI_reduce(n_P, nTotal_P, nPType, MPI_INTEGER,&
             MPI_SUM, 0, iComm, iError)
     end if
-    call pass_density(0)
+
     if(iProc==0)then
        write(*,*)'Particles are distributed'
        do iSort = 1, nPType
           write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
        end do
-       write(*,*)'Particle density max:',max_val_rho()
-       write(*,*)'Particle density min:',min_val_rho()
-       write(*,*)'Particle density average:',rho_avr()
-
     end if
   end subroutine read_uniform
   !================================
@@ -172,10 +170,6 @@ contains
     integer :: i,j,k
     !--------------------------
     do iSort = 1, nPType
-       !hyzhou: I think number density should be reset
-       !every loop to be meaningful.
-       !Rho_GB=0.0
-
        if(nPPerCellIn_P(iSort)==0)CYCLE
 
        if(nPPerCellIn_P(iSort) > 0)then
@@ -203,12 +197,7 @@ contains
           do iDim = 1,nDim
              Coord_D(iDim) = nCell_D(iDim) * RAND()
           end do
-          !hyzhou: these functions are used for calculating
-          !number densities at the initial timestep, which
-          !are only used for testing.
           call put_particle(iSort, Coord_D)
-          call get_form_factors(Coord_D,Node_D,HighFF_ID)
-          call add_density(Node_D,HighFF_ID,1)
        end do
     end do
   end subroutine uniform
@@ -329,7 +318,7 @@ contains
     end subroutine foil
     !
   end subroutine read_foil
-  !====================
+  !=======================
   subroutine get_energy
     use ModMpi
     use PIC_ModProc
@@ -337,8 +326,8 @@ contains
     real :: E_P(nPType), P2
     integer:: iSort, iP
     real,dimension(:,:),pointer::Coord_VI
-    !--------------
-    E_P = 0
+    !-----------------------------------
+    E_P = 0.0
     do iSort = 1, nPType
        call set_pointer_to_particles(iSort,Coord_VI)
        do iP = 1, n_P(iSort)
@@ -385,8 +374,10 @@ contains
     end do
   end subroutine add_velocity_init
    
-  !================PARTICLE MOVER================!
-  subroutine advance_particles(iSort)
+  !================PARTICLE MOVER 1================!
+  !Advance the particles and calculating cell-centered
+  !number density and velocity for one timestep
+  subroutine advance_particles_full(iSort)
     integer,intent(in)::iSort
 
     real:: QDtPerM, M
@@ -490,7 +481,7 @@ contains
 
        !Update coordinate
        X_D = X_D + SpeedOfLight_D*W_D(1:nDim)
-       
+
        !New form factor
        !call timing_start('formfactor')
        call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
@@ -499,15 +490,17 @@ contains
        !hyzhou: really? isn`t is number density???
        !Contribute to the charge density
        !call timing_start('density')
-       call add_density(NodeNew_D,HighFFNew_ID,iBlock)
+       !call add_density(NodeNew_D,HighFFNew_ID,iBlock)
+       
        !call timing_stop('density')
        !      if(nDim<3)then
        !         W_D=QcDtPerV*W_D !For nDim=3 velocity is not used
        !         call add_current(QPerVDx_D,W_D)
        !      end if
-       !Save velocity
-       call add_velocity(W_D*c,NodeNew_D,HighFFNew_ID,iBlock)
 
+       !Contribute to number density and velocity
+       call add_DensityVelocity(W_D*c,NodeNew_D,HighFFNew_ID,iBlock)
+       
 
        !Contribute to the current
        !call timing_start('current')
@@ -533,6 +526,149 @@ contains
       cross_product(3)=a(1)*b(2)-a(2)*b(1)
     end function cross_product
     !=======================
-  end subroutine advance_particles
+  end subroutine advance_particles_full
+  !==================================================================
+
+  !================PARTICLE MOVER 2================!
+  !Advance without calculating cell-centered number density and
+  !velocity
+  subroutine advance_particles_quick(iSort)
+    integer,intent(in)::iSort
+
+    real:: QDtPerM, M
+    real,dimension(nDim)::QPerVDx_D
+    !real :: QcDtPerV
+    !real :: Energy,
+    real:: W2
+
+    integer::iParticle, iBlock
+
+    real,dimension(nDim)::X_D
+
+    real,dimension(x_:z_)   ::W_D,W12_D,EForce_D,BForce_D
+    real    :: Gamma
+    real,dimension(:,:),pointer::Coord_VI
+    integer:: iShift_D(nDim)
+    !-------------------------------
+    !Initialize the simulation for this sort of particles
+    !Q * dt * c / V (dx*dy*dz)
+    !QcDtPerV=QDt*c/CellVolume
+
+    !1/2 * Q * dt / M, 
+    !used to calculate the force effect
+
+    QDtPerM = cHalf * Dt * Q_P(iSort) / M_P(iSort)
+
+    !Q / V * (/\Delta x, \Delta y, \Delta z/)
+    !Used to calculate J*dt in the 
+    !charge-conserving scheme
+
+    QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
+
+    M = M_P(iSort)
+
+    call set_pointer_to_particles(iSort,Coord_VI)
+
+    !Looping over particles
+    do iParticle=1,n_P(iSort)
+       !Get coordinates and momentum
+       X_D = Coord_VI(x_:nDim,iParticle)
+       W_D = Coord_VI(Wx_:Wz_,iParticle)
+       
+       W2 = sum(W_D**2)
+       Gamma = sqrt(c2 + W2)
+       
+       !Now W_D is the initial momentum, W2=W_D^2
+       !Mow Gamma is the initial Gamma-factor multiplied by c
+       
+       !\
+       ! Get block number
+       !/
+       iBlock = 1
+
+       !call timing_start('formfactor')
+       call get_form_factors(X_D,Node_D,HighFF_ID)
+       !call timing_stop('formfactor')
+       
+       !Electric field force
+       !call timing_start('electric')
+       EForce_D = QDtPerM * e_interpolated_d(iBlock)
+       !call timing_stop('electric')
+
+       !Add kinetic energy
+       Energy_P(iSort) = Energy_P(iSort) + &
+            M*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
+      
+       !Acceleration from the electric field, for the
+       !first half of the time step:
+
+       W_D = W_D + EForce_D
+
+       !Get magnetic force
+       !call timing_start('magnetic')
+       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d(iBlock)
+       !call timing_stop('magnetic')       
+
+       !Add a half of the magnetic rotation:
+
+       W12_D = W_D + cross_product(W_D,BForce_D)
+
+       !Multiply the magnetic force by 2 to take a whole
+       !rotation and reduce its magnitude not to perturb energy
+
+       BForce_D = (2.0/(1.0 + sum(BForce_D**2))) * BForce_D
+
+       !Get a final momentum
+
+       W_D = W_D + cross_product(W12_D,BForce_D) + EForce_D
+
+       Gamma = sqrt(c2+sum(W_D**2))
+       !Now Gamma is the final Gamma-factor multiplied by c
+
+       !Save momentum
+       Coord_VI(1+nDim:3+nDim,iParticle) = W_D
+       W_D = (1.0/Gamma)*W_D
+       !Now W_D is the velocity divided by c
+
+       !Update coordinate
+       X_D = X_D + SpeedOfLight_D*W_D(1:nDim)
+
+       !New form factor
+       !call timing_start('formfactor')
+       call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
+       !call timing_stop('formfactor')
+       
+       !call timing_stop('density')
+       !      if(nDim<3)then
+       !         W_D=QcDtPerV*W_D !For nDim=3 velocity is not used
+       !         call add_current(QPerVDx_D,W_D)
+       !      end if
+
+       !Contribute to the current
+       !call timing_start('current')
+       call add_current(QPerVDx_D,W_D,iBlock)
+       !call timing_stop('current')
+       
+       iShift_D = floor(X_D/nCell_D)
+       X_D = X_D - nCell_D*iShift_D
+       Coord_VI(1:nDim,iParticle) = X_D
+       
+       !To be done: for non-zero iShift_D, depending on the choice of 
+       !the whole scheme and/or boundary conditions, some more action
+       !may be needed.
+    end do
+  contains
+    !========================
+    function cross_product(a,b)
+      real,dimension(3)::cross_product
+      real,dimension(3),intent(in)::a,b
+      !----------------
+      cross_product(1)=a(2)*b(3)-a(3)*b(2)
+      cross_product(2)=a(3)*b(1)-a(1)*b(3)
+      cross_product(3)=a(1)*b(2)-a(2)*b(1)
+    end function cross_product
+    !=======================
+  end subroutine advance_particles_quick
   !--------------------------------------------------------------!
+  
 end module PIC_ModParticles
