@@ -37,11 +37,11 @@ module PIC_ModField
   !     1-iGCN:nY+iGCN,&
   !     1-iGCN:nZ+iGCN,3,MaxBlock)::&
   !     E_GDB        = 0.0,& !This is the electric field
-  !     Magnetic_GDB = 0.0,& !vector-potential if used, magnetic field otherwise
+  !     B_GDB = 0.0,& !vector-potential if used, magnetic field otherwise
   !     Counter_GDB  = 0.0   !Counter for electric current
   !     V_GDB        = 0.0   !Cell-centered velocity
   real,allocatable:: E_GDB(:,:,:,:,:)
-  real,allocatable:: Magnetic_GDB(:,:,:,:,:)
+  real,allocatable:: B_GDB(:,:,:,:,:)
   real,allocatable:: Counter_GDB(:,:,:,:,:)
 
   real,allocatable:: Rho_GB(:,:,:,:)
@@ -60,14 +60,14 @@ contains
     
     allocate(E_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
          1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); E_GDB = 0.0
-    allocate(Magnetic_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
-         1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); Magnetic_GDB = 0.0 
+    allocate(B_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
+         1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); B_GDB = 0.0 
     allocate(Counter_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
          1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); Counter_GDB = 0.0 
     allocate(Rho_GB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
          1-iGCN:nZ+iGCN, MaxBlock)); Rho_GB = 0.0
-    allocate(V_GDB(1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,&
-         1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); V_GDB = 0.0
+    allocate(V_GDB(MaxDim, 1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,&
+         1-iGCN:nZ+iGCN, MaxBlock)); V_GDB = 0.0
 
   end subroutine allocate_fields
   !================
@@ -105,8 +105,8 @@ contains
        do k=1-iGCN,nZ+iGCN
           do j=1-iGCN,nY+iGCN
              do i=1-iGCN,nX+iGCN
-                Magnetic_GDB(i,j,k,iDim,iBlock) = &
-                     Magnetic_GDB(i,j,k,iDim,iBlock) + B0_D(iDim)
+                B_GDB(i,j,k,iDim,iBlock) = &
+                     B_GDB(i,j,k,iDim,iBlock) + B0_D(iDim)
              end do
           end do
        end do
@@ -118,7 +118,7 @@ contains
     integer, intent(in)::iBlock
     integer::i,j,k
     !Applied only if UseVectorPotential
-    !The vector potential is in Magnetic_GDB
+    !The vector potential is in B_GDB
     !Calculates the magnetic field 
 
     !The whole magnetic field is calculated and 
@@ -137,9 +137,9 @@ contains
     do k=1-iGCN,nZ+iGCN-1; do j=1-iGCN,nY+iGCN-1; do i=1-iGCN,nX+iGCN
        Counter_GDB(i,j,k,x_,iBlock) = &
             SpeedOfLight_D(y_)*&
-            (Magnetic_GDB(i,j+1,k,z_,iBlock) - Magnetic_GDB(i,j,k,z_,iBlock))-&
+            (B_GDB(i,j+1,k,z_,iBlock) - B_GDB(i,j,k,z_,iBlock))-&
             SpeedOfLight_D(z_)*&
-            (Magnetic_GDB(i,j,k+1,y_,iBlock) - Magnetic_GDB(i,j,k,y_,iBlock))
+            (B_GDB(i,j,k+1,y_,iBlock) - B_GDB(i,j,k,y_,iBlock))
     end do; end do; end do
 
     !Array index is the coordinate of the gridpoint with +1/2 being
@@ -153,9 +153,9 @@ contains
     do k=1-iGCN,nZ+iGCN-1; do j=1-iGCN,nY+iGCN; do i=1-iGCN,nX+iGCN-1
        Counter_GDB(i,j,k,y_,iBlock) = &
             SpeedOfLight_D(z_)*&
-            (Magnetic_GDB(i,j,k+1,x_,iBlock) - Magnetic_GDB(i,j,k,x_,iBlock))-&
+            (B_GDB(i,j,k+1,x_,iBlock) - B_GDB(i,j,k,x_,iBlock))-&
             SpeedOfLight_D(x_)*&
-            (Magnetic_GDB(i+1,j,k,z_,iBlock) - Magnetic_GDB(i,j,k,z_,iBlock))
+            (B_GDB(i+1,j,k,z_,iBlock) - B_GDB(i,j,k,z_,iBlock))
     end do; end do; end do
 
     !Array index is the coordinate of the gridpoint with +1/2 being
@@ -169,9 +169,9 @@ contains
     do k=1-iGCN,nZ+iGCN; do j=1-iGCN,nY+iGCN-1; do i=1-iGCN,nX+iGCN-1
        Counter_GDB(i,j,k,z_,iBlock) = &
             SpeedOfLight_D(x_)*&
-            (Magnetic_GDB(i+1,j,k,y_,iBlock) - Magnetic_GDB(i,j,k,y_,iBlock))-&
+            (B_GDB(i+1,j,k,y_,iBlock) - B_GDB(i,j,k,y_,iBlock))-&
             SpeedOfLight_D(y_)*& 
-            (Magnetic_GDB(i,j+1,k,x_,iBlock) - Magnetic_GDB(i,j,k,x_,iBlock))
+            (B_GDB(i,j+1,k,x_,iBlock) - B_GDB(i,j,k,x_,iBlock))
     end do; end do; end do
   end subroutine get_b_from_a
   !==========================
@@ -192,16 +192,16 @@ contains
        !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
        !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
        do iBlock = 1,MaxBlock
-       Magnetic_GDB(     1-iGCN:nX+iGCN-1,:,:,x_,iBlock) = &
-            Magnetic_GDB(1-iGCN:nX+iGCN-1,:,:,x_,iBlock) - &
+       B_GDB(     1-iGCN:nX+iGCN-1,:,:,x_,iBlock) = &
+            B_GDB(1-iGCN:nX+iGCN-1,:,:,x_,iBlock) - &
             cHalf*E_GDB(1-iGCN:nX+iGCN-1,:,:,x_,iBlock)
 
-       Magnetic_GDB(     :,1-iGCN:nY+iGCN-1,:,y_,iBlock) = &
-            Magnetic_GDB(:,1-iGCN:nY+iGCN-1,:,y_,iBlock) - &
+       B_GDB(     :,1-iGCN:nY+iGCN-1,:,y_,iBlock) = &
+            B_GDB(:,1-iGCN:nY+iGCN-1,:,y_,iBlock) - &
             cHalf*E_GDB(:,1-iGCN:nY+iGCN-1,:,y_,iBlock)
 
-       Magnetic_GDB(     :,:,1-iGCN:nZ+iGCN-1,z_,iBlock) = &
-            Magnetic_GDB(:,:,1-iGCN:nZ+iGCN-1,z_,iBlock) - &
+       B_GDB(     :,:,1-iGCN:nZ+iGCN-1,z_,iBlock) = &
+            B_GDB(:,:,1-iGCN:nZ+iGCN-1,z_,iBlock) - &
             cHalf*E_GDB(:,:,1-iGCN:nZ+iGCN-1,z_,iBlock)
        end do
        return
@@ -221,7 +221,7 @@ contains
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
     do iBlock = 1, MaxBlock
     do k=1-iGCN,nZ+iGCN-1; do j=1-iGCN,nY+iGCN-1; do i=1-iGCN,nX+iGCN
-       Magnetic_GDB(i,j,k,x_,iBlock) = Magnetic_GDB(i,j,k,x_,iBlock) - &
+       B_GDB(i,j,k,x_,iBlock) = B_GDB(i,j,k,x_,iBlock) - &
             SpeedOfLightHalf_D(y_)*&
             (E_GDB(i,  j+1,k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock)) + &
             SpeedOfLightHalf_D(z_)*&
@@ -237,7 +237,7 @@ contains
     !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
     do k=1-iGCN,nZ+iGCN-1; do j=1-iGCN,nY+iGCN; do i=1-iGCN,nX+iGCN-1
-       Magnetic_GDB(i,j,k,y_,iBlock) = Magnetic_GDB(i,j,k,y_,iBlock) - &
+       B_GDB(i,j,k,y_,iBlock) = B_GDB(i,j,k,y_,iBlock) - &
             SpeedOfLightHalf_D(z_)*&
             (E_GDB(i,  j,  k+1,x_,iBlock) - E_GDB(i,j,k,x_,iBlock)) + &
             SpeedOfLightHalf_D(x_)*&
@@ -253,7 +253,7 @@ contains
     !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
     do k=1-iGCN,nZ+iGCN; do j=1-iGCN,nY+iGCN-1; do i=1-iGCN,nX+iGCN-1
-       Magnetic_GDB(i,j,k,z_,iBlock) = Magnetic_GDB(i,j,k,z_,iBlock) - &
+       B_GDB(i,j,k,z_,iBlock) = B_GDB(i,j,k,z_,iBlock) - &
             SpeedOfLightHalf_D(x_)*&
             (E_GDB(i+1,j,  k  ,y_,iBlock) - E_GDB(i,j,k,y_,iBlock)) + &
             SpeedOfLightHalf_D(y_)*&
@@ -278,7 +278,7 @@ contains
        call get_b_from_a(iBlock)!Put the magnetic field to Counter_GDB
        call use_magnetic_field_from(Counter_GDB(:,:,:,:,iBlock))
     else
-       call use_magnetic_field_from(Magnetic_GDB(:,:,:,:,iBlock))
+       call use_magnetic_field_from(B_GDB(:,:,:,:,iBlock))
     end if
     end do
   contains
@@ -577,9 +577,9 @@ contains
        do iBlock = 1, MaxBlock
        do k=1,nZ; do j=1,nY; do i=1,nX
           Rho_GB(i,j,k,iBlock)=0.1250*(&
-               sum(Magnetic_GDB(i,j-1:j,k-1:k,x_,iBlock)**2)+&
-               sum(Magnetic_GDB(i-1:i,j,k-1:k,y_,iBlock)**2)+&
-               sum(Magnetic_GDB(i-1:i,j-1:j,k,z_,iBlock)**2))+&
+               sum(B_GDB(i,j-1:j,k-1:k,x_,iBlock)**2)+&
+               sum(B_GDB(i-1:i,j,k-1:k,y_,iBlock)**2)+&
+               sum(B_GDB(i-1:i,j-1:j,k,z_,iBlock)**2))+&
                0.250*(&
                sum(E_GDB(i-1:i,j,k,x_,iBlock)**2)+&
                sum(E_GDB(i,j-1:j,k,y_,iBlock)**2)+&
@@ -624,13 +624,13 @@ contains
        do iBlock = 1, MaxBlock
        do k=1,nZ; do j=1,nY; do i=1,nX
           Energy_V(1) = Energy_V(1) + 0.1250*&
-               sum((Magnetic_GDB(i,j-1:j,k-1:k,x_,iBlock) - B0_D(x_))**2)
+               sum((B_GDB(i,j-1:j,k-1:k,x_,iBlock) - B0_D(x_))**2)
           
           Energy_V(2) = Energy_V(2) + 0.1250*&
-               sum((Magnetic_GDB(i-1:i,j,k-1:k,y_,iBlock) - B0_D(y_))**2)
+               sum((B_GDB(i-1:i,j,k-1:k,y_,iBlock) - B0_D(y_))**2)
           
           Energy_V(3) = Energy_V(3) + 0.1250*&
-               sum((Magnetic_GDB(i-1:i,j-1:j,k,z_,iBlock) - B0_D(z_))**2)
+               sum((B_GDB(i-1:i,j-1:j,k,z_,iBlock) - B0_D(z_))**2)
           
           
           Energy_V(4) = Energy_V(4) + 0.250*&
@@ -652,7 +652,7 @@ contains
   subroutine density_bc_periodic(iBlock)
     integer, intent(in)::iBlock
     integer :: i, j, k, iInner, jInner, kInner
-    !-------------------------------!
+    !----------------------------------------
     do k=1-iGCN,nZ+iGCN
        kInner = k - nZ*floor( (k - 0.50) /nZ )
        do j=1-iGCN,nY+iGCN
