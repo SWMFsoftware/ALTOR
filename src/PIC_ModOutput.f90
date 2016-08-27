@@ -6,7 +6,7 @@ module PIC_ModOutput
   use ModNumConst,Only: cPi
   use PIC_ModParticleInField,ONLY: Rho_GB, V_GDB
   use PIC_ModField,   ONLY: iGCN, E_GDB,B_GDB
-  use PIC_ModMpi,     ONLY: pass_density
+  use PIC_ModMpi,     ONLY: pass_density, pass_velocity
   use PIC_ModProc,    ONLY: iProc
   use ModIoUnit,      ONLY: io_unit_new
   use PIC_ModLogFile, ONLY: nToWrite     !Number of test particles
@@ -135,7 +135,7 @@ contains
     use PIC_ModMain, ONLY: c,c2
     use ModMpi, ONLY: mpi_reduce_real_array, MPI_SUM
 
-    integer :: iSort,iParticle
+    integer :: iSort,iParticle, i
     real,dimension(nDim):: X_D
     real,dimension(nDim):: V_D
     integer :: iBlock=1
@@ -153,8 +153,10 @@ contains
           V_D = c/(sqrt(c2+sum(V_D**2)))*V_D
 
           call get_form_factors(X_D,Node_D,HighFF_ID)
-          call add_DensityVelocity(V_D,Node_D, HighFF_ID,iBlock)
+
+          call add_DensityVelocity(V_D,Node_D,HighFF_ID,iBlock)
        end do
+       
        !Save number density, velocity and pressure                           
        call write_moments(iSort)
     end do
@@ -170,50 +172,65 @@ contains
     integer :: iError
     real    :: U_GDB(1:nDim,1:nX,1:nY,1:nZ,1)  !cell-centered bulk velocity
     !------------------------------------------------------------------
-
     !Collect info from all processor to processor 0 when in parallel
-    !assuming periodic BC
+    !assuming periodic BC.
     call pass_density(0)
+
+    !Periodic velocity BC. Need to be merged into other function later.
+    call pass_velocity(0)
+
     if(iProc==0)then
+       !The cell-centered velocity should be normalized by number density
+       !After applying periodic BC.
+       do i=1,3
+          V_GDB(i,1:nX,1:nY,1:nZ,1) = V_GDB(i,1:nX,1:nY,1:nZ,1)&
+               / Rho_GB(1:nX,1:nY,1:nZ,1)
+       end do
+
        State_VCB(iSort+6,:,:,:,1) = Rho_GB(1:nX,1:nY,1:nZ,1)
+
+       !hyzhou: need to check if this is correct!
+       do i=1,nDim
+          U_GDB(i,:,:,:,1) = sum(V_GDB(i,:,:,:,1))/product(nCell_D)
+       end do
+
+       !Looping over all the cell centers
+       do k=1,nZ; do j=1,nY; do i=1,nX
+          !Save velocity
+          State_VCB(nPType+3*iSort+4:nPType+3*iSort+6,i,j,k,1) = &
+               V_GDB(:,i,j,k,1)
+          !Save pressure tensor: Pxx Pyy Pzz Pxy Pxz Pyz
+          State_VCB(4*nPType+6*iSort+1:4*nPType+6*iSort+3,i,j,k,1) = &
+               M_P(iSort)*Rho_GB(i,j,k,1)*&
+               (V_GDB(:,i,j,k,1)**2 - U_GDB(:,i,j,k,1)**2)
+
+          State_VCB(4*nPType+6*iSort+4,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
+               (V_GDB(1,i,j,k,1)*V_GDB(2,i,j,k,1) - U_GDB(1,i,j,k,1)*&
+               U_GDB(2,i,j,k,1))
+          State_VCB(4*nPType+6*iSort+5,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
+               (V_GDB(1,i,j,k,1)*V_GDB(3,i,j,k,1) - U_GDB(1,i,j,k,1)*&
+               U_GDB(3,i,j,k,1))
+          State_VCB(4*nPType+6*iSort+6,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
+               (V_GDB(2,i,j,k,1)*V_GDB(3,i,j,k,1) - U_GDB(2,i,j,k,1)*&
+               U_GDB(3,i,j,k,1))
+       end do; end do; end do
+
+       !Save scalar pressure
+       do k=1,nZ; do j=1,nY; do i=1,nX
+          State_VCB(10*nPType+iSort+6,i,j,k,1) = sum(&
+               State_VCB(4*nPType+6*iSort+4:4*nPType+6*iSort+6,i,j,k,1))/3.0
+       end do; end do; end do
     end if
-    
-    do i=1,nDim
-       U_GDB(i,:,:,:,1) = sum(V_GDB(i,:,:,:,1))/product(nCell_D)
-    end do
-
-    !Looping over all the cell centers
-    do k=1,nZ; do j=1,nY; do i=1,nX
-       !Save velocity
-       State_VCB(3*iSort+6:3*iSort+8,i,j,k,1) = V_GDB(:,i,j,k,1)
-       !Save pressure tensor: Pxx Pyy Pzz Pxy Pxz Pyz
-       State_VCB(6*iSort+11:6*iSort+13,i,j,k,1) = &
-            M_P(iSort)*Rho_GB(i,j,k,1)*&
-            (V_GDB(:,i,j,k,1)**2 - U_GDB(:,i,j,k,1)**2)
-
-       State_VCB(6*iSort+14,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
-            (V_GDB(1,i,j,k,1)*V_GDB(2,i,j,k,1) - U_GDB(1,i,j,k,1)*&
-            U_GDB(2,i,j,k,1))
-       State_VCB(6*iSort+15,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
-            (V_GDB(1,i,j,k,1)*V_GDB(3,i,j,k,1) - U_GDB(1,i,j,k,1)*&
-            U_GDB(3,i,j,k,1))
-       State_VCB(6*iSort+16,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
-            (V_GDB(2,i,j,k,1)*V_GDB(3,i,j,k,1) - U_GDB(2,i,j,k,1)*&
-            U_GDB(3,i,j,k,1))
-    end do; end do; end do
-
-    !Save scalar pressure
-    do k=1,nZ; do j=1,nY; do i=1,nX
-       State_VCB(iSort+14,i,j,k,1) = sum(&
-            State_VCB(6*iSort+11:6*iSort+13,i,j,k,1))/3.0
-    end do; end do; end do
+    !hyzhou: I think I need to remove this!!!
+    !pass_density and pass_velocity have already done the mpi_reduce
+    !so you don`t need to do it again here
 
     !Collect information from all processors after looping over all
     !particle species
-    if(nProc>1.and.iSort==nPType) call mpi_reduce_real_array(State_VCB, &
-         size(State_VCB), MPI_SUM, 0, iComm, iError)
+    !if(nProc>1.and.iSort==nPType) call mpi_reduce_real_array(State_VCB, &
+    !     size(State_VCB), MPI_SUM, 0, iComm, iError)
     !Processor 0 has all the information to be saved
-    
+
   end subroutine write_moments
   !======================================================================
   subroutine average_fields
