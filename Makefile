@@ -164,9 +164,7 @@ allclean:
 TESTDIR = run_test
 
 test:
-	@echo "PC/ALTOR test to be fixed"
-
-#	-@(${MAKE} test_altor)
+	-@(${MAKE} test_altor)
 
 test_altor:
 	@echo "test_altor_compile..." > test_altor.diff
@@ -179,7 +177,7 @@ test_altor:
 	${MAKE} test_altor_check
 
 test_altor_compile:
-	./Config.pl -g=64,64,64,1,2,10000000
+	./Config.pl -g=16,16,16,1,2,10000000
 	${MAKE} 
 
 test_altor_rundir: 
@@ -190,8 +188,11 @@ test_altor_rundir:
 test_altor_run:
 	cd ${TESTDIR}; ${MPIRUN} ./ALTOR.exe > runlog
 
+#The path needs to be changed when doing coupling runs.
 test_altor_check:
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
-	Param/TestOutput/log_noise.out \
-	${TESTDIR}/log_n0001.out > test_altor.diff
+		Param/TestOutput/log_noise.out ${TESTDIR}/log_n0001.out > test_altor.diff
 	ls -l test_altor.diff
+
+	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
+		Param/TestOutput/variable.outs ${TESTDIR}/variable.outs >> test_altor.diff
