@@ -71,9 +71,11 @@ program PIC
         if(iProc==0) write(*,*)'Resetting timing counters after setup.'
         call timing_reset('#all',3)
      end if
- 
+
+     call timing_start('save_initial')
      !Save the initial outputs
      call PIC_save_files('INITIAL')
+     call timing_stop('save_initial')
 
      TIMELOOP: do
         if(stop_condition_true())exit TIMELOOP
@@ -85,12 +87,12 @@ program PIC
         else
            call PIC_advance(huge(0.0))
         end if
-        
+
         call show_progress
         
         call PIC_save_files('NORMAL')
-
      end do TIMELOOP
+
      if(IsLastRead)exit SESSIONLOOP
      if(iProc==0) &
           write(*,*)'----- End of Session   ',iSession,' ------'   
@@ -107,7 +109,9 @@ program PIC
 
   if (nTiming > -2) call timing_report
 
+  call timing_start('save_final')
   call PIC_save_files('FINAL') 
+  call timing_stop('save_final')
 
   !call PIC_save_files('FINALWITHRESTART')
 
@@ -121,7 +125,7 @@ program PIC
 
   if(nTiming > -3)call timing_report_total
 
-  !Finish writting to log file
+  !Finish writing to log file
   call PIC_finalize
 
   !\
@@ -134,7 +138,6 @@ program PIC
   
 contains
    function stop_condition_true() result(UseStopCondition)
-
     logical :: UseStopCondition
 
     UseStopCondition = .false.
@@ -144,9 +147,7 @@ contains
 
   end function stop_condition_true
   !===============================
-
   function is_time_to_stop() result(IsTimeToStop)
-
     use PIC_ModMain, ONLY: CpuTimeMax, UseStopFile
 
     logical :: IsTimeToStop
