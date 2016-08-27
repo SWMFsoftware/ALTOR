@@ -2,43 +2,42 @@
 3 dimensional version
 
 #CHECKGRID
-64
-64
-64
-2
+16		nX 
+16		nY
+16		nZ
+2		nPType
 
 #DXYZ
-0.05
-0.05
-0.05
+0.05		Dx_D(1)
+0.05		Dx_D(2)
+0.05		Dx_D(3)
 
 #NORMALIZATION
 standard
-2
--1.0
-1.0
+2		nPPerCrit
+-1.0		Q_P/| Q_P(Electron_) |(2)
+1.0		M_P/ M_P(Electron_)(2)
 
 #UNIFORM
-1
-1
+1		nPPerCell(1)
+1		nPPerCell(2)
 
 #THERMALIZE
-2.50e-3
-2.50e-3
-
-ADDB
-1.0
-0.0
-0.0
+0.05		uTh_P(1)
+0.05		uTh_P(2)
 
 #LOGFILE
-1
+1		nLogFile
 
 #TIMESTEP
-0.025
+0.025		Dt
+
+#OUTPUT
+0		nStepOutMin
+10		nSteOut
 
 #STOP
--1
-12.575
+-1		MaxIteration
+12.575		tSimulationMax
 
 #END
