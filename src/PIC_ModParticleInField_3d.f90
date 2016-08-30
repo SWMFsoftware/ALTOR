@@ -19,9 +19,8 @@ module PIC_ModParticleInField
   end interface
   public::e_interpolated_d !Interpolated electric field
   public::b_interpolated_d !Interpolated magnetic field
-  public::add_density      !Adds an input to a density, 
-                           !from a given particle
-  public::add_DensityVelocity  !Adds an input to cell-centered velocity
+  public::add_DensityVelocity  !Adds an input to cell-centered density
+                           !and velocity from a given particle
   public::add_current !Adds an input to an electric current
 contains
   !=============================================================
@@ -142,43 +141,17 @@ contains
     end do
  
   end function b_interpolated_d
-  !============================
- 
-  subroutine add_density(NodeIn_D,HighFFIn_ID,iBlock)
-    !Adds an input to the density, from a given particle
-    integer,dimension(nDim),intent(in)::NodeIn_D
-    real,dimension(1+lOrderFF,nDim),intent(in)::HighFFIn_ID
-    integer,intent(in)::iBlock
-    integer::i,j,k,i1,j1,k1
-    real::FFProduct
-    !------------------
-    k1=0
-    do k=NodeIn_D(3)+iDownFF,NodeIn_D(3)+iUpFF
-       k1=k1+1
-       j1=0
-       do j=NodeIn_D(2)+iDownFF,NodeIn_D(2)+iUpFF
-          j1=j1+1
-          i1=0
-          FFProduct=HighFFIn_ID(k1,z_)*HighFFIn_ID(j1,y_)
-          do i=NodeIn_D(1)+iDownFF,NodeIn_D(1)+iUpFF
-             i1=i1+1
-             Rho_GB(i,j,k,iBlock)=Rho_GB(i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
-                  FFProduct   !Add the product of formfactors
-          end do
-       end do
-    end do
-  end subroutine add_density
-  !=========================
+  !==============================================================
   subroutine add_DensityVelocity(V_D,NodeIn_D,HighFFIn_ID,iBlock)
     !Adds an input to the density and velocity, from a given particle
     !using the same form factors
-    real, dimension(nDim),intent(in) :: V_D
-    integer,dimension(nDim),intent(in)::NodeIn_D
-    real,dimension(1+lOrderFF,nDim),intent(in)::HighFFIn_ID
+    real,   dimension(nDim),intent(in) :: V_D
+    integer,dimension(nDim),intent(in) :: NodeIn_D
+    real,   dimension(1+lOrderFF,nDim),intent(in)::HighFFIn_ID
     integer,intent(in):: iBlock
     integer:: i,j,k,i1,j1,k1
     real:: FFProduct
-    !----------------------                                     
+    !-----------------------                                     
     k1=0
     do k=NodeIn_D(3)+iDownFF,NodeIn_D(3)+iUpFF
        k1=k1+1
@@ -192,6 +165,9 @@ contains
              !Add the product of formfactors
              Rho_GB(i,j,k,iBlock)=Rho_GB(i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
                   FFProduct
+             !The real cell-centered velocity should be normalized by
+             !number density after adding up the contribution from
+             !all particles.
              V_GDB(:,i,j,k,iBlock)=V_GDB(:,i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
                   FFProduct*V_D  
           end do
@@ -199,8 +175,7 @@ contains
     end do
 
   end subroutine add_DensityVelocity
-
-  !=========================
+  !============================================
   subroutine add_current(QPerVDx_D,W_D,iBlock) 
     real,intent(in)::QPerVDx_D(x_:z_),W_D(x_:z_)
     integer,intent(in)::iBlock
@@ -220,8 +195,6 @@ contains
     integer::i, j, k, iDim, n_D(3), n1_D(3)
     !-------------------
     IsExtended = any(Node_D/=NodeNew_D)
-
-
 
     if(IsExtended)then
        call get_current_extended
