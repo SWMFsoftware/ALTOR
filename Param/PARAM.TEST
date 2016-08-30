@@ -34,7 +34,7 @@ standard
 
 #SAVEFIELDMOMENTS
 ascii		TypeFile
-400		nStepOutMin
+500		nStepOutMin
 10		nStepOut
 
 #STOP
