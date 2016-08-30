@@ -40,7 +40,8 @@ contains
     character(len=6) :: TypePosition
     real    :: Param_I(1:2*nPType)
     integer :: iSort
-    character(len=15) :: NameFile='variable.outs'
+    character(len=15) :: NameFile='variables.outs'
+    character(len=*),parameter :: FileDir='PC/plots/'
 
     real,dimension(nDim):: X_D
     real,dimension(nDim):: V_D
@@ -58,7 +59,7 @@ contains
        call compute_moments
 
        if(iProc==0.and.nDim==3) then
-          allocate(character(len=24+73*nPType) :: NameVar)
+          allocate(character(len=69*nPType) :: NameVar)
           do iSort=1,nPType
              write(NameVar((6*iSort-5):(6*iSort)),'(a4,i1,1x)') 'rhoS',iSort-1
              write(NameVar((15*iSort-14+6*nPType):(15*iSort+6*nPType)),&
@@ -68,10 +69,10 @@ contains
              write(NameVar((36*iSort-35+25*nPType):(36*iSort+25*nPType)),&
                   '(6(a4,i1,1x))') 'pXXS',iSort-1,'pYYS',iSort-1,'pZZS',&
                   iSort-1,'pXYS',iSort-1,'pXZS',iSort-1,'pYZS',iSort-1
-             write(NameVar((6*iSort-5+61*nPType):(6*iSort+61*nPType)),&
-                  '(a4,i1,1x)') 'QS',iSort-1
-             write(NameVar((6*iSort-5+67*nPType):(6*iSort+67*nPType)),&
-                  '(a4,i1,1x)') 'MS',iSort-1
+             write(NameVar((4*iSort-3+61*nPType):(4*iSort+61*nPType)),&
+                  '(a2,i1,1x)') 'QS',iSort-1
+             write(NameVar((4*iSort-3+65*nPType):(4*iSort+65*nPType)),&
+                  '(a2,i1,1x)') 'MS',iSort-1
           end do
           NameVar = 'x y z Ex Ey Ez Bx By Bz '//NameVar
           TypePosition = 'rewind'
@@ -111,7 +112,7 @@ contains
        Param_I(1:nPType)          = Q_P
        Param_I(nPType+1:2*nPType) = M_P
 
-       call save_plot_file(NameFile,     &
+       call save_plot_file(FileDir//NameFile,     &
             TypeFileIn = TypeFile,         &
             TypePositionIn = TypePosition, &
             nStepIn = iStep, &
