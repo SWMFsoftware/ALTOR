@@ -32,9 +32,10 @@ standard
 #TIMESTEP
 0.025		Dt
 
-#OUTPUT
-0		nStepOutMin
-10		nSteOut
+#SAVEFIELDMOMENTS
+ascii		TypeFile
+400		nStepOutMin
+10		nStepOut
 
 #STOP
 -1		MaxIteration
