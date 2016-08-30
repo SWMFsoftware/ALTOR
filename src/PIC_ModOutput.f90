@@ -19,7 +19,8 @@ module PIC_ModOutput
   !Unit for the log file                                                      
   !/                           
   integer :: iOutUnit = -1,iOutUnit_den=-1
-  integer, public :: nStepOut=100000,nStepOutMin=100000
+  integer,  public :: nStepOut=100000,nStepOutMin=100000
+  character(len=5),public :: TypeFile='real4' 
   !Array for saving coordinates, fields and moments in one timestep
   real   :: State_VCB(6+11*nPType,1:nX,1:nY,1:nZ,MaxBlock)=0.0
 
@@ -81,10 +82,8 @@ contains
     case('NORMAL')
        !Check if this is time to save; if not, return
        !The calculation is done in advance_particles
-       if(nStepOut>=1.and.nStepOutMin<=iStep)then
-          if(mod(iStep,nStepOut) /= 0)&
-               RETURN
-       end if
+       if(nStepOut<1.or.nStepOutMin>=iStep.or.mod(iStep,nStepOut)/=0)&
+            RETURN
 
        !Do not save in test particle runs
        if(nToWrite/=0) RETURN
@@ -113,8 +112,8 @@ contains
        Param_I(nPType+1:2*nPType) = M_P
 
        call save_plot_file(NameFile,     &
-            TypeFileIn='real4',          &
-            TypePositionIn=TypePosition, &
+            TypeFileIn = TypeFile,         &
+            TypePositionIn = TypePosition, &
             nStepIn = iStep, &
             TimeIn  = tSimulation, &
             ParamIn_I = Param_I, &
@@ -127,7 +126,6 @@ contains
   !======================================================================
   !Calculate cell-centered number density and velocity for output
   subroutine compute_moments
-    use ModPlotFile, ONLY: save_plot_file
     use PIC_ModParticles, ONLY: nPType,n_P
     use PIC_ModFormFactor,ONLY: HighFF_ID,Node_D, get_form_factors
     use PC_BATL_particles,ONLY: Particle_I
