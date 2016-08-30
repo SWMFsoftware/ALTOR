@@ -21,28 +21,24 @@ subroutine PIC_init_session(iSession)
   !--------------------------------------------------------------------------
   if(.not.IsInitialized)call PIC_setup
 end subroutine PIC_init_session
-!==========================
+!==============================
 subroutine PIC_advance(tMax)
   use PIC_ModField,     ONLY: update_magnetic, Rho_GB, Counter_GDB,V_GDB
   use PIC_ModParticles, ONLY: Energy_P, nPType, pass_energy
-  use PIC_ModParticles, ONLY: advance_particles_full, advance_particles_quick
+  use PIC_ModParticles, ONLY: advance_particles
   use PIC_ModField,     ONLY: update_e, field_bc, &
                               current_bc_periodic, field_bc_periodic
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt, IsPeriodicField_D
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
-  use PIC_ModOutput,    ONLY: nStepOutMin,nStepOut
-
-  use PIC_ModOutput,    ONLY: write_moments
-
+  use PIC_ModOutput,    ONLY: nStepOutMin,nStepOut, write_moments
   use PIC_ModMpi,       ONLY: pass_current
 
   implicit none
   real,intent(in) :: tMax
-
   integer :: iSort, iBlock
-
+  logical :: DoComputeMoments
   character(len=*), parameter :: NameSub='PIC_advance'
-  !-----------------
+  !--------------------------------------------------------------------
 
   if(tSimulation > tMax)return
   call timing_start('advance')
@@ -75,13 +71,15 @@ subroutine PIC_advance(tMax)
         Rho_GB = 0.0; V_GDB = 0.0
         !Calculate cell-centered number density and velocity while
         !advancing the particles
-        call advance_particles_full(iSort)
+        DoComputeMoments = .TRUE.
+        call advance_particles(iSort,DoComputeMoments)
         !Save the moments
         call write_moments(iSort)
      else
         !Advance the particles without calculating cell-centered
         !number density and velocity
-        call advance_particles_quick(iSort)
+        DoComputeMoments = .FALSE.
+        call advance_particles(iSort,DoComputeMoments)
      end if
   end do
 
