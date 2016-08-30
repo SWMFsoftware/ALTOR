@@ -3,7 +3,7 @@ module PIC_ModParticles
   use PIC_ModSize,ONLY: nPType, nElectronMax,nDim, x_, y_, z_
   use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, CellVolume, SpeedOfLight_D
-  use PIC_ModParticleInField,ONLY: Rho_GB,add_density,add_current
+  use PIC_ModParticleInField,ONLY: Rho_GB,add_current
   use PIC_ModParticleInField,ONLY: add_DensityVelocity
   use PIC_ModParticleInField,ONLY: b_interpolated_d,e_interpolated_d
   use PIC_ModParticleInField,ONLY: min_val_rho, max_val_rho, rho_avr
@@ -38,8 +38,8 @@ module PIC_ModParticles
   public::set_particle_param       !Assigns M_P, Q_P and allocates coordinate
                                    ! arrays
   public::put_particle             !Add particle with known coordinates
-  public::advance_particles_full   !Advance particles and collect moments info
-  public::advance_particles_quick  !Advance particles only
+  public::advance_particles   !Advance particles and collect moments info in 
+                              !certain timestep
 contains
   !=============================
   subroutine set_pointer_to_particles(iSort,PointerToSet)
@@ -312,7 +312,8 @@ contains
                  ) cycle PART
             call put_particle(iSort, Coord_D)
             call get_form_factors(Coord_D,Node_D,HighFF_ID)
-            call add_density(Node_D,HighFF_ID,1)
+            !hyzhou: I removed add_density. Need to modify this part later
+            !call add_density(Node_D,HighFF_ID,1)
          end do PART
       end do
     end subroutine foil
@@ -360,315 +361,180 @@ contains
     use ModReadParam, ONLY: read_var
     real      :: W_D(Wx_:Wz_)
     integer   :: iSort
-
-    real,dimension(:,:),pointer::Coord_VI
-    integer :: iP
+    real,dimension(:,:),pointer :: Coord_VI
+    integer   :: iP
     !-----------------------------
     call read_var('iSort',iSort)
     call read_var('Wx'   ,W_D(Wx_))
     call read_var('Wy'   ,W_D(Wy_))
     call read_var('Wz'   ,W_D(Wz_))
     call set_pointer_to_particles(iSort,Coord_VI)
+
     do iP = 1,n_P(iSort)
        Coord_VI(Wx_:Wz_,iP) = Coord_VI(Wx_:Wz_,iP) + W_D
     end do
   end subroutine add_velocity_init
-   
-  !================PARTICLE MOVER 1================!
-  !Advance the particles and calculating cell-centered
-  !number density and velocity for one timestep
-  subroutine advance_particles_full(iSort)
-    integer,intent(in)::iSort
-
-    real:: QDtPerM, M
-    real,dimension(nDim)::QPerVDx_D
-
-    !real :: QcDtPerV
-
-    !real :: Energy,
-    real:: W2
-
-    integer::iParticle, iBlock
-
-    real,dimension(nDim)::X_D
-
-    real,dimension(x_:z_)   ::W_D,W12_D,EForce_D,BForce_D
-    real    :: Gamma
-    real,dimension(:,:),pointer::Coord_VI
-    integer:: iShift_D(nDim)
-    !-------------------------------
-    !Initialize the simulation for this sort of particles
-    
-
-    !Q * dt * c / V (dx*dy*dz)
-    !QcDtPerV=QDt*c/CellVolume
-
-    !1/2 * Q * dt / M, 
-    !used to calculate the force effect
-
-    QDtPerM = cHalf * Dt * Q_P(iSort) / M_P(iSort)
-
-    !Q / V * (/\Delta x, \Delta y, \Delta z/)
-    !Used to calculate J*dt in the 
-    !charge-conserving scheme
-
-    QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
-
-    M = M_P(iSort)
-
+  !==============================================================
+  subroutine add_velocity_sine
+    use ModReadParam, ONLY: read_var
+    real    :: Ampl,WaveNumber
+    character(len=3) :: Direction
+    integer :: iSort
+    integer :: iP
+    real,dimension(:,:),pointer :: Coord_VI
+    !---------------------------------------
+    call read_var('iSort',iSort)
+    call read_var('Amplitude' ,Ampl)      ! u_0
+    call read_var('WaveNumber',WaveNumber)! k
+    call read_var('Direction' ,Direction)
     call set_pointer_to_particles(iSort,Coord_VI)
 
-    !Looping over particles
-    do iParticle=1,n_P(iSort)
-       !Get coordinates and momentum
-       X_D = Coord_VI(x_:nDim,iParticle)
-       W_D = Coord_VI(Wx_:Wz_,iParticle)
-       
-       W2 = sum(W_D**2)
-       Gamma = sqrt(c2 + W2)
-       
-       !Now W_D is the initial momentum, W2=W_D^2
-       !Mow Gamma is the initial Gamma-factor multiplied by c
-       
-       !\
-       ! Get block number
-       !/
-       iBlock = 1
+    select case(Direction)
+    case('x')
+       do iP=1,n_P(iSort)
+          Coord_VI(Wx_,iP) = Coord_VI(Wx_,iP) + &
+               Ampl*sin(WaveNumber*Coord_VI(x_,iP))
+       end do
 
-       !call timing_start('formfactor')
-       call get_form_factors(X_D,Node_D,HighFF_ID)
-       !call timing_stop('formfactor')
-       
-       !Electric field force
-       !call timing_start('electric')
-       EForce_D = QDtPerM * e_interpolated_d(iBlock)
-       !call timing_stop('electric')
+    case('y')
+       do iP=1,n_P(iSort)
+          Coord_VI(Wy_,iP) = Coord_VI(Wy_,iP) + &
+               Ampl*sin(WaveNumber*Coord_VI(y_,iP))
+       end do
 
-       !Add kinetic energy
-       Energy_P(iSort) = Energy_P(iSort) + &
-            M*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
-      
-       !Acceleration from the electric field, for the
-       !first half of the time step:
+    case('z')
+       do iP=1,n_P(iSort)
+          Coord_VI(Wz_,iP) = Coord_VI(Wz_,iP) + &
+               Ampl*sin(WaveNumber*Coord_VI(z_,iP))
+       end do
 
-       W_D = W_D + EForce_D
+    case default
+       !Add something here
 
-       !Get magnetic force
-       !call timing_start('magnetic')
-       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d(iBlock)
-       !call timing_stop('magnetic')       
+    end select
 
-       !Add a half of the magnetic rotation:
-
-       W12_D = W_D + cross_product(W_D,BForce_D)
-
-       !Multiply the magnetic force by 2 to take a whole
-       !rotation and reduce its magnitude not to perturb energy
-
-       BForce_D = (2.0/(1.0 + sum(BForce_D**2))) * BForce_D
-
-       !Get a final momentum
-
-       W_D = W_D + cross_product(W12_D,BForce_D) + EForce_D
-
-       Gamma = sqrt(c2+sum(W_D**2))
-       !Now Gamma is the final Gamma-factor multiplied by c
-
-       !Save momentum
-       Coord_VI(1+nDim:3+nDim,iParticle) = W_D
-       W_D = (1.0/Gamma)*W_D
-       !Now W_D is the velocity divided by c
-
-       !Update coordinate
-       X_D = X_D + SpeedOfLight_D*W_D(1:nDim)
-
-       !New form factor
-       !call timing_start('formfactor')
-       call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
-       !call timing_stop('formfactor')
-       
-       !hyzhou: really? isn`t is number density???
-       !Contribute to the charge density
-       !call timing_start('density')
-       !call add_density(NodeNew_D,HighFFNew_ID,iBlock)
-       
-       !call timing_stop('density')
-       !      if(nDim<3)then
-       !         W_D=QcDtPerV*W_D !For nDim=3 velocity is not used
-       !         call add_current(QPerVDx_D,W_D)
-       !      end if
-
-       !Contribute to number density and velocity
-       call add_DensityVelocity(W_D*c,NodeNew_D,HighFFNew_ID,iBlock)
-       
-
-       !Contribute to the current
-       !call timing_start('current')
-       call add_current(QPerVDx_D,W_D,iBlock)
-       !call timing_stop('current')
-       
-       iShift_D = floor(X_D/nCell_D)
-       X_D = X_D - nCell_D*iShift_D
-       Coord_VI(1:nDim,iParticle) = X_D
-       
-       !To be done: for non-zero iShift_D, depending on the choice of 
-       !the whole scheme and/or boundary conditions, some more action
-       !may be needed.
-    end do
-  contains
-    !========================
-    function cross_product(a,b)
-      real,dimension(3)::cross_product
-      real,dimension(3),intent(in)::a,b
-      !----------------
-      cross_product(1)=a(2)*b(3)-a(3)*b(2)
-      cross_product(2)=a(3)*b(1)-a(1)*b(3)
-      cross_product(3)=a(1)*b(2)-a(2)*b(1)
-    end function cross_product
-    !=======================
-  end subroutine advance_particles_full
-  !==================================================================
-
-  !================PARTICLE MOVER 2================!
-  !Advance without calculating cell-centered number density and
-  !velocity
-  subroutine advance_particles_quick(iSort)
-    integer,intent(in)::iSort
-
-    real:: QDtPerM, M
-    real,dimension(nDim)::QPerVDx_D
-    !real :: QcDtPerV
-    !real :: Energy,
-    real:: W2
-
-    integer::iParticle, iBlock
-
-    real,dimension(nDim)::X_D
-
-    real,dimension(x_:z_)   ::W_D,W12_D,EForce_D,BForce_D
-    real    :: Gamma
-    real,dimension(:,:),pointer::Coord_VI
-    integer:: iShift_D(nDim)
-    !-------------------------------
-    !Initialize the simulation for this sort of particles
-    !Q * dt * c / V (dx*dy*dz)
-    !QcDtPerV=QDt*c/CellVolume
-
-    !1/2 * Q * dt / M, 
-    !used to calculate the force effect
-
-    QDtPerM = cHalf * Dt * Q_P(iSort) / M_P(iSort)
-
-    !Q / V * (/\Delta x, \Delta y, \Delta z/)
-    !Used to calculate J*dt in the 
-    !charge-conserving scheme
-
-    QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
-
-    M = M_P(iSort)
-
-    call set_pointer_to_particles(iSort,Coord_VI)
-
-    !Looping over particles
-    do iParticle=1,n_P(iSort)
-       !Get coordinates and momentum
-       X_D = Coord_VI(x_:nDim,iParticle)
-       W_D = Coord_VI(Wx_:Wz_,iParticle)
-       
-       W2 = sum(W_D**2)
-       Gamma = sqrt(c2 + W2)
-       
-       !Now W_D is the initial momentum, W2=W_D^2
-       !Mow Gamma is the initial Gamma-factor multiplied by c
-       
-       !\
-       ! Get block number
-       !/
-       iBlock = 1
-
-       !call timing_start('formfactor')
-       call get_form_factors(X_D,Node_D,HighFF_ID)
-       !call timing_stop('formfactor')
-       
-       !Electric field force
-       !call timing_start('electric')
-       EForce_D = QDtPerM * e_interpolated_d(iBlock)
-       !call timing_stop('electric')
-
-       !Add kinetic energy
-       Energy_P(iSort) = Energy_P(iSort) + &
-            M*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
-      
-       !Acceleration from the electric field, for the
-       !first half of the time step:
-
-       W_D = W_D + EForce_D
-
-       !Get magnetic force
-       !call timing_start('magnetic')
-       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d(iBlock)
-       !call timing_stop('magnetic')       
-
-       !Add a half of the magnetic rotation:
-
-       W12_D = W_D + cross_product(W_D,BForce_D)
-
-       !Multiply the magnetic force by 2 to take a whole
-       !rotation and reduce its magnitude not to perturb energy
-
-       BForce_D = (2.0/(1.0 + sum(BForce_D**2))) * BForce_D
-
-       !Get a final momentum
-
-       W_D = W_D + cross_product(W12_D,BForce_D) + EForce_D
-
-       Gamma = sqrt(c2+sum(W_D**2))
-       !Now Gamma is the final Gamma-factor multiplied by c
-
-       !Save momentum
-       Coord_VI(1+nDim:3+nDim,iParticle) = W_D
-       W_D = (1.0/Gamma)*W_D
-       !Now W_D is the velocity divided by c
-
-       !Update coordinate
-       X_D = X_D + SpeedOfLight_D*W_D(1:nDim)
-
-       !New form factor
-       !call timing_start('formfactor')
-       call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
-       !call timing_stop('formfactor')
-       
-       !call timing_stop('density')
-       !      if(nDim<3)then
-       !         W_D=QcDtPerV*W_D !For nDim=3 velocity is not used
-       !         call add_current(QPerVDx_D,W_D)
-       !      end if
-
-       !Contribute to the current
-       !call timing_start('current')
-       call add_current(QPerVDx_D,W_D,iBlock)
-       !call timing_stop('current')
-       
-       iShift_D = floor(X_D/nCell_D)
-       X_D = X_D - nCell_D*iShift_D
-       Coord_VI(1:nDim,iParticle) = X_D
-       
-       !To be done: for non-zero iShift_D, depending on the choice of 
-       !the whole scheme and/or boundary conditions, some more action
-       !may be needed.
-    end do
-  contains
-    !========================
-    function cross_product(a,b)
-      real,dimension(3)::cross_product
-      real,dimension(3),intent(in)::a,b
-      !----------------
-      cross_product(1)=a(2)*b(3)-a(3)*b(2)
-      cross_product(2)=a(3)*b(1)-a(1)*b(3)
-      cross_product(3)=a(1)*b(2)-a(2)*b(1)
-    end function cross_product
-    !=======================
-  end subroutine advance_particles_quick
-  !--------------------------------------------------------------!
+  end subroutine add_velocity_sine
   
+  !=======================PARTICLE MOVER=========================!
+  !Advance the particles in one timestep; calculate cell-centered
+  !number density and velocity if DoComputeMoments==.true.
+  subroutine advance_particles(iSort,DoComputeMoments)
+    use ModCoordTransform, ONLY: cross_product
+
+    integer,intent(in) :: iSort
+    logical,intent(in) :: DoComputeMoments
+
+    real:: QDtPerM, M
+    real,dimension(nDim)::QPerVDx_D
+    real:: W2
+    integer::iParticle, iBlock
+    real,dimension(nDim)::X_D
+    real,dimension(x_:z_)   ::W_D,W12_D,EForce_D,BForce_D
+    real    :: Gamma
+    real,dimension(:,:),pointer::Coord_VI
+    integer:: iShift_D(nDim)
+    !-------------------------------
+    !Initialize the simulation for this sort of particles
+
+    !1/2 * Q * dt / M, 
+    !used to calculate the force effect
+    QDtPerM = cHalf * Dt * Q_P(iSort) / M_P(iSort)
+
+    !Q / V * (/\Delta x, \Delta y, \Delta z/)
+    !Used to calculate J*dt in the 
+    !charge-conserving scheme
+    QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
+    M = M_P(iSort)
+
+    call set_pointer_to_particles(iSort,Coord_VI)
+
+    !Looping over particles
+    do iParticle=1,n_P(iSort)
+       !Get coordinates and momentum
+       X_D = Coord_VI(x_:nDim,iParticle)
+       W_D = Coord_VI(Wx_:Wz_,iParticle)
+       
+       W2 = sum(W_D**2)
+       Gamma = sqrt(c2 + W2)
+       
+       !Now W_D is the initial momentum, W2=W_D^2
+       !Mow Gamma is the initial Gamma-factor multiplied by c
+       
+       !\
+       ! Get block number
+       !/
+       iBlock = 1
+
+       !call timing_start('formfactor')
+       call get_form_factors(X_D,Node_D,HighFF_ID)
+       !call timing_stop('formfactor')
+       
+       !Electric field force
+       !call timing_start('electric')
+       EForce_D = QDtPerM * e_interpolated_d(iBlock)
+       !call timing_stop('electric')
+
+       !Add kinetic energy
+       Energy_P(iSort) = Energy_P(iSort) + &
+            M*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
+      
+       !Acceleration from the electric field, for the
+       !first half of the time step:
+
+       W_D = W_D + EForce_D
+
+       !Get magnetic force
+       !call timing_start('magnetic')
+       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d(iBlock)
+       !call timing_stop('magnetic')       
+
+       !Add a half of the magnetic rotation:
+
+       W12_D = W_D + cross_product(W_D,BForce_D)
+
+       !Multiply the magnetic force by 2 to take a whole
+       !rotation and reduce its magnitude not to perturb energy
+
+       BForce_D = (2.0/(1.0 + sum(BForce_D**2))) * BForce_D
+
+       !Get a final momentum
+
+       W_D = W_D + cross_product(W12_D,BForce_D) + EForce_D
+
+       Gamma = sqrt(c2+sum(W_D**2))
+       !Now Gamma is the final Gamma-factor multiplied by c
+
+       !Save momentum
+       Coord_VI(1+nDim:3+nDim,iParticle) = W_D
+       W_D = (1.0/Gamma)*W_D
+       !Now W_D is the velocity divided by c
+
+       !Update coordinate
+       X_D = X_D + SpeedOfLight_D*W_D(1:nDim)
+
+       !New form factor
+       !call timing_start('formfactor')
+       call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
+       !call timing_stop('formfactor')
+       
+       !Contribute to number density and velocity
+       if(DoComputeMoments)&
+            call add_DensityVelocity(W_D*c,NodeNew_D,HighFFNew_ID,iBlock)
+
+       !Contribute to the current
+       !call timing_start('current')
+       call add_current(QPerVDx_D,W_D,iBlock)
+       !call timing_stop('current')
+       
+       iShift_D = floor(X_D/nCell_D)
+       X_D = X_D - nCell_D*iShift_D
+       Coord_VI(1:nDim,iParticle) = X_D
+       
+       !To be done: for non-zero iShift_D, depending on the choice of 
+       !the whole scheme and/or boundary conditions, some more action
+       !may be needed.
+    end do
+  end subroutine advance_particles
+
 end module PIC_ModParticles
+
