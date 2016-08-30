@@ -183,16 +183,15 @@ test_altor_compile:
 test_altor_rundir: 
 	rm -rf ${TESTDIR}
 	${MAKE} rundir RUNDIR=${TESTDIR} STANDALONE=YES PCDIR=`pwd`
-	cd ${TESTDIR}; cp -f Param/PARAM.TEST PARAM.in
+	cd ${TESTDIR}; cp -f Param/PARAM.TEST PARAM.in; mkdir PC/plots/
 
 test_altor_run:
-	cd ${TESTDIR}; ${MPIRUN} ./ALTOR.exe > runlog
+	cd ${TESTDIR}; ${MPIRUN} ./ALTOR.exe | tee -a runlog
 
-#The path needs to be changed when doing coupling runs.
 test_altor_check:
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
-		Param/TestOutput/log_noise.out ${TESTDIR}/log_n0001.out > test_altor.diff
-	ls -l test_altor.diff
-
+		Param/TestOutput/log_noise.log ${TESTDIR}/PC/plots/log_n0001.log > test_altor.diff	
+	gunzip -c Param/TestOutput/variables.outs.gz > ${TESTDIR}/PC/plots/variables.ref
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
-		Param/TestOutput/variable.outs ${TESTDIR}/variable.outs >> test_altor.diff
+        	${TESTDIR}/PC/plots/variables.ref ${TESTDIR}/PC/plots/variables.outs >> test_altor.diff
+	ls -l test_altor.diff
