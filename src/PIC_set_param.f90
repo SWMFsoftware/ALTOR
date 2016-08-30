@@ -6,7 +6,7 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModParticles
   use PC_BATL_particles, ONLY: Particle_I
   use PIC_ModLogFile, ONLY: nLogFile, nToWrite, nToWrite_II
-  use PIC_ModOutput, ONLY: nStepOut, nStepOutMin
+  use PIC_ModOutput, ONLY: nStepOut, nStepOutMin, TypeFile
   use PIC_ModThermal, ONLY: read_temperature
   use PIC_ModField,   ONLY: add_e, add_b 
   use PIC_ModLaserBeam, ONLY: read_laser_beam
@@ -151,6 +151,9 @@ subroutine PIC_set_param(TypeAction)
      case('#ADDVELOCITY')
         call add_velocity_init
 
+     case('#ADDSINEWAVEVELOCITY')
+        call add_velocity_sine
+
      case('#TIMESTEP')
         call read_var('Dt',Dt)
     
@@ -214,8 +217,8 @@ subroutine PIC_set_param(TypeAction)
         if(iSession /=1 )CYCLE READPARAM
         call read_var('nLogFile',nLogFile)
 
-     case('#OUTPUT')
-
+     case('#SAVEFIELDMOMENTS')
+        call read_var('TypeFile',TypeFile)
         call read_var('nStepOutMin', nStepOutMin)
         call read_var('nStepOut', nStepOut)
 
