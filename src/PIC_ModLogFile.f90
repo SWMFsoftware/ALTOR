@@ -44,6 +44,7 @@ contains
   
      character(LEN=100) :: Name
      character(LEN=1  ) :: Name1
+     character(len=*), parameter :: FileDir='PC/plots/'
   
      integer :: iP
      !---------------------
@@ -51,9 +52,9 @@ contains
      !Open log file
      !/
      if(iProc==0)then
-        write(Name,'(a,i4.4,a)')'log_n',nLogFile,'.out'
+        write(Name,'(a,i4.4,a)')'log_n',nLogFile,'.log'
         iLogUnit = io_unit_new()
-        open(iLogUnit,file=Name,status='replace')
+        open(iLogUnit,file=FileDir//Name,status='replace')
         write(Name,'(a)')'iStep Time'
         do iP = 1, nPType
            write(Name1,'(i1.1)')iP
@@ -111,7 +112,8 @@ contains
     call flush_unit(iLogUnit)
     do iP=1, nToWrite
        write(nToWrite_II(1,iP),'(i10,7es13.5)')iStep, tSimulation, &
-            Particle_I(nToWrite_II(2,iP))%State_VI(1:nDim,nToWrite_II(3,iP))*Dx_D,&
+            Particle_I(nToWrite_II(2,iP))%State_VI(1:nDim,nToWrite_II(3,iP))&
+                *Dx_D,&
             Particle_I(nToWrite_II(2,iP))%State_VI(Wx_:Wz_,nToWrite_II(3,iP))
        call flush_unit(nToWrite_II(1,iP))
     end do
