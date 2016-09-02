@@ -33,6 +33,7 @@ contains
   subroutine PIC_save_files(TypeSave)
     use ModPlotFile, ONLY: save_plot_file
     use PIC_ModParticles, ONLY: nPType,n_P
+    use PIC_ModSize, ONLY: nCell_D
     use PC_BATL_particles,ONLY: Particle_I
     use ModMpi, ONLY: mpi_reduce_real_array, MPI_SUM
 
@@ -52,8 +53,9 @@ contains
     !----------------------------------------------------------------------
     select case(TypeSave)
     case('INITIAL')
-       !Do not save in test particle runs
-       if(nToWrite/=0) RETURN
+       !Do not save in test particle runs alone (test particle number>1 and
+       !density of electrons < 1 per cell)
+       if(nToWrite/=0.and.n_P(1)<product(nCell_D)) RETURN
 
        !Calculate the initial moments
        call compute_moments
@@ -87,13 +89,13 @@ contains
             RETURN
 
        !Do not save in test particle runs
-       if(nToWrite/=0) RETURN
+       if(nToWrite/=0.and.n_P(1)<product(nCell_D)) RETURN
 
        TypePosition = 'append'
 
     case('FINAL')
-       !Do not save in test particle runs
-       if(nToWrite/=0) RETURN
+       !Do not save in test particle runs alone
+       if(nToWrite/=0.and.n_P(1)<product(nCell_D)) RETURN
 
        !Calculate the moments at final timestep
        call compute_moments
@@ -108,10 +110,10 @@ contains
     if(iProc==0) then
        !Get cell-center averaged E and B; fields are the same on each Proc
        call average_fields
-       !Save the charge and mass for each species
+       !Save the charge and mass ratio for each species in normalized unit
        Param_I(1:nPType)          = Q_P
        Param_I(nPType+1:2*nPType) = M_P
-
+              
        call save_plot_file(FileDir//NameFile,     &
             TypeFileIn = TypeFile,         &
             TypePositionIn = TypePosition, &
@@ -165,7 +167,7 @@ contains
   subroutine write_moments(iSort)
     use ModMpi, ONLY: mpi_reduce_real_array, MPI_SUM
     use PIC_ModProc, ONLY: iComm, nProc
-
+    
     integer, intent(in) :: iSort
     integer :: i,j,k
     integer :: iError
@@ -188,9 +190,10 @@ contains
 
        State_VCB(iSort+6,:,:,:,1) = Rho_GB(1:nX,1:nY,1:nZ,1)
 
-       !hyzhou: need to check if this is correct!
+       !Number-density-werighted averaged velocity
        do i=1,nDim
-          U_GDB(i,:,:,:,1) = sum(V_GDB(i,:,:,:,1))/product(nCell_D)
+          U_GDB(i,:,:,:,1) = sum(Rho_GB(1:nX,1:nY,1:nZ,1)*&
+               V_GDB(i,1:nX,1:nY,1:nZ,1))/sum(Rho_GB(1:nX,1:nY,1:nZ,1))
        end do
 
        !Looping over all the cell centers
@@ -199,36 +202,27 @@ contains
           State_VCB(nPType+3*iSort+4:nPType+3*iSort+6,i,j,k,1) = &
                V_GDB(:,i,j,k,1)
           !Save pressure tensor: Pxx Pyy Pzz Pxy Pxz Pyz
-          State_VCB(4*nPType+6*iSort+1:4*nPType+6*iSort+3,i,j,k,1) = &
+          State_VCB(5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k,1) = &
                M_P(iSort)*Rho_GB(i,j,k,1)*&
-               (V_GDB(:,i,j,k,1)**2 - U_GDB(:,i,j,k,1)**2)
-
-          State_VCB(4*nPType+6*iSort+4,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
+               (V_GDB(:,i,j,k,1) - U_GDB(:,i,j,k,1))**2
+          
+          State_VCB(5*nPType+6*iSort+4,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
                (V_GDB(1,i,j,k,1)*V_GDB(2,i,j,k,1) - U_GDB(1,i,j,k,1)*&
                U_GDB(2,i,j,k,1))
-          State_VCB(4*nPType+6*iSort+5,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
+          State_VCB(5*nPType+6*iSort+5,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
                (V_GDB(1,i,j,k,1)*V_GDB(3,i,j,k,1) - U_GDB(1,i,j,k,1)*&
                U_GDB(3,i,j,k,1))
-          State_VCB(4*nPType+6*iSort+6,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
+          State_VCB(5*nPType+6*iSort+6,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
                (V_GDB(2,i,j,k,1)*V_GDB(3,i,j,k,1) - U_GDB(2,i,j,k,1)*&
                U_GDB(3,i,j,k,1))
        end do; end do; end do
 
        !Save scalar pressure
        do k=1,nZ; do j=1,nY; do i=1,nX
-          State_VCB(10*nPType+iSort+6,i,j,k,1) = sum(&
-               State_VCB(4*nPType+6*iSort+4:4*nPType+6*iSort+6,i,j,k,1))/3.0
+          State_VCB(4*nPType+iSort+6,i,j,k,1) = sum(&
+               State_VCB(5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k,1))/3.0
        end do; end do; end do
     end if
-    !hyzhou: I think I need to remove this!!!
-    !pass_density and pass_velocity have already done the mpi_reduce
-    !so you don`t need to do it again here
-
-    !Collect information from all processors after looping over all
-    !particle species
-    !if(nProc>1.and.iSort==nPType) call mpi_reduce_real_array(State_VCB, &
-    !     size(State_VCB), MPI_SUM, 0, iComm, iError)
-    !Processor 0 has all the information to be saved
 
   end subroutine write_moments
   !======================================================================
