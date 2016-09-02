@@ -3,8 +3,7 @@ module PIC_ModParticles
   use PIC_ModSize,ONLY: nPType, nElectronMax,nDim, x_, y_, z_
   use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, CellVolume, SpeedOfLight_D
-  use PIC_ModParticleInField,ONLY: Rho_GB,add_current
-  use PIC_ModParticleInField,ONLY: add_DensityVelocity
+  use PIC_ModParticleInField,ONLY: Rho_GB,add_current, add_DensityVelocity
   use PIC_ModParticleInField,ONLY: b_interpolated_d,e_interpolated_d
   use PIC_ModParticleInField,ONLY: min_val_rho, max_val_rho, rho_avr
   use PIC_ModFormFactor,ONLY: HighFF_ID, HighFFNew_ID,&
@@ -41,16 +40,14 @@ module PIC_ModParticles
   public::advance_particles   !Advance particles and collect moments info in 
                               !certain timestep
 contains
-  !=============================
+  !=====================================================
   subroutine set_pointer_to_particles(iSort,PointerToSet)
     integer,intent(in)::iSort
     real,dimension(:,:),pointer::PointerToSet
     nullify(PointerToSet)
     PointerToSet=>Particle_I(iSort)%State_VI
   end subroutine set_pointer_to_particles
-
-  !=============================
-
+  !======================================
   subroutine set_particle_param(MIn_P,QIn_P)
     real,dimension(nPType),intent(in),optional::MIn_P,QIn_P
     logical::DoInit=.true.
@@ -67,8 +64,7 @@ contains
           deallocate(Particle_I(iSort)%State_VI,Particle_I(iSort)%iIndex_II)
        end do
     end if
-    !Max number of particles is max number of electrons per the
-    !charge ratio
+    !Max number of particles is max number of electrons per unit charge ratio
     nMax_P= nint(nElectronMax * abs(Q_P(Electron_)/Q_P) )
 
     do iSort=Electrons_,nPType
@@ -78,12 +74,11 @@ contains
     end do
     call allocate_particles
   end subroutine set_particle_param
-  !===============================
-
+  !================================
   subroutine put_particle(iSort,PhaseCoords_D)
     integer,intent(in)::iSort
     real,dimension(nDim),intent(in)::PhaseCoords_D
-    !--------------
+    !---------------------------------------------
     n_P(iSort) = n_P(iSort)+1
     if( n_P(iSort) > nMax_P(iSort) )then
        write(*,*)&
@@ -94,7 +89,7 @@ contains
     Particle_I(iSort)%State_VI(nDim+1:nDim+3,n_P(iSort)) = 0.0
 
   end subroutine put_particle
-  !===========================
+  !==========================
   !== This routine allows to get reproducible random distribution independent 
   !== to the number of processors involved. This is extremely expensive way,
   !== as long as the operation of the random number calculation actually 
@@ -142,7 +137,8 @@ contains
     end do
 
     call uniform(nPPerCell_P)
-
+    !call uniform_test(nPPerCell_P)
+    
     if(nProc==1)then
        nTotal_P = n_P
     else
@@ -166,8 +162,6 @@ contains
     integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
     real    :: Coord_D(nDim)
     logical :: UseQuasiNeutral
-
-    integer :: i,j,k
     !--------------------------
     do iSort = 1, nPType
        if(nPPerCellIn_P(iSort)==0)CYCLE
@@ -201,6 +195,69 @@ contains
        end do
     end do
   end subroutine uniform
+  !============================================================
+  !Test: trying to distribute particles by cell; may be unnecessary!
+  subroutine uniform_test(nPPerCellIn_P)
+    use PIC_ModProc
+    use PIC_ModRandom
+    integer, intent(in) :: nPPerCellIn_P(nPType)
+    integer             :: nPPerCell_P(nPType)
+    integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
+    real    :: Coord_D(nDim)
+    logical :: UseQuasiNeutral
+    integer :: i,j,k
+    !--------------------------
+    do iSort = 1, nPType
+       if(nPPerCellIn_P(iSort)==0)CYCLE
+
+       if(nPPerCellIn_P(iSort) > 0)then
+          nPPerCell_P(iSort) = nPPerCellIn_P(iSort)
+          UseQuasiNeutral = .false.
+       else
+          nPPerCell_P(iSort) = -nPPerCellIn_P(iSort)
+          UseQuasiNeutral = .true.
+       end if
+
+       nPTotal = product(nCell_D) * NPPerCell_P(iSort)
+       nPPerPE = nPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
+
+       if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
+
+       if(UseQuasiNeutral)then
+          !Initialize the same random number sequence as 
+          !for electrons
+          call parallel_init_rand(nDim * nPPerPE, Electrons_)
+       else
+          call parallel_init_rand(nDim * nPPerPE, iSort)
+       end if
+
+       !2core version
+       !Only works for 3D run
+       if(iProc==0) then
+          do k=1,(nCell_D(z_)/2); do j=1,nCell_D(y_); do i=1,nCell_D(x_)
+             do iP=1, nPPerCell_P(iSort)
+                Coord_D(x_) = i-1 + RAND()
+                Coord_D(y_) = j-1 + RAND()
+                Coord_D(z_) = k-1 + RAND()
+                write(*,*) 'Coord_D(z_)=',Coord_D(z_)
+                call put_particle(iSort, Coord_D)
+             end do
+          end do; end do; end do
+       else
+          do k=(nCell_D(z_)/2)+1,nCell_D(z_); do j=1,nCell_D(y_);
+             do i=1,nCell_D(x_)
+                do iP=1, nPPerCell_P(iSort)
+                   Coord_D(x_) = i-1 + RAND()
+                   Coord_D(y_) = j-1 + RAND()
+                   Coord_D(z_) = k-1 + RAND()
+                   call put_particle(iSort, Coord_D)
+                end do
+             end do
+          end do; end do
+       end if
+       
+    end do
+  end subroutine uniform_test
 
   !==========================================
   !=========reading command #FOIL============
@@ -250,7 +307,6 @@ contains
        write(*,*)'Particle density average:',rho_avr()
     end if
   contains
-    !
     !================================
     subroutine foil(nPPerCellIn_P)
       use PIC_ModProc
@@ -375,6 +431,7 @@ contains
     end do
   end subroutine add_velocity_init
   !==============================================================
+  !u = u_0*sin(kx)
   subroutine add_velocity_sine
     use ModReadParam, ONLY: read_var
     real    :: Ampl,WaveNumber
@@ -382,6 +439,7 @@ contains
     integer :: iSort
     integer :: iP
     real,dimension(:,:),pointer :: Coord_VI
+    character(len=17) :: NameSub='add_velocity_sine'
     !---------------------------------------
     call read_var('iSort',iSort)
     call read_var('Amplitude' ,Ampl)      ! u_0
@@ -409,7 +467,11 @@ contains
        end do
 
     case default
-       !Add something here
+       if(iProc==0) then
+           write(*,*) NameSub // ' WARNING: unknown direction ' // &
+                trim(Direction),' !!!'
+           call CON_stop('Correct #ADDSINEWAVEVELOCITY!')
+        end if
 
     end select
 
@@ -433,7 +495,7 @@ contains
     real    :: Gamma
     real,dimension(:,:),pointer::Coord_VI
     integer:: iShift_D(nDim)
-    !-------------------------------
+    !----------------------------------------------------
     !Initialize the simulation for this sort of particles
 
     !1/2 * Q * dt / M, 
@@ -441,9 +503,10 @@ contains
     QDtPerM = cHalf * Dt * Q_P(iSort) / M_P(iSort)
 
     !Q / V * (/\Delta x, \Delta y, \Delta z/)
-    !Used to calculate J*dt in the 
-    !charge-conserving scheme
-    QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
+    !Used to calculate J*dt in the charge-conserving scheme
+    !QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
+    !Test
+    QPerVDx_D = Q_P(iSort) * Dx_D
     M = M_P(iSort)
 
     call set_pointer_to_particles(iSort,Coord_VI)
@@ -458,7 +521,7 @@ contains
        Gamma = sqrt(c2 + W2)
        
        !Now W_D is the initial momentum, W2=W_D^2
-       !Mow Gamma is the initial Gamma-factor multiplied by c
+       !Now Gamma is the initial Gamma-factor multiplied by c
        
        !\
        ! Get block number
