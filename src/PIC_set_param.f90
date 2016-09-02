@@ -106,9 +106,9 @@ subroutine PIC_set_param(TypeAction)
               call read_var('M_P(iP)',M_P(iP))
            end do
         case('standard')
-           !Charge is normalized to electron charge, mass is normalized 
-           !to electron mass, speed of light is set to 1, number density
-           !is divided by 4*cPi*nPPerCrit s.t. electron frequency is 1.
+           !First charge is normalized to electron charge, mass is normalized 
+           !to electron mass. Furthermore they are both divided by 
+           !4*cPi*nPPerCrit electron frequency is 1.
            !c=1, (e/m)=1 for electron and \omega=1
            !For critical density nPPerCell particles per
            !cell give the omega_Pe=\omega=1
