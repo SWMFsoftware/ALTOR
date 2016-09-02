@@ -7,7 +7,7 @@ subroutine PIC_setup
 
   implicit none
   character(len=*), parameter :: NameSub='PIC_setup'
-  !-------------------------
+  !------------------------------------------------
   call init_geometry(TypeGeometryIn='cartesian',&
        IsPeriodicIn_D=IsPeriodicField_D)
   if(nLogFile >=1) call open_logfile
@@ -39,7 +39,6 @@ subroutine PIC_advance(tMax)
   logical :: DoComputeMoments
   character(len=*), parameter :: NameSub='PIC_advance'
   !--------------------------------------------------------------------
-
   if(tSimulation > tMax)return
   call timing_start('advance')
   !\
@@ -96,7 +95,7 @@ subroutine PIC_advance(tMax)
      !All energies in the logfile are at the beginning of the timestep.
      !For test particles velocities are in the middle of the timestep,
      !coordinates are at the end of it
-     if(mod(iStep,nLogFile)==0)&
+     if(iStep/=0.and.mod(iStep,nLogFile)==0)&
           call write_logfile
   end if
 
