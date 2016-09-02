@@ -162,6 +162,7 @@ allclean:
 	cd srcInterface; make distclean
 
 TESTDIR = run_test
+MPIRUN  = mpirun -np 4 
 
 test:
 	-@(${MAKE} test_altor)
