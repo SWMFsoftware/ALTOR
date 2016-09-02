@@ -39,7 +39,7 @@ standard
 
 #ADDSINEWAVEVELOCITY
 1		iSort
-0.1		Amplitude
+0.01		Amplitude
 0.196		WaveNumber
 x		Direction
 
