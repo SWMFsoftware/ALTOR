@@ -19,7 +19,7 @@ contains
   subroutine get_form_factors(X_D, NodeOut_D, HighFFOut_ID)
     use ModNumConst,ONLY: cHalf
     !Input parameters
-    !X_D should be mormalized by (/\Delta x,\Delta y,\Delta z/)
+    !X_D should be normalized by (/\Delta x,\Delta y,\Delta z/)
     real,dimension(nDim),intent(in) :: X_D
 
     !Output parameters
