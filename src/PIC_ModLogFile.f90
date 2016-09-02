@@ -66,7 +66,7 @@ contains
            nToWrite_II(1,iP) = io_unit_new()
            Name = ' '
            write(Name,'(a,i4.4,a)')'log_p',iP,'.out'
-           open(nToWrite_II(1,iP),file=Name,status='replace')
+           open(nToWrite_II(1,iP),file=FileDir//Name,status='replace')
            if(nDim==2)write(nToWrite_II(1,iP),'(a)')&
              'iStep Time x y Wx Wy Wz'
            if(nDim==3)write(nToWrite_II(1,iP),'(a)')&
