@@ -115,15 +115,20 @@ subroutine PIC_set_param(TypeAction)
 
            c = 1.0; c2 = 1.0
            call read_var('nPPerCrit',nPPerCrit)
-           Q_P(Electron_) = - CellVolume/(4*cPi*nPPerCrit)
-           M_P(Electron_) =   CellVolume/(4*cPi*nPPerCrit)
+           !hyzhou: I don`t understand why there is CellVolume here.
+           !I checked the PARTICLE MOVER, and saw that there is actually
+           !no difference if I remove it.
+           !The reason is that this is inconsistent with the normalization.
+           !I should ask Igor to confirm this.
+           Q_P(Electron_) = - 1.0/(4*cPi*nPPerCrit)
+           M_P(Electron_) =   1.0/(4*cPi*nPPerCrit)
            do iP=2, nPType
               write(NameVar,'(a23,i1,a1)') 'Q_P/| Q_P(Electron_) |(',iP,')'
               call read_var(NameVar,Q_P(iP))
-              Q_P(iP) = Q_P(iP) *  CellVolume/(4*cPi*nPPerCrit)
+              Q_P(iP) = Q_P(iP) /(4*cPi*nPPerCrit)
               write(NameVar,'(a20,i1,a1)') 'M_P/ M_P(Electron_)(',iP,')'
               call read_var(NameVar,M_P(iP))
-              M_P(iP) = M_P(iP) *  CellVolume/(4*cPi*nPPerCrit)
+              M_P(iP) = M_P(iP) /(4*cPi*nPPerCrit)
            end do
         case default
            call CON_stop(NameSub//':Unknown normalizaton type='&
