@@ -72,10 +72,8 @@ program PIC
         call timing_reset('#all',3)
      end if
 
-     call timing_start('save_initial')
      !Save the initial outputs
      call PIC_save_files('INITIAL')
-     call timing_stop('save_initial')
 
      TIMELOOP: do
         if(stop_condition_true())exit TIMELOOP
@@ -113,8 +111,6 @@ program PIC
   call PIC_save_files('FINAL') 
   call timing_stop('save_final')
 
-  !call PIC_save_files('FINALWITHRESTART')
-
   if(iProc==0)then
      write(*,*)
      write(*,'(a)')'    Finished Saving Output Files'
@@ -139,7 +135,7 @@ program PIC
 contains
    function stop_condition_true() result(UseStopCondition)
     logical :: UseStopCondition
-
+    !--------------------------
     UseStopCondition = .false.
 
     if(nIter >= 0 .and. iStep >= nIter) UseStopCondition = .true.
@@ -149,9 +145,8 @@ contains
   !===============================
   function is_time_to_stop() result(IsTimeToStop)
     use PIC_ModMain, ONLY: CpuTimeMax, UseStopFile
-
     logical :: IsTimeToStop
-
+    !---------------------
     IsTimeToStop = .false.
 
     if(iProc==0)then
@@ -162,7 +157,7 @@ contains
        if(.not.IsTimeToStop .and. UseStopFile) then
           inquire(file='PIC.STOP',exist=IsTimeToStop)
           if (IsTimeToStop) &
-               write(*,*)'PIC.STOP file exists: recieved stop signal'
+               write(*,*)'PIC.STOP file exists: receieved stop signal'
        end if
     end if
     if(nProc==1)return
@@ -170,15 +165,13 @@ contains
 
   end function is_time_to_stop
 !===========================================================================
-
   subroutine show_progress
-
     use PIC_ModMain,      ONLY: nProgress1, nProgress2
     use PIC_ModMain,      ONLY: Dt
 
     real(Real8_), external :: timing_func_d
     real(Real8_) :: CpuTimePIC,CpuTimeAdvance
-
+    !------------------------------------------------
     !\
     ! Show timing results if required
     !/
@@ -186,7 +179,6 @@ contains
     ! Show speed as cells/second/PE/step
     if( UseTiming .and. iProc==0 &
          .and. nProgress1>0 .and. mod(iStep,nProgress1) == 0 ) then
-
        CpuTimePIC = timing_func_d('sum',3,'PIC','PIC')
        CpuTimeAdvance=timing_func_d('sum',1,'advance','PIC')
   
@@ -196,8 +188,7 @@ contains
             ' p/s/pe after',&
             CpuTimePIC,&
             ' s at N =',iStep, ' (', tSimulation,' s)'
-      
-    endif
+    end if
 
     ! Show timing tables
     if(nTiming>0.and.mod(iStep,nTiming)==0) then
