@@ -12,6 +12,13 @@ nDim = 3
 
 FF = 1.5
 
+# Serial and parallel execution defaults:
+SERIAL   =
+PARALLEL = mpirun
+NPFLAG   = -np
+NP       = 2
+MPIRUN   = ${PARALLEL} ${NPFLAG} ${NP}
+
 #
 # Menu of make options
 #
@@ -26,22 +33,21 @@ help:
 	@echo '    2d           (re-install the code with nDim=2)'
 	@echo '    3d           (re-install the code with nDim=3)'
 	@echo ' '
-	@echo '    LIB     (Component library libPC for SWMF)'
-	@echo '    ALTOR (ALTernating-ORder interpolation scheme for PIC)'
-	@echo '    nDim=2 compiles the code with nDim=2'
-	@echo '    NOMPI   (NOMPI library for compilation without MPI)'
+	@echo '    LIB          (Component library libPC for SWMF)'
+	@echo '    ALTOR        (ALTernating-ORder interpolation scheme for PIC)'
+	@echo '    ALTOR nDim=2 (compile the code with nDim=2)'
+	@echo '    NOMPI        (NOMPI library for compilation without MPI)'
 	@echo ' '
-	@echo '    rundir      (create run directory for standalone or SWMF)'
+	@echo '    rundir       (create run directory for standalone or SWMF)'
 	@echo '    rundir RUNDIR=run_test (create run directory run_test)'
 	@echo ' '
-	@echo "    nompirun    (make and run ${DEFAULT_EXE} on 1 PE)"
-	@echo "    mpirun      (make and mpirun ${DEFAULT_EXE} on 8 PEs)"
-	@echo "    mpirun NP=7 RUNDIR=run_test (run on 7 PEs in run_test)"
-	@echo "    mprun NP=5  (make and mprun ${DEFAULT_EXE} on 5 PEs)"
+	@echo "    serialrun    (make and run ${DEFAULT_EXE} on 1 PE)"
+	@echo "    parallelrun  (make and run ${DEFAULT_EXE} on ${NP} PEs)"
+	@echo "    parallelrun NP=7 RUNDIR=run_test (run on 7 PEs in run_test)"
 	@echo ' '	
-	@echo '    clean     (remove temp files like: *~ *.o *.kmo *.mod *.T *.lst core)'
-	@echo '    distclean (equivalent to ./Config.pl -uninstall)'
-	@echo '    dist      (create source distribution tar file)'
+	@echo '    clean        (remove temp files like: *~ *.o *.kmo *.mod *.T *.lst core)'
+	@echo '    distclean    (equivalent to ./Config.pl -uninstall)'
+	@echo '    dist         (create source distribution tar file)'
 
 INSTALLFILES =	src/Makefile.DEPEND srcBATL/Makefile.DEPEND \
 	srcInterface/Makefile.DEPEND
@@ -127,16 +133,11 @@ rundir:
 #       Run the default code on NP processors
 #
 
-NP=8
+parallelrun: ${DEFAULT_TARGET}
+	cd ${RUNDIR}; ${MPIRUN} ./${DEFAULT_EXE}
 
-mpirun: ${DEFAULT_TARGET}
-	cd ${RUNDIR}; mpirun -np ${NP} ./${DEFAULT_EXE}
-
-mprun: ${DEFAULT_TARGET}
-	cd ${RUNDIR}; mprun -np ${NP} ./${DEFAULT_EXE}
-
-nompirun: ${DEFAULT_TARGET}
-	cd ${RUNDIR}; ./${DEFAULT_EXE}
+serialrun: ${DEFAULT_TARGET}
+	cd ${RUNDIR}; ${SERIAL} ./${DEFAULT_EXE}
 
 
 #
@@ -162,7 +163,6 @@ allclean:
 	cd srcInterface; make distclean
 
 TESTDIR = run_test
-MPIRUN  = mpirun -np 4 
 
 test:
 	-@(${MAKE} test_altor)
