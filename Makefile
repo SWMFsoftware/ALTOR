@@ -12,13 +12,6 @@ nDim = 3
 
 FF = 1.5
 
-# Serial and parallel execution defaults:
-SERIAL   =
-PARALLEL = mpirun
-NPFLAG   = -np
-NP       = 2
-MPIRUN   = ${PARALLEL} ${NPFLAG} ${NP}
-
 #
 # Menu of make options
 #
