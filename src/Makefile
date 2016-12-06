@@ -21,6 +21,7 @@ PIC_ModRandom.o: PIC_ModRandom.f90
 OBJECTS= \
 	PIC_ModSize.o \
 	PIC_ModProc.o \
+	PIC_ModBatlInterface.o \
 	PIC_ModMain.o \
 	PIC_ModFormFactor_${FF}.o \
 	PIC_ModLaserBeam.o \
