@@ -7,10 +7,21 @@
 16		nZ
 2		nPType
 
-#DXYZ
+DXYZ
 0.05		Dx_D(1)
 0.05		Dx_D(2)
 0.05		Dx_D(3)
+
+#GRID
+1
+1
+1
+0
+0.8
+0
+0.8
+0
+0.8
 
 #NORMALIZATION
 standard

@@ -1,6 +1,6 @@
 subroutine PIC_set_param(TypeAction)
   use ModReadParam
-  use PIC_ModProc,    ONLY: iProc
+  use PIC_ModProc,    ONLY: iProc,iComm
   use PIC_ModMain
   use PIC_ModSize,    ONLY: nDim
   use PIC_ModParticles
@@ -11,6 +11,8 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModField,   ONLY: add_e, add_b 
   use PIC_ModLaserBeam, ONLY: read_laser_beam
   use ModConst
+  use PC_BATL_lib,ONLY: init_mpi, init_batl
+  use PIC_ModBatlInterface
   implicit none
 
   character (len=13) :: NameSub='PIC_set_param'
@@ -20,11 +22,13 @@ subroutine PIC_set_param(TypeAction)
   ! TypeAction determines if we read or check parameters
   character (len=*), intent(in) :: TypeAction
 
+  logical :: IsUninitialized      = .true.
+
   ! The name of the command
   character (len=lStringLine) :: NameCommand, StringLine, NameDescription
   integer :: iSession
-  integer :: iDim, iP, iVar, iSide
-  
+  integer :: iDim, iP, iVar, iSide, nRootRead_D(nDim)=1
+  real :: XyzMin_D(nDim) = -0.50, XyzMax_D(nDim) = 0.50
   character(LEN=10) :: NameNormalization
   integer:: nPPerCrit
 
@@ -38,7 +42,9 @@ subroutine PIC_set_param(TypeAction)
   select case(TypeAction)
   case('CHECK','Check','check')
      if(iProc==0)write(*,*) NameSub,': CHECK iSession =',iSession
-     SpeedOfLight_D = Dt * c / Dx_D
+     !\
+     ! Initialize timing
+     !/
      if(iProc==0)then
         call timing_active(UseTiming)
         if(iSession==1)then
@@ -47,7 +53,20 @@ subroutine PIC_set_param(TypeAction)
         call timing_depth(TimingDepth)
         call timing_report_style(TimingStyle)
      end if
-
+     if(IsUninitialized)then
+        IsUninitialized = .false.
+        call init_mpi(iComm)
+        if(i_line_command("#GRID", iSessionIn = 1) > 0) then
+           call init_batl(XyzMin_D, XyzMax_D, MaxBlock, 'cartesian', &
+                TypeFieldBC_S(1:2*nDim-1:2) == 'periodic', nRootRead_D)
+           Dx_D = (XyzMax_D - XyzMin_D)/(nRootRead_D*nCell_D(1:nDim))
+           call set_altor_grid
+        end if
+     end if
+     !\
+     ! Initialize parameters
+     !/
+     SpeedOfLight_D = Dt * c / Dx_D
      RETURN
   case('read','Read','READ')
      if(iProc==0)then
@@ -192,6 +211,16 @@ subroutine PIC_set_param(TypeAction)
            end if
         end do
 
+     case("#GRID")
+        if(.not.is_first_session())CYCLE READPARAM
+        do iDim = 1, nDim
+           call read_var('nRoot_I', nRootRead_D(iDim)) 
+        end do
+        do iDim = 1, nDim
+           call read_var('CoordMin', XyzMin_D(iDim))
+           call read_var('CoordMax', XyzMax_D(iDim))
+        end do
+
      case("#END")
         IslastRead=.true.
         EXIT READPARAM
@@ -236,4 +265,18 @@ subroutine PIC_set_param(TypeAction)
 
      end select
   end do READPARAM
+contains
+!===========================================================================
+
+  logical function is_first_session()
+
+    is_first_session = iSession == 1
+
+    if(iSession/=1 .and. iProc==0)then
+       write(*,*)NameSub//' WARNING: command '//trim(NameCommand)// &
+            ' can be used in the first session only !!!'
+       call CON_stop('Correct PARAM.in')
+    end if
+
+  end function is_first_session
 end subroutine PIC_set_param
