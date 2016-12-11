@@ -1,9 +1,10 @@
 module PIC_ModMain
   use ModNumConst
-  use PIC_ModSize, ONLY: nDim
+  use PIC_ModSize, ONLY: nDim, MaxBlock
   implicit none
   SAVE
   !-----------------------
+  integer:: nBlockMax
   !If UseSharedField==.true. at all processors
   !the field is the same, only particles are distributed.
   logical, parameter:: UseSharedField = .true.
