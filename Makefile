@@ -23,8 +23,6 @@ help:
 	@echo ' '
 	@echo '    help         (makefile option list)'
 	@echo '    install      (install ALTOR)'
-	@echo '    2d           (re-install the code with nDim=2)'
-	@echo '    3d           (re-install the code with nDim=3)'
 	@echo ' '
 	@echo '    LIB          (Component library libPC for SWMF)'
 	@echo '    ALTOR        (ALTernating-ORder interpolation scheme for PIC)'
@@ -85,15 +83,6 @@ QED:
 NOMPI:
 	cd util/NOMPI/src; make LIB
 
-2d:
-	touch src/PIC_ModSize_2d.f90
-	cd src;rm -f *3d.o
-	make install nDim=2
-
-3d:
-	touch src/PIC_ModSize_3d.f90
-	cd src;rm -f *2d.o
-	make install
 
 # The MACHINE variable holds the machine name for which scripts should
 # be copied to the run directory when it is created.  This is used mostly
@@ -121,7 +110,7 @@ rundir:
 		cd ${RUNDIR}; ln -s ${BINDIR}/${DEFAULT_EXE} .; \
 		ln -s ${COMPONENT}/* .; \
 	fi);
- 
+
 #
 #       Run the default code on NP processors
 #
@@ -187,5 +176,5 @@ test_altor_check:
 		Param/TestOutput/log_noise.log ${TESTDIR}/PC/plots/log_n0001.log > test_altor.diff	
 	gunzip -c Param/TestOutput/variables.outs.gz > ${TESTDIR}/PC/plots/variables.ref
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
-        	${TESTDIR}/PC/plots/variables.ref ${TESTDIR}/PC/plots/variables.outs >> test_altor.diff
+        ${TESTDIR}/PC/plots/variables.ref ${TESTDIR}/PC/plots/variables.outs >> test_altor.diff
 	ls -l test_altor.diff
