@@ -8,10 +8,10 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModLogFile, ONLY: nLogFile, nToWrite, nToWrite_II
   use PIC_ModOutput, ONLY: nStepOut, nStepOutMin, TypeFile
   use PIC_ModThermal, ONLY: read_temperature
-  use PIC_ModField,   ONLY: add_e, add_b 
+  use PIC_ModField,   ONLY: add_e, add_b, iGCN 
   use PIC_ModLaserBeam, ONLY: read_laser_beam
   use ModConst
-  use PC_BATL_lib,ONLY: init_mpi, init_batl
+  use PC_BATL_lib,ONLY: init_mpi, init_batl, nG
   use PIC_ModBatlInterface
   implicit none
 
@@ -39,6 +39,11 @@ subroutine PIC_set_param(TypeAction)
   character(len=30) :: NameVar
   !------------------
   iSession = i_session_read()
+  if(iGCN/=nG.and.iProc==0)then
+     write(*,'(a)')'Reconfigure ALTOR using the command'
+     write(*,'(a,i1)')'./Config.pl -ng=',iGCN
+     call CON_stop('Code stopped')
+  end if
   select case(TypeAction)
   case('CHECK','Check','check')
      if(iProc==0)write(*,*) NameSub,': CHECK iSession =',iSession

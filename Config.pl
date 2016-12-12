@@ -35,6 +35,7 @@ my $Src         = 'src';
 # Grid size variables
 my $NameBatlFile = "srcBATL/BATL_size.f90";
 my $NameSizeFile = "$Src/PIC_ModSize.f90";
+my $GhostCell;
 my $GridSize;
 my ($nI, $nJ, $nK, $MaxBlock, $nPType, $nElectronMax);
 
@@ -43,11 +44,12 @@ my ($nI, $nJ, $nK, $MaxBlock, $nPType, $nElectronMax);
 
 foreach (@Arguments){
     if(/^-s$/)                {$Show=1;                        next};
-
+    if(/^-ng=(.*)$/i)         {$NewGhostCell=$1; next};
     warn "WARNING: Unknown flag $_\n" if $Remaining{$_};
 }
 
-&set_grid_size if $NewGridSize and $NewGridSize ne $GridSize;
+&set_grid_size if ($NewGridSize and $NewGridSize ne $GridSize)
+    or            ($NewGhostCell and $NewGhostCell ne $GhostCell);
 # Show grid size in a compact form if requested
 print "Config.pl -g=$nI,$nJ,$nK,$MaxBlock,$nPType,$nElectronMax",
     ,"\n" if $ShowGridSize and not $Show;
@@ -63,14 +65,14 @@ exit 0;
 sub get_settings{
 
     # Read size of the grid from $NameSizeFile
-    open(FILE, $NameBatlFile) or die "$ERROR could not open $NameSizeFile\n";
+    open(FILE, $NameBatlFile) or die "$ERROR could not open $NameBatlFile\n";
     while(<FILE>){
 	next if /^\s*!/; # skip commented out lines
         $nI=$1           if /\bnI\s*=\s*(\d+)/i;
 	$nJ=$1           if /\bnJ\s*=\s*(\d+)/i;
 	$nK=$1           if /\bnK\s*=\s*(\d+)/i;
 	$nPType=$1       if /\bnKindParticle\s*=\s*(\d+)/i;
-	
+	$GhostCell=$1    if /\bnG\s*=\s*(\d)/;	
     }
     close FILE;
     open(FILE, $NameSizeFile) or die "$ERROR could not open $NameSizeFile\n";
@@ -103,6 +105,7 @@ sub set_grid_size{
 	    #"4". 
 	    " positive integers separated with commas\n";
     }
+    $GhostCell = $NewGhostCell if $NewGhostCell;
 
  
     print "Writing new grid size $GridSize into ".
@@ -122,6 +125,7 @@ sub set_grid_size{
 	s/\b(nI\s*=[^0-9]*)(\d+)/$1$nI/i;
 	s/\b(nJ\s*=[^0-9]*)(\d+)/$1$nJ/i;
 	s/\b(nK\s*=[^0-9]*)(\d+)/$1$nK/i;
+	s/\b(nG\s*=[^0-9]*)\d/$1$GhostCell/i;
 	print;
     }
 }
