@@ -837,7 +837,7 @@ contains
           end do
        end do
     end do
-    !mZ
+    !nZ
     do j=1-iGCN,nY+iGCN
        jInner = j - nY*floor( (j - 0.50) /nY )
        do i=1-iGCN,nX+iGCN
@@ -849,7 +849,7 @@ contains
        end do
     end do
     !nZ+1
-    do k=nZ+1,nZ+iGCN,-1
+    do k=nZ+1,nZ+iGCN-1
        kInner = k - nZ
        do j=1-iGCN,nY+iGCN
           jInner = j - nY*floor( (j - 0.50) /nY ) 
