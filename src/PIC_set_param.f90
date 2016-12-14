@@ -2,7 +2,7 @@ subroutine PIC_set_param(TypeAction)
   use ModReadParam
   use PIC_ModProc,    ONLY: iProc,iComm
   use PIC_ModMain
-  use PIC_ModSize,    ONLY: nDim
+  use PIC_ModSize,    ONLY: nDim, MaxDim
   use PIC_ModParticles
   use PC_BATL_particles, ONLY: Particle_I
   use PIC_ModLogFile, ONLY: nLogFile, nToWrite, nToWrite_II
@@ -32,7 +32,7 @@ subroutine PIC_set_param(TypeAction)
   character(LEN=10) :: NameNormalization
   integer:: nPPerCrit
 
-  real   :: Value_V(nDim+3)
+  real   :: Value_V(nDim+MaxDim)
 
   integer           :: TimingDepth=-1
   character(len=10) :: TimingStyle='cumm'
@@ -128,7 +128,7 @@ subroutine PIC_set_param(TypeAction)
         call read_var('Normalization',NameNormalization)
         select case(trim(NameNormalization))
         case('none','CGS')
-           c = cLightSpeed * 0.010
+           c = cLightSpeed * 0.010 !??? *100 ?
            c2= c*c
            do iP = 1, nPType
               call read_var('Q_P(iP)',Q_P(iP))
