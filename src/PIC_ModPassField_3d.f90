@@ -77,14 +77,14 @@ contains
        do while(k<nZ+iGCN)
           kNew=min(nZ+iGCN,k+iLength)
           call MPI_REDUCE(&
-               V_GDB(1,1-iGCN,1-iGCN,k+1,1),&
+               V_DGB(1,1-iGCN,1-iGCN,k+1,1),&
                Buff_DG(1,1-iGCN,1-iGCN,1),&
                3*(nX+2*iGCN)*(nY+2*iGCN)*(kNew-k),&
                MPI_REAL,&
                MPI_SUM,&
                iProcIn,iComm,iError)
           if(iProc==iProcIn)&
-             V_GDB(:,:,:,k+1:kNew,1) = Buff_DG(:,:,:,1:kNew-k)
+             V_DGB(:,:,:,k+1:kNew,1) = Buff_DG(:,:,:,1:kNew-k)
           k=kNew
        end do
     else
@@ -92,13 +92,13 @@ contains
        do while(k<nZ+iGCN)
           kNew=min(nZ+iGCN,k+iLength)
           call MPI_ALLREDUCE(&
-               V_GDB(1,1-iGCN,1-iGCN,k+1,1),&
+               V_DGB(1,1-iGCN,1-iGCN,k+1,1),&
                Buff_DG(1,1-iGCN,1-iGCN,1),&
                3*(nX+2*iGCN)*(nY+2*iGCN)*(kNew-k),&
                MPI_REAL,&
                MPI_SUM,&
                iComm,iError)
-          V_GDB(:,:,:,k+1:kNew,1)=Buff_DG(:,:,:,1:kNew-k)
+          V_DGB(:,:,:,k+1:kNew,1)=Buff_DG(:,:,:,1:kNew-k)
           k=kNew
        end do
     end if

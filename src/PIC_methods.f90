@@ -23,7 +23,7 @@ subroutine PIC_init_session(iSession)
 end subroutine PIC_init_session
 !==============================
 subroutine PIC_advance(tMax)
-  use PIC_ModField,     ONLY: update_magnetic, Rho_GB, Counter_GDB,V_GDB
+  use PIC_ModField,     ONLY: update_magnetic, Rho_GB, Counter_GDB,V_DGB
   use PIC_ModParticles, ONLY: Energy_P, nPType, pass_energy
   use PIC_ModParticles, ONLY: advance_particles
   use PIC_ModField,     ONLY: update_e, field_bc, &
@@ -67,7 +67,7 @@ subroutine PIC_advance(tMax)
 
   do iSort=1, nPType
      if(nStepOut>=1.and.nStepOutMin<=iStep.and.mod(iStep+1,nStepOut)==0)then
-        Rho_GB = 0.0; V_GDB = 0.0
+        Rho_GB = 0.0; V_DGB = 0.0
         !Calculate cell-centered number density and velocity while
         !advancing the particles
         DoComputeMoments = .TRUE.

@@ -39,13 +39,13 @@ module PIC_ModField
   !     E_GDB        = 0.0,& !This is the electric field
   !     B_GDB = 0.0,& !vector-potential if used, magnetic field otherwise
   !     Counter_GDB  = 0.0   !Counter for electric current
-  !     V_GDB        = 0.0   !Cell-centered velocity
+  !     V_DGB        = 0.0   !Cell-centered velocity
   real,allocatable:: E_GDB(:,:,:,:,:)
   real,allocatable:: B_GDB(:,:,:,:,:)
   real,allocatable:: Counter_GDB(:,:,:,:,:)
 
   real,allocatable:: Rho_GB(:,:,:,:)
-  real,allocatable:: V_GDB(:,:,:,:,:)
+  real,allocatable:: V_DGB(:,:,:,:,:)
   real :: B0_D(3) = 0.0
 
   !Methods
@@ -66,8 +66,8 @@ contains
          1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); Counter_GDB = 0.0 
     allocate(Rho_GB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
          1-iGCN:nZ+iGCN, MaxBlock)); Rho_GB = 0.0
-    allocate(V_GDB(MaxDim, 1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,&
-         1-iGCN:nZ+iGCN, MaxBlock)); V_GDB = 0.0
+    allocate(V_DGB(MaxDim, 1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,&
+         1-iGCN:nZ+iGCN, MaxBlock)); V_DGB = 0.0
 
   end subroutine allocate_fields
   !================
@@ -680,10 +680,10 @@ contains
              iInner = i - nX*floor( (i - 0.50) /nX )
              if(i==iInner.and.j==jInner.and.&
                   k==kInner)CYCLE
-             V_GDB(:,iInner,jInner,kInner,iBlock) = &
-                  V_GDB(:,iInner,jInner,kInner,iBlock) + &
-                  V_GDB(:,i,j,k,iBlock)
-             V_GDB(:,i,j,k,iBlock) = 0.0
+             V_DGB(:,iInner,jInner,kInner,iBlock) = &
+                  V_DGB(:,iInner,jInner,kInner,iBlock) + &
+                  V_DGB(:,i,j,k,iBlock)
+             V_DGB(:,i,j,k,iBlock) = 0.0
           end do
        end do
     end do

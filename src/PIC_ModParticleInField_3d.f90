@@ -168,7 +168,7 @@ contains
              !The real cell-centered velocity should be normalized by
              !number density after adding up the contribution from
              !all particles.
-             V_GDB(:,i,j,k,iBlock)=V_GDB(:,i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
+             V_DGB(:,i,j,k,iBlock)=V_DGB(:,i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
                   FFProduct*V_D  
           end do
        end do

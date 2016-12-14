@@ -4,7 +4,7 @@ module PIC_ModOutput
   use PIC_ModSize,ONLY: MaxBlock, nPType
   use PIC_ModParticles,ONLY: M_P,Q_P
   use ModNumConst,Only: cPi
-  use PIC_ModParticleInField,ONLY: Rho_GB, V_GDB
+  use PIC_ModParticleInField,ONLY: Rho_GB, V_DGB
   use PIC_ModField,   ONLY: iGCN, E_GDB,B_GDB
   use PIC_ModMpi,     ONLY: pass_density, pass_velocity
   use PIC_ModProc,    ONLY: iProc
@@ -145,7 +145,7 @@ contains
     !----------------------------------------------------
     !Calculate the number densities and velocities                   
     do iSort = 1, nPType
-       Rho_GB = 0.0 ; V_GDB = 0.0
+       Rho_GB = 0.0 ; V_DGB = 0.0
        do iParticle = 1, n_P(iSort)
           !Get the position of particle                                      
           X_D = Particle_I(iSort)%State_VI(1:nDim,iParticle)
@@ -184,7 +184,7 @@ contains
        !The cell-centered velocity should be normalized by number density
        !After applying periodic BC.
        do i=1,3
-          V_GDB(i,1:nX,1:nY,1:nZ,1) = V_GDB(i,1:nX,1:nY,1:nZ,1)&
+          V_DGB(i,1:nX,1:nY,1:nZ,1) = V_DGB(i,1:nX,1:nY,1:nZ,1)&
                / Rho_GB(1:nX,1:nY,1:nZ,1)
        end do
 
@@ -193,27 +193,27 @@ contains
        !Number-density-werighted averaged velocity
        do i=1,nDim
           U_GDB(i,:,:,:,1) = sum(Rho_GB(1:nX,1:nY,1:nZ,1)*&
-               V_GDB(i,1:nX,1:nY,1:nZ,1))/sum(Rho_GB(1:nX,1:nY,1:nZ,1))
+               V_DGB(i,1:nX,1:nY,1:nZ,1))/sum(Rho_GB(1:nX,1:nY,1:nZ,1))
        end do
 
        !Looping over all the cell centers
        do k=1,nZ; do j=1,nY; do i=1,nX
           !Save velocity
           State_VCB(nPType+3*iSort+4:nPType+3*iSort+6,i,j,k,1) = &
-               V_GDB(:,i,j,k,1)
+               V_DGB(:,i,j,k,1)
           !Save pressure tensor: Pxx Pyy Pzz Pxy Pxz Pyz
           State_VCB(5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k,1) = &
                M_P(iSort)*Rho_GB(i,j,k,1)*&
-               (V_GDB(:,i,j,k,1) - U_GDB(:,i,j,k,1))**2
+               (V_DGB(:,i,j,k,1) - U_GDB(:,i,j,k,1))**2
           
           State_VCB(5*nPType+6*iSort+4,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
-               (V_GDB(1,i,j,k,1)*V_GDB(2,i,j,k,1) - U_GDB(1,i,j,k,1)*&
+               (V_DGB(1,i,j,k,1)*V_DGB(2,i,j,k,1) - U_GDB(1,i,j,k,1)*&
                U_GDB(2,i,j,k,1))
           State_VCB(5*nPType+6*iSort+5,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
-               (V_GDB(1,i,j,k,1)*V_GDB(3,i,j,k,1) - U_GDB(1,i,j,k,1)*&
+               (V_DGB(1,i,j,k,1)*V_DGB(3,i,j,k,1) - U_GDB(1,i,j,k,1)*&
                U_GDB(3,i,j,k,1))
           State_VCB(5*nPType+6*iSort+6,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
-               (V_GDB(2,i,j,k,1)*V_GDB(3,i,j,k,1) - U_GDB(2,i,j,k,1)*&
+               (V_DGB(2,i,j,k,1)*V_DGB(3,i,j,k,1) - U_GDB(2,i,j,k,1)*&
                U_GDB(3,i,j,k,1))
        end do; end do; end do
 
