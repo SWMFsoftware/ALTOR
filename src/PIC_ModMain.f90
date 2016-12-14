@@ -24,8 +24,15 @@ module PIC_ModMain
   real :: tSimulation = 0.0
   integer :: iStep = 0
   real :: Dt= 0.0
-  real :: CellVolume=1.0, Dx_D(nDim)=1.0
 
+  !\
+  ! Grid spacing
+  !/
+  real :: CellVolume=1.0, Dx_D(nDim)=1.0, DxInv_D(nDim) = 1.0
+  !\
+  ! Grid limits
+  !/
+  real :: XyzMin_D(nDim) = -0.50, XyzMax_D(nDim) = 0.50
   !\
   ! Stopping conditions. These variables are only used in stand alone mode.
   !/
@@ -45,7 +52,6 @@ module PIC_ModMain
   logical:: UseTiming = .true.
   integer:: nTiming = -2
 
-  
   !\
   ! Boundary condition for the electric field
   !/

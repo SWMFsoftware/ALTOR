@@ -28,7 +28,6 @@ subroutine PIC_set_param(TypeAction)
   character (len=lStringLine) :: NameCommand, StringLine, NameDescription
   integer :: iSession
   integer :: iDim, iP, iVar, iSide, nRootRead_D(nDim)=1
-  real :: XyzMin_D(nDim) = -0.50, XyzMax_D(nDim) = 0.50
   character(LEN=10) :: NameNormalization
   integer:: nPPerCrit
 
@@ -64,7 +63,9 @@ subroutine PIC_set_param(TypeAction)
         if(i_line_command("#GRID", iSessionIn = 1) > 0) then
            call init_batl(XyzMin_D, XyzMax_D, MaxBlock, 'cartesian', &
                 TypeFieldBC_S(1:2*nDim-1:2) == 'periodic', nRootRead_D)
-           Dx_D = (XyzMax_D - XyzMin_D)/(nRootRead_D*nCell_D(1:nDim))
+           Dx_D = (XyzMax_D - XyzMin_D)/(nRootRead_D(1:nDim)*nCell_D(1:nDim))
+           DxInv_D = 1/Dx_D
+           CellVolume = product(Dx_D)
            call set_altor_grid
         end if
      end if
@@ -108,16 +109,11 @@ subroutine PIC_set_param(TypeAction)
         call read_var('nPType',iP)
         if(iP /= nPType)call CON_stop('nPType differs, reconfigure ALTOR')
      case('#DXYZ')
-        if(nDim==3)then
-           call read_var('Dx_D(1)', Dx_D(1))
-           call read_var('Dx_D(2)', Dx_D(2))
-           call read_var('Dx_D(3)', Dx_D(3))
-        else
-           call read_var('Dx_D(1)', Dx_D(1))
-           call read_var('Dx_D(2)', Dx_D(2))
-        end if
-        
+        do iDim = 1, nDim
+           call read_var('Dx_D', Dx_D(iDim))
+        end do
         CellVolume = product(Dx_D)
+        DxInv_D = 1/Dx_D
         
      case('#NORMALIZATION')
         call read_var('Normalization',NameNormalization)
