@@ -33,12 +33,12 @@ module PIC_ModParticles
 
   !Methods
   public::set_pointer_to_particles !Set pointer to the coordinate array of 
-                                   !electrons or ions
+  !electrons or ions
   public::set_particle_param       !Assigns M_P, Q_P and allocates coordinate
-                                   ! arrays
+  ! arrays
   public::put_particle             !Add particle with known coordinates
   public::advance_particles   !Advance particles and collect moments info in 
-                              !certain timestep
+  !certain timestep
 contains
   !=====================================================
   subroutine set_pointer_to_particles(iSort,PointerToSet)
@@ -121,56 +121,36 @@ contains
   !==========================================
   subroutine read_uniform
     use ModReadParam,ONLY: read_var
-    use PIC_ModProc
-    use PIC_ModMpi,  ONLY: pass_density
-    use ModMpi
-
-    integer:: nPPerCell_P(nPType)=0
+    use PIC_ModMain, ONLY: nPPerCellUniform_P 
     integer:: iSort
     character(len=12) :: NameVar
     !--------------
     do iSort = 1,nPType
        write(NameVar,'(a10,i1,a1)') 'nPPerCell(',iSort,')'
-       call read_var(NameVar,nPPerCell_P(iSort))
-       if(nPPerCell_P(iSort)<0.and.iProc==0)&
+       call read_var(NameVar,nPPerCellUniform_P(iSort))
+       if(nPPerCellUniform_P(iSort)<0.and.iProc==0)&
             write(*,*)'Particles will neutralize electrons'
     end do
-
-    call uniform(nPPerCell_P)
-    !call uniform_test(nPPerCell_P)
-    
-    if(nProc==1)then
-       nTotal_P = n_P
-    else
-       call MPI_reduce(n_P, nTotal_P, nPType, MPI_INTEGER,&
-            MPI_SUM, 0, iComm, iError)
-    end if
-
-    if(iProc==0)then
-       write(*,*)'Particles are distributed'
-       do iSort = 1, nPType
-          write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
-       end do
-    end if
   end subroutine read_uniform
   !================================
-  subroutine uniform(nPPerCellIn_P)
+  subroutine uniform
     use PIC_ModProc
+    use ModMpi
     use PIC_ModRandom
-    integer, intent(in) :: nPPerCellIn_P(nPType)
+    use PIC_ModMain, ONLY: nPPerCellUniform_P
     integer             :: nPPerCell_P(nPType)
     integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
     real    :: Coord_D(nDim)
     logical :: UseQuasiNeutral
     !--------------------------
     do iSort = 1, nPType
-       if(nPPerCellIn_P(iSort)==0)CYCLE
+       if(nPPerCellUniform_P(iSort)==0)CYCLE
 
-       if(nPPerCellIn_P(iSort) > 0)then
-          nPPerCell_P(iSort) = nPPerCellIn_P(iSort)
+       if(nPPerCellUniform_P(iSort) > 0)then
+          nPPerCell_P(iSort) = nPPerCellUniform_P(iSort)
           UseQuasiNeutral = .false.
        else
-          nPPerCell_P(iSort) = -nPPerCellIn_P(iSort)
+          nPPerCell_P(iSort) = -nPPerCellUniform_P(iSort)
           UseQuasiNeutral = .true.
        end if
 
@@ -194,6 +174,19 @@ contains
           call put_particle(iSort, Coord_D)
        end do
     end do
+    if(nProc==1)then
+       nTotal_P = n_P
+    else
+       call MPI_reduce(n_P, nTotal_P, nPType, MPI_INTEGER,&
+            MPI_SUM, 0, iComm, iError)
+    end if
+
+    if(iProc==0)then
+       write(*,*)'Particles are distributed'
+       do iSort = 1, nPType
+          write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
+       end do
+    end if
   end subroutine uniform
   !============================================================
   !Test: trying to distribute particles by cell; may be unnecessary!
@@ -255,7 +248,7 @@ contains
              end do
           end do; end do
        end if
-       
+
     end do
   end subroutine uniform_test
 
@@ -268,113 +261,112 @@ contains
     use ModConst,    ONLY: cDegToRad
     use PIC_ModMpi,  ONLY: pass_density
     use ModMpi
+    use PIC_ModMain, ONLY: nPPerCellFoil_P, FoilCenter_D, &
+         FoilWidth_D, AngleFoil
+    integer:: iSort, iDim
 
-    integer:: nPPerCell_P(nPType)=0
-    integer:: iSort
-    real :: xFoilCenter(nDim)
-    real :: xFoilWidth(nDim)
-    real :: angleFoil
     !--------------
     do iSort = 1,nPType
-       call read_var('nPPerCell',nPPerCell_P(iSort))
-       if(nPPerCell_P(iSort)<0.and.iProc==0)&
+       call read_var('nPPerCellFoil',nPPerCellFoil_P(iSort))
+       if(nPPerCellFoil_P(iSort)<0.and.iProc==0)&
             write(*,*)'Particles will neutralize electrons'
     end do
-    call read_var('xFoilCenter',xFoilCenter(1))
-    call read_var('yFoilCenter',xFoilCenter(2))
-    call read_var('zFoilCenter',xFoilCenter(3))
-    call read_var('xFoilWidth',xFoilWidth(1))
-    call read_var('yFoilWidth',xFoilWidth(2))
-    call read_var('zFoilWidth',xFoilWidth(3))
-    call read_var('angleFoil',angleFoil)
-    !
-    Rho_GB = 0.0
-    call foil(nPPerCell_P)
+    do iDim = 1, nDim
+       call read_var('FoilCenter_D',FoilCenter_D(iDim))
+    end do
+    do iDim = 1, nDim
+       call read_var('FoilWidth_D',FoilWidth_D(iDim))
+    end do
+    call read_var('AngleFoil',AngleFoil)
+  end subroutine read_foil
+  !================================
+  subroutine foil
+    use PIC_ModProc
+    use PIC_ModRandom
+    use ModConst,    ONLY: cDegToRad
+    use PIC_ModMpi,  ONLY: pass_density
+    use ModMpi
+    use PIC_ModMain, ONLY: nPPerCellFoil_P, FoilCenter_D, &
+         FoilWidth_D, AngleFoil
+    integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
+    integer :: nPPerCell_P(nPType)
+    real    :: Coord_D(nDim) 
+    real    :: PrimaryCoord_D(nDim)
+    real    :: angleSin, angleCos
+    logical :: UseQuasineutral
+    !--------------------------
+    angleSin=sin(angleFoil*cDegToRad)
+    angleCos=cos(angleFoil*cDegToRad)
+    do iSort = 1, nPType
+
+       if(nPPerCellFoil_P(iSort)==0)CYCLE
+
+       if(nPPerCellFoil_P(iSort) > 0)then
+          nPPerCell_P(iSort) = nPPerCellFoil_P(iSort)
+          UseQuasiNeutral = .false.
+       else
+          nPPerCell_P(iSort) = -nPPerCellFoil_P(iSort)
+          UseQuasiNeutral = .true.
+       end if
+
+       NPTotal = product(FoilWidth_D)/CellVolume &
+            *nPPerCell_P(iSort)
+       nPPerPE = nPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
+
+       if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
+
+       if(UseQuasiNeutral)then
+          !Initialize the same random number sequence as 
+          !for electrons
+          call parallel_init_rand(nDim * nPPerPE, Electrons_)
+       else
+          call parallel_init_rand(nDim * nPPerPE, iSort)
+       end if
+       !
+       PART:        do iP = 1, nPPerPE
+          !
+          do iDim = 1,nDim
+             PrimaryCoord_D(iDim) = FoilWidth_D(iDim)*(RAND()-0.5)
+          end do
+          !
+          Coord_D(1) = PrimaryCoord_D(2)*angleSin+PrimaryCoord_D(1)*angleCos
+          Coord_D(2) = PrimaryCoord_D(2)*angleCos-PrimaryCoord_D(1)*angleSin
+          if(nDim==3)Coord_D(nDim) = PrimaryCoord_D(nDim)
+          !
+          do iDim = 1,nDim
+             Coord_D(iDim) = (FoilCenter_D(iDim)+Coord_D(iDim))/Dx_D(iDim)
+          end do
+          if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. real(nCell_D(1))&
+               .or.&
+               Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. real(nCell_D(2))&
+               .or.&
+               Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. real(nCell_D(3))&
+               ) cycle PART
+          call put_particle(iSort, Coord_D)
+          !call get_form_factors(Coord_D,Node_D,HighFF_ID)
+          !hyzhou: I removed add_density. Need to modify this part later
+          !call add_density(Node_D,HighFF_ID,1)
+       end do PART
+    end do
+       !
+    !Rho_GB = 0.0
     if(nProc==1)then
        nTotal_P = n_P
     else
        call MPI_reduce(n_P, nTotal_P, nPType, MPI_INTEGER,&
             MPI_SUM, 0, iComm, iError)
     end if
-    call pass_density(0)
+    !call pass_density(0)
     if(iProc==0)then
        write(*,*)'Particles are distributed'
        do iSort = 1, nPType
           write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
        end do
-       write(*,*)'Particle density max:',max_val_rho()
-       write(*,*)'Particle density min:',min_val_rho()
-       write(*,*)'Particle density average:',rho_avr()
+    !   write(*,*)'Particle density max:',max_val_rho()
+    !   write(*,*)'Particle density min:',min_val_rho()
+    !   write(*,*)'Particle density average:',rho_avr()
     end if
-  contains
-    !================================
-    subroutine foil(nPPerCellIn_P)
-      use PIC_ModProc
-      use PIC_ModRandom
-      integer, intent(in) :: nPPerCellIn_P(nPType)
-      integer             :: nPPerCell_P(nPType)
-      integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
-      real    :: Coord_D(nDim) 
-      real    :: xPrime(nDim)
-      real    :: angleSin, angleCos
-      logical :: UseQuasineutral
-      !--------------------------
-      angleSin=sin(angleFoil*cDegToRad)
-      angleCos=cos(angleFoil*cDegToRad)
-      do iSort = 1, nPType
-
-         if(nPPerCellIn_P(iSort)==0)CYCLE
-
-         if(nPPerCellIn_P(iSort) > 0)then
-            nPPerCell_P(iSort) = nPPerCellIn_P(iSort)
-            UseQuasiNeutral = .false.
-         else
-            nPPerCell_P(iSort) = -nPPerCellIn_P(iSort)
-            UseQuasiNeutral = .true.
-         end if
-
-         NPTotal = product(xFoilWidth)/CellVolume &
-              *nPPerCell_P(iSort)
-         nPPerPE = nPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
-
-         if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
-
-         if(UseQuasiNeutral)then
-            !Initialize the same random number sequence as 
-            !for electrons
-            call parallel_init_rand(nDim * nPPerPE, Electrons_)
-         else
-            call parallel_init_rand(nDim * nPPerPE, iSort)
-         end if
-         !
-         PART:        do iP = 1, nPPerPE
-            !
-            do iDim = 1,nDim
-               xPrime(iDim) = xFoilWidth(iDim)*(RAND()-0.5)
-            end do
-            !
-            Coord_D(1) = xPrime(2)*angleSin+xPrime(1)*angleCos
-            Coord_D(2) = xPrime(2)*angleCos-xPrime(1)*angleSin
-            Coord_D(3) = xPrime(3)
-            !
-            do iDim = 1,nDim
-               Coord_D(iDim) = (xFoilCenter(iDim)+Coord_D(iDim))/Dx_D(iDim)
-            end do
-            if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. real(nCell_D(1))&
-                 .or.&
-                 Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. real(nCell_D(2))&
-                 .or.&
-                 Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. real(nCell_D(3))&
-                 ) cycle PART
-            call put_particle(iSort, Coord_D)
-            call get_form_factors(Coord_D,Node_D,HighFF_ID)
-            !hyzhou: I removed add_density. Need to modify this part later
-            !call add_density(Node_D,HighFF_ID,1)
-         end do PART
-      end do
-    end subroutine foil
-    !
-  end subroutine read_foil
+  end subroutine foil
   !=======================
   subroutine get_energy
     use ModMpi

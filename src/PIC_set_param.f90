@@ -7,11 +7,12 @@ subroutine PIC_set_param(TypeAction)
   use PC_BATL_particles, ONLY: Particle_I
   use PIC_ModLogFile, ONLY: nLogFile, nToWrite, nToWrite_II
   use PIC_ModOutput, ONLY: nStepOut, nStepOutMin, TypeFile
-  use PIC_ModThermal, ONLY: read_temperature
+  use PIC_ModThermal, ONLY: read_temperature, thermalize 
   use PIC_ModField,   ONLY: add_e, add_b, iGCN 
   use PIC_ModLaserBeam, ONLY: read_laser_beam
   use ModConst
   use PC_BATL_lib,ONLY: init_mpi, init_batl, nG
+  use PC_BATL_mpi,ONLY:BATL_iProc=>iProc, BATL_nProc=>nProc
   use PIC_ModBatlInterface
   implicit none
 
@@ -59,7 +60,12 @@ subroutine PIC_set_param(TypeAction)
      end if
      if(IsUninitialized)then
         IsUninitialized = .false.
-        call init_mpi(iComm)
+        if(UseSharedField)then
+           BATL_nProc = 1
+           BATL_iProc = 0
+        else
+           call init_mpi(iComm)
+        end if
         if(i_line_command("#GRID", iSessionIn = 1) > 0) then
            call init_batl(XyzMin_D, XyzMax_D, MaxBlock, 'cartesian', &
                 TypeFieldBC_S(1:2*nDim-1:2) == 'periodic', nRootRead_D)
@@ -68,6 +74,9 @@ subroutine PIC_set_param(TypeAction)
            CellVolume = product(Dx_D)
            call set_altor_grid
         end if
+        if(UseUniform)call uniform
+        if(UseFoil)call foil
+        if(UseThermalization)call thermalize
      end if
      !\
      ! Initialize parameters
@@ -156,15 +165,18 @@ subroutine PIC_set_param(TypeAction)
         end select
         call set_particle_param(M_P,Q_P)
      case('#UNIFORM')
+        UseUniform = .true.
         call read_uniform
 
      case('#FOIL')
+        UseFoil = .true.
         call read_foil
 
      case('#LASERBEAM')
         call read_laser_beam
 
      case('#THERMALIZE')
+        UseThermalization = .true.
         call read_temperature
         
      case('#ADDE')

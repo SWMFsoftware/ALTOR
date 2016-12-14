@@ -1,6 +1,6 @@
 module PIC_ModMain
   use ModNumConst
-  use PIC_ModSize, ONLY: nDim, MaxBlock
+  use PIC_ModSize, ONLY: nDim, MaxBlock, nPType
   implicit none
   SAVE
   !-----------------------
@@ -74,5 +74,25 @@ module PIC_ModMain
   
   
   logical:: IsPeriodicField_D(nDim) = .true.
+  !\
+  ! Initial conditions
+  !/
+  !\
+  ! Uniform
+  !/
+  logical :: UseUniform = .false.
+  integer :: nPPerCellUniform_P(nPType)=0
+  !\
+  ! Foil
+  !/
+  logical :: UseFoil = .false.
+  integer :: nPPerCellFoil_P(nPType)
+  real :: FoilCenter_D(nDim)=0.0
+  real :: FoilWidth_D(nDim)=0.0
+  real :: AngleFoil = 0.0
   
+  !\
+  ! Thermalization
+  !/
+  logical :: UseThermalization = .false.
 end module PIC_ModMain

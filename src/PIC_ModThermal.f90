@@ -24,28 +24,18 @@ contains
     end do
   end subroutine thermalize_particle
   !==================================
-  subroutine thermalize(iSort)
-    integer,intent(in):: iSort
-    integer:: iP
-    !------------------
-    do iP = 1, n_P(iSort)
-       call thermalize_particle(iP, iSort)
-    end do
-  end subroutine thermalize
-  !===========Reading command #THERMALIZE============
-  subroutine read_temperature
-    use ModReadParam,    ONLY: read_var
+  subroutine thermalize
     use PIC_ModProc,     ONLY: iProc
     use PIC_ModParticles,ONLY: get_energy
-    integer:: iSort
-    character(len=8) :: NameVar
-    !--------------
-    do iSort = 1,nPType
-       write(NameVar,'(a6,i1,a1)') 'uTh_P(',iSort,')'
-       !uTh_P is the thermal velocity in normalized units.
-       call read_var(NameVar,uTh_P(iSort))
+    integer::iSort
+    integer:: iP
+    !------------------
+    do iSort = 1, nPType
+       if(uTh_P(iSort)<=0.0)CYCLE
        call parallel_init_rand(6*n_P(iSort),iSort)
-       call thermalize(iSort)
+       do iP = 1, n_P(iSort)
+          call thermalize_particle(iP, iSort)
+       end do
     end do
     call get_energy
     if(iProc==0)then
@@ -56,6 +46,18 @@ contains
                (1.0 -1.250*uTh_P(iSort)**2/c2)
        end do
     end if
+  end subroutine thermalize
+  !===========Reading command #THERMALIZE============
+  subroutine read_temperature
+    use ModReadParam,    ONLY: read_var
+    integer:: iSort
+    character(len=8) :: NameVar
+    !--------------
+    do iSort = 1,nPType
+       write(NameVar,'(a6,i1,a1)') 'uTh_P(',iSort,')'
+       !uTh_P is the thermal velocity in normalized units.
+       call read_var(NameVar,uTh_P(iSort))
+    end do
   end subroutine read_temperature
   !==============================
 end module PIC_ModThermal
