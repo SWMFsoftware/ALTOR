@@ -28,7 +28,7 @@ contains
     integer::k,kNew
     !-----------------------------------------------------------
     !Set up periodic BC in all three dimensions.
-    call density_bc_periodic(1)
+    call add_ghost_cell_field(1,iGCN,Rho_GB)
     if(nProc==1)return
     !If iProcIn is given, the result is at PE=iProcIn only
     if(present(iProcIn))then
@@ -71,7 +71,7 @@ contains
     integer::k,kNew
     !-----------------------------------------------------------
     !Set up periodic BC in all three dimensions.
-    call velocity_bc_periodic(1)
+    call add_ghost_cell_field(3,iGCN,V_DGB)
     if(nProc==1)return
     !If iProcIn is given, the result is at PE=iProcIn only
     if(present(iProcIn))then

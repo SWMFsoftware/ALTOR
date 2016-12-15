@@ -643,49 +643,4 @@ contains
     Energy_V = Energy_V / (4.0*cPi)
 
   end subroutine get_field_energy
-  !===============================
-  !ONLY FOR PERIODIC BC.
-  !====================================
-  subroutine density_bc_periodic(iBlock)
-    integer, intent(in)::iBlock
-    integer :: i, j, k, iInner, jInner, kInner
-    !----------------------------------------
-    do k=1-iGCN,nZ+iGCN
-       kInner = k - nZ*floor( (k - 0.50) /nZ )
-       do j=1-iGCN,nY+iGCN
-          jInner = j - nY*floor( (j - 0.50) /nY )
-          do i=1-iGCN,nX+iGCN
-             iInner = i - nX*floor( (i - 0.50) /nX )
-             if(i==iInner.and.j==jInner.and.&
-                  k==kInner)CYCLE
-             Rho_GB(iInner,jInner,kInner,iBlock) = &
-                  Rho_GB(iInner,jInner,kInner,iBlock) + &
-                  Rho_GB(i,j,k,iBlock)
-             Rho_GB(i,j,k,iBlock) = 0.0
-          end do
-       end do
-    end do
-  end subroutine density_bc_periodic
-  !=================================
-  !ONLY FOR PERIODIC BC.                                                     
-  subroutine velocity_bc_periodic(iBlock)
-    integer, intent(in)::iBlock
-    integer :: i, j, k, iInner, jInner, kInner
-    !-----------------------------------------
-    do k=1-iGCN,nZ+iGCN
-       kInner = k - nZ*floor( (k - 0.50) /nZ )
-       do j=1-iGCN,nY+iGCN
-          jInner = j - nY*floor( (j - 0.50) /nY )
-          do i=1-iGCN,nX+iGCN
-             iInner = i - nX*floor( (i - 0.50) /nX )
-             if(i==iInner.and.j==jInner.and.&
-                  k==kInner)CYCLE
-             V_DGB(:,iInner,jInner,kInner,iBlock) = &
-                  V_DGB(:,iInner,jInner,kInner,iBlock) + &
-                  V_DGB(:,i,j,k,iBlock)
-             V_DGB(:,i,j,k,iBlock) = 0.0
-          end do
-       end do
-    end do
-  end subroutine velocity_bc_periodic
 end module PIC_ModField
