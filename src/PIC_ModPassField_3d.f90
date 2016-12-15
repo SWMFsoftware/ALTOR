@@ -11,6 +11,7 @@ module PIC_ModMpi
   use PIC_ModProc
   use PIC_ModMain, ONLY: UseSharedField
   use PC_BATL_pass_face_field, ONLY: add_ghost_face_field, add_ghost_cell_field
+  use PC_BATL_lib, ONLY: nBlock
   implicit none
   !structures
   integer,parameter::iBuffSizeMax=10 !In MByte
@@ -23,41 +24,47 @@ contains
   subroutine pass_density(iProcIn)
     integer,optional::iProcIn
     integer,parameter::iLength=max(&
-       iBuffSizeMax*M/(4*(iRealPrec+1)*(nX+2*iGCN)*(nY+2*iGCN)),1)
-    real,dimension(1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,iLength)::Buff_G
-    integer::k,kNew
+       iBuffSizeMax*M/(4*(iRealPrec+1)*nX*nY),1)
+    real,dimension(1:nX,1:nY,iLength)::Buff_G
+    integer::k,kNew,iBlock
     !-----------------------------------------------------------
     !Set up periodic BC in all three dimensions.
     call add_ghost_cell_field(1,iGCN,Rho_GB)
     if(nProc==1)return
     !If iProcIn is given, the result is at PE=iProcIn only
+    
     if(present(iProcIn))then
-       k=-iGCN
-       do while(k<nZ+iGCN)
-          kNew=min(nZ+iGCN,k+iLength)
-          call MPI_REDUCE(&
-               Rho_GB(1-iGCN,1-iGCN,k+1,1),&
-               Buff_G(1-iGCN,1-iGCN,1),&
-               (nX+2*iGCN)*(nY+2*iGCN)*(kNew-k),&
-               MPI_REAL,&
-               MPI_SUM,&
-               iProcIn,iComm,iError)
-          if(iProc==iProcIn)Rho_GB(:,:,k+1:kNew,1)=Buff_G(:,:,1:kNew-k)
-          k=kNew
+       do iBlock = 1, nBlock
+          k=0
+          do while(k<nZ)
+             kNew=min(nZ,k+iLength)
+             call MPI_REDUCE(&
+                  Rho_GB(1,1,k+1,iBlock),&
+                  Buff_G(1,1,1),&
+                  nX*nY*(kNew-k),&
+                  MPI_REAL,&
+                  MPI_SUM,&
+                  iProcIn,iComm,iError)
+             if(iProc==iProcIn)Rho_GB(1:nX,1:nY,k+1:kNew,iBlock)=&
+                  Buff_G(:,:,1:kNew-k)
+             k=kNew
+          end do
        end do
     else
-       k=-iGCN
-       do while(k<nZ+iGCN)
-          kNew=min(nZ+iGCN,k+iLength)
-          call MPI_ALLREDUCE(&
-               Rho_GB(1-iGCN,1-iGCN,k+1,1),&
-               Buff_G(1-iGCN,1-iGCN,1),&
-               (nX+2*iGCN)*(nY+2*iGCN)*(kNew-k),&
-               MPI_REAL,&
-               MPI_SUM,&
-               iComm,iError)
-          Rho_GB(:,:,k+1:kNew,1)=Buff_G(:,:,1:kNew-k)
-          k=kNew
+       do iBlock = 1, nBlock
+          k=0
+          do while(k<nZ)
+             kNew=min(nZ,k+iLength)
+             call MPI_ALLREDUCE(&
+                  Rho_GB(1,1,k+1,iBlock),&
+                  Buff_G(1,1,1),&
+                  nX*nY*(kNew-k),&
+                  MPI_REAL,&
+                  MPI_SUM,&
+                  iComm,iError)
+             Rho_GB(1:nX,1:nY,k+1:kNew,iBlock)=Buff_G(:,:,1:kNew-k)
+             k=kNew
+          end do
        end do
     end if
   end subroutine pass_density
@@ -66,42 +73,46 @@ contains
   subroutine pass_velocity(iProcIn)
     integer,optional::iProcIn
     integer,parameter::iLength=max(&
-         iBuffSizeMax*M/(4*(iRealPrec+1)*(nX+2*iGCN)*(nY+2*iGCN)),1)
-    real,dimension(1:3,1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,iLength)::Buff_DG
-    integer::k,kNew
+         iBuffSizeMax*M/(4*(iRealPrec+1)*nX*nY),1)
+    real,dimension(1:MaxDim,1:nX,1:nY,iLength)::Buff_DG
+    integer::k, kNew, iBlock
     !-----------------------------------------------------------
     !Set up periodic BC in all three dimensions.
     call add_ghost_cell_field(3,iGCN,V_DGB)
     if(nProc==1)return
     !If iProcIn is given, the result is at PE=iProcIn only
     if(present(iProcIn))then
-       k=-iGCN
-       do while(k<nZ+iGCN)
-          kNew=min(nZ+iGCN,k+iLength)
-          call MPI_REDUCE(&
-               V_DGB(1,1-iGCN,1-iGCN,k+1,1),&
-               Buff_DG(1,1-iGCN,1-iGCN,1),&
-               3*(nX+2*iGCN)*(nY+2*iGCN)*(kNew-k),&
-               MPI_REAL,&
-               MPI_SUM,&
-               iProcIn,iComm,iError)
-          if(iProc==iProcIn)&
-             V_DGB(:,:,:,k+1:kNew,1) = Buff_DG(:,:,:,1:kNew-k)
-          k=kNew
+       do iBlock = 1, nBlock
+          k=0
+          do while(k<nZ)
+             kNew=min(nZ,k+iLength)
+             call MPI_REDUCE(&
+                  V_DGB(1,1,1,k+1,iBlock),&
+                  Buff_DG(1,1,1,1),&
+                  MaxDim*nX*nY*(kNew-k),&
+                  MPI_REAL,&
+                  MPI_SUM,&
+                  iProcIn,iComm,iError)
+             if(iProc==iProcIn)&
+                  V_DGB(:,1:nX,1:nY,k+1:kNew,iBlock) = Buff_DG(:,:,:,1:kNew-k)
+             k=kNew
+          end do
        end do
     else
-       k=-iGCN
-       do while(k<nZ+iGCN)
-          kNew=min(nZ+iGCN,k+iLength)
-          call MPI_ALLREDUCE(&
-               V_DGB(1,1-iGCN,1-iGCN,k+1,1),&
-               Buff_DG(1,1-iGCN,1-iGCN,1),&
-               3*(nX+2*iGCN)*(nY+2*iGCN)*(kNew-k),&
-               MPI_REAL,&
-               MPI_SUM,&
-               iComm,iError)
-          V_DGB(:,:,:,k+1:kNew,1)=Buff_DG(:,:,:,1:kNew-k)
-          k=kNew
+       do iBlock = 1, nBlock
+          k=0
+          do while(k<nZ)
+             kNew=min(nZ,k+iLength)
+             call MPI_ALLREDUCE(&
+                  V_DGB(1,1,1,k+1,iBlock),&
+                  Buff_DG(1,1,1,1),&
+                  MaxDim*nX*nY*(kNew-k),&
+                  MPI_REAL,&
+                  MPI_SUM,&
+                  iComm,iError)
+             V_DGB(:,1:nX,1:nY,k+1:kNew,1)=Buff_DG(:,:,:,1:kNew-k)
+             k=kNew
+          end do
        end do
     end if
   end subroutine pass_velocity
