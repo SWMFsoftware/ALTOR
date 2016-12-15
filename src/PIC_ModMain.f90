@@ -25,9 +25,9 @@ module PIC_ModMain
   integer :: iStep = 0
   real :: Dt= 0.0
   !\
-  ! Grid spacing
+  ! Grid spacing. In the AMR grid they all are block variables
   !/
-  real :: CellVolume = 1.0, Dx_D(nDim) = 1.0, DxInv_D(nDim) = 1.0
+  real :: CellVolume = 1.0, vInv = 1.0, Dx_D(nDim) = 1.0, DxInv_D(nDim) = 1.0
   !\
   ! Grid limits
   !/
@@ -39,11 +39,9 @@ module PIC_ModMain
   integer :: nIter = -1
   logical :: UseStopFile = .true.
   logical :: IsLastRead=.false.
-
   !\
-  !Progress variables
+  ! Progress variables
   !/
-
   integer :: nProgress1=10, nProgress2=100
 
   

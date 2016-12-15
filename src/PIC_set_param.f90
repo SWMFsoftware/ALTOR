@@ -71,7 +71,7 @@ subroutine PIC_set_param(TypeAction)
                 TypeFieldBC_S(1:2*nDim-1:2) == 'periodic', nRootRead_D)
            Dx_D = (XyzMax_D - XyzMin_D)/(nRootRead_D(1:nDim)*nCell_D(1:nDim))
            DxInv_D = 1/Dx_D
-           CellVolume = product(Dx_D)
+           CellVolume = product(Dx_D); vInv = 1/CellVolume
            call set_altor_grid
         end if
         if(UseUniform)call uniform
@@ -121,7 +121,7 @@ subroutine PIC_set_param(TypeAction)
         do iDim = 1, nDim
            call read_var('Dx_D', Dx_D(iDim))
         end do
-        CellVolume = product(Dx_D)
+        CellVolume = product(Dx_D); vInv = 1/CellVolume
         DxInv_D = 1/Dx_D
         
      case('#NORMALIZATION')
@@ -137,27 +137,23 @@ subroutine PIC_set_param(TypeAction)
         case('standard')
            !First charge is normalized to electron charge, mass is normalized 
            !to electron mass. Furthermore they are both divided by 
-           !4*cPi*nPPerCrit electron frequency is 1.
+           !nPPerCrit electron frequency is 1.
            !c=1, (e/m)=1 for electron and \omega=1
            !For critical density nPPerCell particles per
            !cell give the omega_Pe=\omega=1
 
            c = 1.0; c2 = 1.0
            call read_var('nPPerCrit',nPPerCrit)
-           !hyzhou: I don`t understand why there is CellVolume here.
-           !I checked the PARTICLE MOVER, and saw that there is actually
-           !no difference if I remove it.
-           !The reason is that this is inconsistent with the normalization.
-           !I should ask Igor to confirm this.
-           Q_P(Electron_) = - 1.0/(4*cPi*nPPerCrit)
-           M_P(Electron_) =   1.0/(4*cPi*nPPerCrit)
+   
+           Q_P(Electron_) = - 1.0/nPPerCrit
+           M_P(Electron_) =   1.0/nPPerCrit
            do iP=2, nPType
               write(NameVar,'(a23,i1,a1)') 'Q_P/| Q_P(Electron_) |(',iP,')'
               call read_var(NameVar,Q_P(iP))
-              Q_P(iP) = Q_P(iP) /(4*cPi*nPPerCrit)
+              Q_P(iP) = Q_P(iP)*1.0/nPPerCrit
               write(NameVar,'(a20,i1,a1)') 'M_P/ M_P(Electron_)(',iP,')'
               call read_var(NameVar,M_P(iP))
-              M_P(iP) = M_P(iP) /(4*cPi*nPPerCrit)
+              M_P(iP) = M_P(iP)*1.0/nPPerCrit
            end do
         case default
            call CON_stop(NameSub//':Unknown normalizaton type='&

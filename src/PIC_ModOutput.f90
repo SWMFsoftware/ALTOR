@@ -1,9 +1,8 @@
 module PIC_ModOutput
-  use PIC_ModMain,ONLY: iStep,tSimulation,Dt,DX_D 
+  use PIC_ModMain,ONLY: iStep,tSimulation,Dt,DX_D, vInv 
   use PIC_ModSize,ONLY: nDim, nCell_D, nX, nY, nZ, x_, y_, z_
   use PIC_ModSize,ONLY: MaxBlock, nPType
   use PIC_ModParticles,ONLY: M_P,Q_P
-  use ModNumConst,Only: cPi
   use PIC_ModParticleInField,ONLY: Rho_GB, V_DGB
   use PIC_ModField,   ONLY: iGCN, E_GDB,B_GDB
   use PIC_ModMpi,     ONLY: pass_density, pass_velocity

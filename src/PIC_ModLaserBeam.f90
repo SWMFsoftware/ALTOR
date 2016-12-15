@@ -1,7 +1,7 @@
 module PIC_ModLaserBeam
   use PIC_ModSize, ONLY: nDim, x_, y_, z_
   use PIC_ModMain, ONLY: tSimulation
-  use ModNumConst, ONLY: cOne,cHalf,cPi,cDegToRad
+  use ModNumConst, ONLY: cOne,cHalf,cDegToRad
   use PIC_ModProc,      ONLY:iProc
   implicit none
   SAVE

@@ -185,7 +185,7 @@ contains
       !To optimize algebra, multiply FI by -q/V*4*\pi*dx/4
       !and divide \DeltaFMinus by sqrt(3):
       do iDim=1,nDim
-         FI(:,iDim)=(-QPerVDx_D(iDim)*cPi)*FI(:,iDim)
+         FI(:,iDim)=(-QPerVDx_D(iDim)*0.250)*FI(:,iDim)
       end do
       DeltaFMinus=sqrt13*DeltaFMinus
       !add current density:
@@ -242,7 +242,7 @@ contains
       !To optimize algebra, multiply FI by -q/V*4*\pi*dx/4
       !and divide \DeltaFMinus by sqrt(3):
       do iDim=x_,z_
-         FI(:,iDim)=(-QPerVDx_D(iDim)*cPi)*FI(:,iDim)
+         FI(:,iDim)=(-QPerVDx_D(iDim)*0.250)*FI(:,iDim)
       end do
       DeltaFMinus=sqrt13*DeltaFMinus
       !add current density:

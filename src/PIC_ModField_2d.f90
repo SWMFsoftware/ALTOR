@@ -296,7 +296,6 @@ contains
           Energy_V(6) = Energy_V(6) + 0.50*E_GD(i,j,z_)**2
        end do; end do
     end if
-    Energy_V = (CellVolume/(4.0 * cPi)) * Energy_V
   end subroutine get_field_energy
   !===============================
   subroutine get_rho_max(RhoMax,Coord_D)

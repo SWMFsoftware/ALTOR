@@ -5,7 +5,7 @@ module PIC_ModField
   use PIC_ModSize, ONLY: nX, nY, nZ, x_, y_, z_, &
        nDim, nCell_D, MaxBlock
   use PC_BATL_size,ONLY: MaxDim
-  use ModNumConst
+  use ModNumConst, ONLY: cHalf, cZero, cOne
   use PIC_ModMain,ONLY:&
        SpeedOfLight_D,&     !This is c\Delta t/\Delta x,...
        UseVectorPotential   !If we use vector-potential, or not
@@ -640,7 +640,5 @@ contains
        end do; end do; end do
        end do
     end if
-    Energy_V = Energy_V / (4.0*cPi)
-
   end subroutine get_field_energy
 end module PIC_ModField

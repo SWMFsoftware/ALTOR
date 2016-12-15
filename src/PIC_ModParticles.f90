@@ -2,7 +2,7 @@
 module PIC_ModParticles
   use PIC_ModSize,ONLY: nPType, nElectronMax,nDim, x_, y_, z_
   use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D
-  use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, CellVolume, SpeedOfLight_D
+  use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, CellVolume, SpeedOfLight_D, vInv
   use PIC_ModParticleInField,ONLY: Rho_GB,add_current, add_DensityVelocity
   use PIC_ModParticleInField,ONLY: b_interpolated_d,e_interpolated_d
   use PIC_ModParticleInField,ONLY: min_val_rho, max_val_rho, rho_avr
@@ -497,8 +497,7 @@ contains
     !Q / V * (/\Delta x, \Delta y, \Delta z/)
     !Used to calculate J*dt in the charge-conserving scheme
     !QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
-    !Test
-    QPerVDx_D = Q_P(iSort) * Dx_D
+    QPerVDx_D = Q_P(iSort)*Dx_D
     M = M_P(iSort)
 
     call set_pointer_to_particles(iSort,Coord_VI)

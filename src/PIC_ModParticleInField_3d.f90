@@ -226,10 +226,10 @@ contains
           FI(i,:) = FI(i-1,:) + DeltaFMinus(i,:)
        end do
 
-       !To optimize algebra, multiply FI by -q*4*\pi*dt/4
+       !To optimize algebra, multiply FI by -q*dt/4
        !and divide \DeltaFMinus by sqrt(3):
        do iDim=x_,z_
-          FI(:,iDim)=(-QPerVDx_D(iDim)*cPi)*FI(:,iDim)
+          FI(:,iDim)=(-QPerVDx_D(iDim)*0.250)*FI(:,iDim)
        end do
 
        DeltaFMinus=sqrt13*DeltaFMinus
@@ -326,7 +326,7 @@ contains
       !To optimize algebra, multiply FI by -q*4*\pi*dt/4
       !and divide \DeltaFMinus by sqrt(3):
       do iDim=x_,z_
-         FIExt(:,iDim) = (-QPerVDx_D(iDim)*cPi)*FIExt(:,iDim)
+         FIExt(:,iDim) = (-QPerVDx_D(iDim)*0.250)*FIExt(:,iDim)
       end do
       DeltaFMinusExt = sqrt13*DeltaFMinusExt
 
@@ -363,59 +363,6 @@ contains
          end do
       end do
     end subroutine get_current_extended
-    !===================
-    subroutine write_current(iBlock)
-      use PIC_ModMain, ONLY: Dt, SpeedOfLight_D
-      integer,intent(in)::iBlock
-      integer::i,j,k,iDim
-      !-------------------
-      write(*,*)'cPi*QPerVDx_D, Dt=',cPi*QPerVDx_D, Dt
-      write(*,*)'W_D=',W_D
-      write(*,*)'Node_D=',Node_D,' FormfactorOld ='
-      do iDim = 1,3
-         write(*,*)HighFF_ID(:,iDim)
-      end do
-      write(*,*)'NodeNew_D=',NodeNew_D,' FormfactorNew ='
-      do iDim = 1,3
-         write(*,*)HighFFNew_ID(:,iDim)
-      end do
-      do  iDim = 1,3 
-         write(*,*)'iDim=',iDim,' W_D(iDim)*Dt='!, W_D(iDim)*Dt
-         if(IsExtended)then
-            do k=Node_D(3)+iDownFF-1,Node_D(3)+iUpFF+1
-               do j= Node_D(2)+iDownFF-1,Node_D(2)+iUpFF+1
-                  write(*,*)'Current_G(',Node_D(1)+iDownFF-1,&
-                       ':',Node_D(1)+iUpFF+1,',',j,',',k,')= ',&
-                       Counter_GDB(Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
-                       j,k,iDim,iBlock)
-               end do
-            end do
-            write(*,*)'Sum of currents=',sum(Counter_GDB(&
-                 Node_D(1)+iDownFF-1:Node_D(1)+iUpFF+1,&
-                 Node_D(2)+iDownFF-1:Node_D(2)+iUpFF+1,&
-                 Node_D(3)+iDownFF-1:Node_D(3)+iUpFF+1,&
-                 iDim,iBlock))
-
-         else
-            do k=Node_D(3)+iDownFF,Node_D(3)+iUpFF
-               do j= Node_D(2)+iDownFF,Node_D(2)+iUpFF
-                  write(*,*)'Current_G(',Node_D(1)+iDownFF,&
-                       ':',Node_D(1)+iUpFF,',',j,',',k,')= ',&
-                       Counter_GDB(Node_D(1)+iDownFF:Node_D(1)+iUpFF,&
-                       j,k,iDim,iBlock)
-               end do
-            end do
-            write(*,*)'Sum of currents=',sum(Counter_GDB(&
-                 Node_D(1)+iDownFF  :Node_D(1)+iUpFF  ,&
-                 Node_D(2)+iDownFF  :Node_D(2)+iUpFF  ,&
-                 Node_D(3)+iDownFF  :Node_D(3)+iUpFF  ,&
-                 iDim,iBlock))
-         end if
-         write(*,*)'Compare with 4*\pi*q*u*dt/Volume=',&
-              4.0*cPi*QPerVDx_D(iDim)*W_D(iDim)*SpeedOfLight_D(iDim)
-      end do
-    end subroutine write_current
-    !===========================
   end subroutine add_current
   !=========================
   real function min_val_rho()
