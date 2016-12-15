@@ -9,6 +9,8 @@ module PIC_ModMpi
   use PIC_ModField
   use ModMpi
   use PIC_ModProc
+  use PIC_ModMain, ONLY: UseSharedField
+  use PC_BATL_pass_face_field, ONLY: add_ghost_face_field, add_ghost_cell_field
   implicit none
   !structures
   integer,parameter::iBuffSizeMax=10 !In MByte
@@ -105,22 +107,27 @@ contains
   end subroutine pass_velocity
   !=============================================================
   subroutine pass_current
-    integer,parameter::iLength=max(&
-       iBuffSizeMax*M/(4*(iRealPrec+1)*(nX+2*iGCN)*(nY+2*iGCN)),1)
-!    real,dimension(1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,iLength)::Buff_G
-    real,dimension(0:nX,0:nY,0:nZ,3)::Buff_G
-    integer::k,kNew,iDim
+    use PC_BATL_size
+    real,dimension(0:nX,1-jDim_:nY,1-kDim_:nZ,MaxDim)::Buff_G
+    integer::iBlock
     !-------------------
-    call current_bc_periodic(1)
-    if(nProc==1)return
-          call MPI_ALLREDUCE(&
-               Counter_GDB(0:nX,0:nY,0:nZ,:,1),&
-               Buff_G,&
-               (nX+1)*(nY+1)*(nZ+1)*3,&
-               MPI_REAL,&
-               MPI_SUM,&
-               iComm,iError)
-          Counter_GDB(0:nX,0:nY,0:nZ,:,1) = Buff_G 
+    call add_ghost_face_field(iGCN,Counter_GDB)
+    if(nProc==1)RETURN
+    !\
+    ! if the blocks are distributed, the current through the internal
+    ! faces is correctly calculated
+    !/
+    if(.not.UseSharedField)RETURN
+    do iBlock = 1, nBlock
+       call MPI_ALLREDUCE(&
+            Counter_GDB(0:nX,1-jDim_:nY,1-kDim_:nZ,:,iBlock),&
+            Buff_G,&
+            (nX+1)*(nY+jDim_)*(nZ+kDim_)*MaxDim*nBlock,&
+            MPI_REAL,&
+            MPI_SUM,&
+            iComm,iError)
+       Counter_GDB(0:nX,1-jDim_:nY,1-kDim_:nZ,:,iBlock) = Buff_G 
+    end do
   end subroutine pass_current
   !--------------------------------------------------------------!
 end module PIC_ModMpi

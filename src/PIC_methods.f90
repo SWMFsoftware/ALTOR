@@ -26,13 +26,12 @@ subroutine PIC_advance(tMax)
   use PIC_ModField,     ONLY: update_magnetic, Rho_GB, Counter_GDB,V_DGB
   use PIC_ModParticles, ONLY: Energy_P, nPType, pass_energy
   use PIC_ModParticles, ONLY: advance_particles
-  use PIC_ModField,     ONLY: update_e, field_bc, &
-                              current_bc_periodic, field_bc_periodic
+  use PIC_ModField,     ONLY: update_e, field_bc, E_GDB, iGCN 
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt, IsPeriodicField_D
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
   use PIC_ModOutput,    ONLY: nStepOutMin,nStepOut, write_moments
   use PIC_ModMpi,       ONLY: pass_current
-
+  use PC_BATL_pass_face_field, ONLY: message_pass_field
   implicit none
   real,intent(in) :: tMax
   integer :: iSort, iBlock
@@ -134,7 +133,7 @@ subroutine PIC_advance(tMax)
   ! The particle velocities and magnetic fields are in the middle of the 
   ! timestep.
   !/
-  if(any(IsPeriodicField_D))call field_bc_periodic(1)
+  call message_pass_field(iGCN, E_GDB)
 
   call timing_stop('advance')
 
