@@ -109,7 +109,7 @@ contains
 
     if(iProc==0) then
        !Get cell-center averaged E and B; fields are the same on each Proc
-       call average_fields
+       call average_fields(iBlock)
        !Save the charge and mass ratio for each species in normalized unit
        Param_I(1:nPType)          = Q_P
        Param_I(nPType+1:2*nPType) = M_P
@@ -226,19 +226,22 @@ contains
 
   end subroutine write_moments
   !======================================================================
-  subroutine average_fields
+  subroutine average_fields(iBlock)
     integer :: i,j,k
-    integer :: iBlock=1
+    integer,intent(in) :: iBlock
     !--------------------
     do k=1,nZ; do j=1,nY; do i=1,nX
        ! Cell-centered averaged E field
-       State_VCB(1,i,j,k,iBlock) = 0.5*(E_GDB(i,j,k,1,1)+E_GDB(i-1,j,k,1,1))
-       State_VCB(2,i,j,k,iBlock) = 0.5*(E_GDB(i,j,k,2,1)+E_GDB(i,j-1,k,2,1))
-       State_VCB(3,i,j,k,iBlock) = 0.5*(E_GDB(i,j,k,3,1)+E_GDB(i,j,k-1,3,1))
+       State_VCB(1,i,j,k,iBlock) = &
+            0.5*(E_GDB(i,j,k,1,iBlock)+E_GDB(i-1,j,k,1,iBlock))
+       State_VCB(2,i,j,k,iBlock) = &
+            0.5*(E_GDB(i,j,k,2,iBlock)+E_GDB(i,j-1,k,2,iBlock))
+       State_VCB(3,i,j,k,iBlock) = &
+            0.5*(E_GDB(i,j,k,3,iBlock)+E_GDB(i,j,k-1,3,iBlock))
        ! Cell-centered averaged B field
-       State_VCB(4,i,j,k,iBlock) = 0.25*sum(B_GDB(i,j-1:j,k-1:k,1,1))
-       State_VCB(5,i,j,k,iBlock) = 0.25*sum(B_GDB(i-1:i,j,k-1:k,2,1))
-       State_VCB(6,i,j,k,iBlock) = 0.25*sum(B_GDB(i-1:i,j-1:j,k,3,1))
+       State_VCB(4,i,j,k,iBlock) = 0.25*sum(B_GDB(i,j-1:j,k-1:k,1,iBlock))
+       State_VCB(5,i,j,k,iBlock) = 0.25*sum(B_GDB(i-1:i,j,k-1:k,2,iBlock))
+       State_VCB(6,i,j,k,iBlock) = 0.25*sum(B_GDB(i-1:i,j-1:j,k,3,iBlock))
     end do; end do; end do
   end subroutine average_fields
 
