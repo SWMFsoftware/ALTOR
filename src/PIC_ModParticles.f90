@@ -1,17 +1,23 @@
-!^CFG COPYRIGHT UofM
+!  Copyright (C) 2002 Regents of the University of Michigan, 
+!  portions used with permission 
+!  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PIC_ModParticles
-  use PIC_ModSize,ONLY: nPType, nElectronMax,nDim, x_, y_, z_
-  use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D, MaxDim
-  use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, CellVolume, SpeedOfLight_D, vInv
-  use PIC_ModParticleInField,ONLY: Rho_GB,add_current, add_DensityVelocity
-  use PIC_ModParticleInField,ONLY: b_interpolated_d,e_interpolated_d
-  use PIC_ModParticleInField,ONLY: min_val_rho, max_val_rho, rho_avr
+  use PIC_ModSize,ONLY: nPType, nElectronMax, x_, y_, z_
+  use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D, nDim, MaxDim
+  use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, DxInv_D, CellVolume, &
+       SpeedOfLight_D, vInv
+  use PIC_ModParticleInField,ONLY: &
+       Rho_GB,add_current, add_DensityVelocity
+  use PIC_ModParticleInField,ONLY: &
+       b_interpolated_d,e_interpolated_d
+  use PIC_ModParticleInField,ONLY: &
+       min_val_rho, max_val_rho, rho_avr
   use PIC_ModFormFactor,ONLY: HighFF_ID, HighFFNew_ID,&
        Node_D, NodeNew_D, get_form_factors
   use PIC_ModProc,      ONLY:iProc,iError
   use ModNumConst,      ONLY: cHalf
   use PC_BATL_particles, ONLY:allocate_particles, Particle_I
-
+  use PC_BATL_lib, ONLY: CoordMin_DB, CoordMin_D, CoordMax_D
   implicit none
 
   integer,parameter :: W_ = nDim
@@ -520,7 +526,6 @@ contains
        ! Get block number
        !/
        iBlock = iIndex_II(0,iParticle)
-       if(iBlock/=1)call CON_stop('Incorrect block number')
        !Get coordinates and momentum
        X_D = Coord_VI(x_:nDim,iParticle)
        W_D = Coord_VI(Wx_:Wz_,iParticle)
