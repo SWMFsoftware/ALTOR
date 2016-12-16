@@ -178,3 +178,9 @@ test_altor_check:
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
         ${TESTDIR}/PC/plots/variables.ref ${TESTDIR}/PC/plots/variables.outs >> test_altor.diff
 	ls -l test_altor.diff
+
+test_altor_update:
+	rm -f Param/TestOutput/variables.outs.gz Param/TestOutput/log_noise.log
+	cp ${TESTDIR}/PC/plots/log_n0001.log Param/TestOutput/log_noise.log
+	gzip -c ${TESTDIR}/PC/plots/variables.outs>Param/TestOutput/variables.outs.gz
+	${MAKE} test_altor_check

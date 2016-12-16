@@ -30,8 +30,6 @@ subroutine PIC_set_param(TypeAction)
   integer :: iSession
   integer :: iDim, iP, iVar, iSide, nRootRead_D(nDim)=1
   character(LEN=10) :: NameNormalization
-  integer:: nPPerCrit
-
   real   :: Value_V(nDim+MaxDim)
 
   integer           :: TimingDepth=-1
@@ -72,6 +70,13 @@ subroutine PIC_set_param(TypeAction)
            Dx_D = (XyzMax_D - XyzMin_D)/(nRootRead_D(1:nDim)*nCell_D(1:nDim))
            DxInv_D = 1/Dx_D
            CellVolume = product(Dx_D); vInv = 1/CellVolume
+           Q_P(Electron_) = - CellVolume/nPPerCellCrit
+           M_P(Electron_) =   CellVolume/nPPerCellCrit
+           do iP = 2, nPType
+              Q_P(iP) = Q_P(iP)*CellVolume/nPPerCellCrit
+              M_P(iP) = M_P(iP)*CellVolume/nPPerCellCrit
+           end do
+           call set_particle_param(M_P,Q_P)
            call set_altor_grid
         end if
         if(UseUniform)call uniform
@@ -127,39 +132,25 @@ subroutine PIC_set_param(TypeAction)
      case('#NORMALIZATION')
         call read_var('Normalization',NameNormalization)
         select case(trim(NameNormalization))
-        case('none','CGS')
-           c = cLightSpeed * 0.010 !??? *100 ?
-           c2= c*c
-           do iP = 1, nPType
-              call read_var('Q_P(iP)',Q_P(iP))
-              call read_var('M_P(iP)',M_P(iP))
-           end do
         case('standard')
            !First charge is normalized to electron charge, mass is normalized 
            !to electron mass. Furthermore they are both divided by 
            !nPPerCrit electron frequency is 1.
            !c=1, (e/m)=1 for electron and \omega=1
-           !For critical density nPPerCell particles per
+           !For critical density nPPerCrit particles per
            !cell give the omega_Pe=\omega=1
-
            c = 1.0; c2 = 1.0
-           call read_var('nPPerCrit',nPPerCrit)
-   
-           Q_P(Electron_) = - 1.0/nPPerCrit
-           M_P(Electron_) =   1.0/nPPerCrit
+           call read_var('nPPerCellCrit',nPPerCellCrit)
            do iP=2, nPType
-              write(NameVar,'(a23,i1,a1)') 'Q_P/| Q_P(Electron_) |(',iP,')'
+              write(NameVar,'(a,i1,a)') 'Q_P(',iP,')/| Q_P(Electron_) |'
               call read_var(NameVar,Q_P(iP))
-              Q_P(iP) = Q_P(iP)*1.0/nPPerCrit
-              write(NameVar,'(a20,i1,a1)') 'M_P/ M_P(Electron_)(',iP,')'
+              write(NameVar,'(a,i1,a)') 'M_P(',iP,')/ M_P(Electron_)'
               call read_var(NameVar,M_P(iP))
-              M_P(iP) = M_P(iP)*1.0/nPPerCrit
            end do
         case default
            call CON_stop(NameSub//':Unknown normalizaton type='&
                 //NameNormalization)
         end select
-        call set_particle_param(M_P,Q_P)
      case('#UNIFORM')
         UseUniform = .true.
         call read_uniform

@@ -187,7 +187,7 @@ contains
                / Rho_GB(1:nX,1:nY,1:nZ,1)
        end do
 
-       State_VCB(iSort+6,:,:,:,1) = Rho_GB(1:nX,1:nY,1:nZ,1)
+       State_VCB(iSort+6,:,:,:,1) = abs(Q_P(iSort))*vInv*Rho_GB(1:nX,1:nY,1:nZ,1)
 
        !Number-density-werighted averaged velocity
        do i=1,nDim
@@ -202,16 +202,16 @@ contains
                V_DGB(:,i,j,k,1)
           !Save pressure tensor: Pxx Pyy Pzz Pxy Pxz Pyz
           State_VCB(5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k,1) = &
-               M_P(iSort)*Rho_GB(i,j,k,1)*&
+               M_P(iSort)*vInv*Rho_GB(i,j,k,1)*&
                (V_DGB(:,i,j,k,1) - U_GDB(:,i,j,k,1))**2
           
-          State_VCB(5*nPType+6*iSort+4,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
+          State_VCB(5*nPType+6*iSort+4,:,:,:,1) = M_P(iSort)*vInv*Rho_GB(i,j,k,1)*&
                (V_DGB(1,i,j,k,1)*V_DGB(2,i,j,k,1) - U_GDB(1,i,j,k,1)*&
                U_GDB(2,i,j,k,1))
-          State_VCB(5*nPType+6*iSort+5,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
+          State_VCB(5*nPType+6*iSort+5,:,:,:,1) = M_P(iSort)*vInv*Rho_GB(i,j,k,1)*&
                (V_DGB(1,i,j,k,1)*V_DGB(3,i,j,k,1) - U_GDB(1,i,j,k,1)*&
                U_GDB(3,i,j,k,1))
-          State_VCB(5*nPType+6*iSort+6,:,:,:,1) = M_P(iSort)*Rho_GB(i,j,k,1)*&
+          State_VCB(5*nPType+6*iSort+6,:,:,:,1) = M_P(iSort)*vInv*Rho_GB(i,j,k,1)*&
                (V_DGB(2,i,j,k,1)*V_DGB(3,i,j,k,1) - U_GDB(2,i,j,k,1)*&
                U_GDB(3,i,j,k,1))
        end do; end do; end do

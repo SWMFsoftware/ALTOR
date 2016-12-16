@@ -640,5 +640,6 @@ contains
        end do; end do; end do
        end do
     end if
+    Energy_V = Energy_V*CellVolume
   end subroutine get_field_energy
 end module PIC_ModField

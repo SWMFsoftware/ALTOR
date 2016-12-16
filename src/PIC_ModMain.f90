@@ -33,6 +33,13 @@ module PIC_ModMain
   !/
   real :: XyzMin_D(nDim) = -0.50, XyzMax_D(nDim) = 0.50
   !\
+  ! Macroparticle characteristic: number of electron macroparticles
+  ! needed to simulate the "critical" electron density
+  !/
+  integer:: nPPerCellCrit=1
+
+
+  !\
   ! Stopping conditions. These variables are only used in stand alone mode.
   !/
   real    :: tMax = -1.0, CpuTimeMax = -1.0

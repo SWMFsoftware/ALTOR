@@ -3,7 +3,7 @@ Module PIC_ModThermal
   use PIC_ModMain,      ONLY: c2
   use PIC_ModRandom
   use PIC_ModParticles, ONLY: Wx_, Wz_, n_P, parallel_init_rand
-  use PIC_ModParticles, ONLY: Energy_P, nTotal_P, M_P
+  use PIC_ModParticles, ONLY: Energy_P, nTotal_P, M_P, Q_P
   use PC_BATL_particles, ONLY: Particle_I
   use ModNumConst,      ONLY: cTwoPi
   implicit none
@@ -41,9 +41,11 @@ contains
     if(iProc==0)then
        do iSort = 1, nPType
           write(*,*)'For particle of sort ',iSort,&
-               ' averaged energy is ',Energy_P(iSort)/nTotal_P(iSort),&
-               ' should be ', 1.50 * M_P(iSort) * uTh_P(iSort)**2 *&
-               (1.0 -1.250*uTh_P(iSort)**2/c2)
+               ' averaged energy per elementary chanrge is ',&
+          Energy_P(iSort)/(nTotal_P(iSort)*abs(Q_P(iSort))),' * m c2(=0.51 MeV)'
+          write(*,*)'           should be ', &
+               1.50 * M_P(iSort) * uTh_P(iSort)**2 *&
+               (1.0 -1.250*uTh_P(iSort)**2/c2)/abs(Q_P(iSort)),' * m c2 (=0.51MeV)'
        end do
     end if
   end subroutine thermalize
