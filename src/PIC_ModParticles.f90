@@ -478,7 +478,7 @@ contains
     integer,intent(in) :: iSort
     logical,intent(in) :: DoComputeMoments
 
-    real:: QDtPerM, M
+    real:: QDtPerM
     real,dimension(nDim)::QPerVDx_D
     real:: W2
     integer::iParticle, iBlock
@@ -498,8 +498,7 @@ contains
     !Used to calculate J*dt in the charge-conserving scheme
     !QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
     QPerVDx_D = Q_P(iSort)*Dx_D
-    M = M_P(iSort)
-
+ 
     call set_pointer_to_particles(iSort,Coord_VI)
 
     !Looping over particles
@@ -530,7 +529,7 @@ contains
 
        !Add kinetic energy
        Energy_P(iSort) = Energy_P(iSort) + &
-            M*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
+            M_P(iSort)*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
       
        !Acceleration from the electric field, for the
        !first half of the time step:
