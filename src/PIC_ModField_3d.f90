@@ -1,6 +1,6 @@
-!^CFG COPYRIGHT UofM
-!--------------------------------------------------------------!
-
+!  Copyright (C) 2002 Regents of the University of Michigan, 
+!  portions used with permission 
+!  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PIC_ModField
   use PIC_ModSize, ONLY: nX, nY, nZ, x_, y_, z_, &
        nDim, nCell_D, MaxBlock
@@ -537,16 +537,10 @@ contains
     end do
   end subroutine field_bc
   !=======================
-  subroutine get_rho_max(RhoMax,Coord_D)
+  subroutine get_rho_max(RhoMax)
     real,intent(out)::RhoMax
-    real,dimension(nDim),optional,intent(out)::Coord_D
-    real::Aux_D(4)
     !------------------
     RhoMax = maxval(Rho_GB(1:nX,1:nY,1:nZ,:))
-    if(present(Coord_D))then
-       Aux_D=real(maxloc(Rho_GB(1:nX,1:nY,1:nZ,:))) - cHalf
-       Coord_D = Aux_D(1:nDim)
-    end if
   end subroutine get_rho_max
   !---------------------------------------------------------------------!
   subroutine get_max_intensity(EnergyMax,Coord_D)
@@ -583,7 +577,7 @@ contains
        end do; end do; end do
        end do
     end if
-    call get_rho_max(EnergyMax,Coord_D)
+    call get_rho_max(EnergyMax)
   end subroutine get_max_intensity
   !====================
   subroutine get_field_energy(Energy_V)
