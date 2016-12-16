@@ -1,3 +1,6 @@
+!  Copyright (C) 2002 Regents of the University of Michigan, 
+!  portions used with permission 
+!  For more information, see http://csem.engin.umich.edu/tools/swmf
 subroutine PIC_set_param(TypeAction)
   use ModReadParam
   use PIC_ModProc,    ONLY: iProc,iComm
@@ -30,7 +33,7 @@ subroutine PIC_set_param(TypeAction)
   integer :: iSession
   integer :: iDim, iP, iVar, iSide, nRootRead_D(nDim)=1
   character(LEN=10) :: NameNormalization
-  real   :: Value_V(nDim+MaxDim)
+  real   :: Value_V(nDim+MaxDim) = 0
 
   integer           :: TimingDepth=-1
   character(len=10) :: TimingStyle='cumm'
@@ -206,7 +209,7 @@ subroutine PIC_set_param(TypeAction)
            if(any(TypeFieldBC_S(2*iDim-1:2*iDim)=='periodic'))then
               IsPeriodicField_D(iDim)=.true.
               if(iProc==0)write(*,*)&
-                   'Periodic Boundary Conditions for fields along the direction iDim=',iDim
+                   'Periodic BC along the direction iDim=',iDim
               TypeFieldBC_S(2*iDim-1:2*iDim) = 'periodic'
            end if
         end do

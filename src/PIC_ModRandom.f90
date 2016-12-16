@@ -1,3 +1,6 @@
+!  Copyright (C) 2002 Regents of the University of Michigan, 
+!  portions used with permission 
+!  For more information, see http://csem.engin.umich.edu/tools/swmf
 !The random number generator.
 !From the Buneman code.
 module PIC_ModRandom

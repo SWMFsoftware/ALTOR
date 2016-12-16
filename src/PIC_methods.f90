@@ -1,3 +1,6 @@
+!  Copyright (C) 2002 Regents of the University of Michigan, 
+!  portions used with permission 
+!  For more information, see http://csem.engin.umich.edu/tools/swmf
 ! This file contains the top level methods for ALTOR
 !==========================
 subroutine PIC_setup
@@ -125,8 +128,6 @@ subroutine PIC_advance(tMax)
   call update_e
   call timing_stop('adv_e')
 
-  !call field_bc_absorption
-  !if(laser_pulse > 0) call laser_pulse_init
   !\
   ! Electric fields are at the end of 
   ! the time step. The particle coordinates are at the end of the timestep.
