@@ -1,7 +1,7 @@
 !^CFG COPYRIGHT UofM
 module PIC_ModParticles
   use PIC_ModSize,ONLY: nPType, nElectronMax,nDim, x_, y_, z_
-  use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D
+  use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D, MaxDim
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, CellVolume, SpeedOfLight_D, vInv
   use PIC_ModParticleInField,ONLY: Rho_GB,add_current, add_DensityVelocity
   use PIC_ModParticleInField,ONLY: b_interpolated_d,e_interpolated_d
@@ -75,9 +75,10 @@ contains
     call allocate_particles
   end subroutine set_particle_param
   !================================
-  subroutine put_particle(iSort,PhaseCoords_D)
-    integer,intent(in)::iSort
-    real,dimension(nDim),intent(in)::PhaseCoords_D
+  subroutine put_particle(iSort,Coords_D,iBlock,W_D)
+    integer,intent(in)::iSort, iBlock
+    real,intent(in)::Coords_D(nDim)
+    real,intent(in),optional::W_D(MaxDim)
     !---------------------------------------------
     n_P(iSort) = n_P(iSort)+1
     if( n_P(iSort) > nMax_P(iSort) )then
@@ -85,9 +86,13 @@ contains
             'Cannot put particle of sort ', iSort,' at PE=',iProc
        call CON_stop('Simulation stops')
     end if
-    Particle_I(iSort)%State_VI(x_:nDim,n_P(iSort)) = PhaseCoords_D
-    Particle_I(iSort)%State_VI(nDim+1:nDim+3,n_P(iSort)) = 0.0
-
+    Particle_I(iSort)%State_VI(x_:nDim,n_P(iSort)) = Coords_D
+    Particle_I(iSort)%iIndex_II(0,n_P(iSort)) = iBlock
+    if(present(W_D))then
+       Particle_I(iSort)%State_VI(nDim+1:nDim+3,n_P(iSort)) = W_D
+    else
+       Particle_I(iSort)%State_VI(nDim+1:nDim+3,n_P(iSort)) = 0.0
+    end if
   end subroutine put_particle
   !==========================
   !== This routine allows to get reproducible random distribution independent 
@@ -142,6 +147,7 @@ contains
     integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
     real    :: Coord_D(nDim)
     logical :: UseQuasiNeutral
+    integer :: iBlockOut=1, iProcOut 
     !--------------------------
     do iSort = 1, nPType
        if(nPPerCellUniform_P(iSort)==0)CYCLE
@@ -171,7 +177,7 @@ contains
           do iDim = 1,nDim
              Coord_D(iDim) = nCell_D(iDim) * RAND()
           end do
-          call put_particle(iSort, Coord_D)
+          call put_particle(iSort, Coord_D, iBlockOut)
        end do
     end do
     if(nProc==1)then
@@ -233,7 +239,7 @@ contains
                 Coord_D(y_) = j-1 + RAND()
                 Coord_D(z_) = k-1 + RAND()
                 write(*,*) 'Coord_D(z_)=',Coord_D(z_)
-                call put_particle(iSort, Coord_D)
+                call put_particle(iSort, Coord_D, 1)
              end do
           end do; end do; end do
        else
@@ -243,7 +249,7 @@ contains
                    Coord_D(x_) = i-1 + RAND()
                    Coord_D(y_) = j-1 + RAND()
                    Coord_D(z_) = k-1 + RAND()
-                   call put_particle(iSort, Coord_D)
+                   call put_particle(iSort, Coord_D, 1)
                 end do
              end do
           end do; end do
@@ -294,6 +300,7 @@ contains
     real    :: PrimaryCoord_D(nDim)
     real    :: angleSin, angleCos
     logical :: UseQuasineutral
+    integer :: iBlockOut = 1, iProcOut 
     !--------------------------
     angleSin=sin(angleFoil*cDegToRad)
     angleCos=cos(angleFoil*cDegToRad)
@@ -342,7 +349,7 @@ contains
                .or.&
                Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. real(nCell_D(3))&
                ) cycle PART
-          call put_particle(iSort, Coord_D)
+          call put_particle(iSort, Coord_D, iBlockOut)
           !call get_form_factors(Coord_D,Node_D,HighFF_ID)
           !hyzhou: I removed add_density. Need to modify this part later
           !call add_density(Node_D,HighFF_ID,1)

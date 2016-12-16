@@ -191,7 +191,7 @@ subroutine PIC_set_param(TypeAction)
         end do
         if (iProc==0)then
            nToWrite = nToWrite +1
-           call put_particle(iP,Value_V(1:nDim))
+           call put_particle(iP,Value_V(1:nDim),1)
            Particle_I(iP)%State_VI(Wx_:Wz_,n_P(iP)) = Value_V(Wx_:Wz_)
            nToWrite_II(2,nToWrite) = iP
            nToWrite_II(3,nToWrite) = n_P(iP)
