@@ -11,8 +11,6 @@ subroutine PIC_setup
   implicit none
   character(len=*), parameter :: NameSub='PIC_setup'
   !------------------------------------------------
-  call init_geometry(TypeGeometryIn='cartesian',&
-       IsPeriodicIn_D=IsPeriodicField_D)
   if(nLogFile >=1) call open_logfile
   IsInitialized = .true.
 end subroutine PIC_setup
