@@ -41,11 +41,15 @@ module PIC_ModParticles
   !certain timestep
 contains
   !=====================================================
-  subroutine set_pointer_to_particles(iSort,PointerToSet)
+  subroutine set_pointer_to_particles(iSort,PointerToSet,IntPointerToSet)
     integer,intent(in)::iSort
-    real,dimension(:,:),pointer::PointerToSet
+    real,pointer::PointerToSet(:,:)
+    integer,pointer,optional::IntPointerToSet(:,:)
     nullify(PointerToSet)
     PointerToSet=>Particle_I(iSort)%State_VI
+    if(.not.present(IntPointerToSet))RETURN
+    nullify(IntPointerToSet)
+    IntPointerToSet=>Particle_I(iSort)%iIndex_II
   end subroutine set_pointer_to_particles
   !======================================
   subroutine set_particle_param(MIn_P,QIn_P)
@@ -492,7 +496,8 @@ contains
     real,dimension(nDim)::X_D
     real,dimension(x_:z_)   ::W_D,W12_D,EForce_D,BForce_D
     real    :: Gamma
-    real,dimension(:,:),pointer::Coord_VI
+    real,pointer::Coord_VI(:,:)
+    integer,pointer::iIndex_II(:,:)
     integer:: iShift_D(nDim)
     !----------------------------------------------------
     !Initialize the simulation for this sort of particles
@@ -507,10 +512,15 @@ contains
 
     QPerVDx_D = Q_P(iSort)*vInv*Dx_D
 
-    call set_pointer_to_particles(iSort,Coord_VI)
+    call set_pointer_to_particles(iSort,Coord_VI,iIndex_II)
 
     !Looping over particles
     do iParticle=1,n_P(iSort)
+       !\
+       ! Get block number
+       !/
+       iBlock = iIndex_II(0,iParticle)
+       if(iBlock/=1)call CON_stop('Incorrect block number')
        !Get coordinates and momentum
        X_D = Coord_VI(x_:nDim,iParticle)
        W_D = Coord_VI(Wx_:Wz_,iParticle)
@@ -521,10 +531,7 @@ contains
        !Now W_D is the initial momentum, W2=W_D^2
        !Now Gamma is the initial Gamma-factor multiplied by c
        
-       !\
-       ! Get block number
-       !/
-       iBlock = 1
+  
 
        !call timing_start('formfactor')
        call get_form_factors(X_D,Node_D,HighFF_ID)
