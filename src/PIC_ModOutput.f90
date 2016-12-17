@@ -1,5 +1,5 @@
 module PIC_ModOutput
-  use PIC_ModMain,ONLY: iStep,tSimulation,Dt,DX_D, vInv 
+  use PIC_ModMain,ONLY: iStep,tSimulation,Dt,DX_D, vInv, DxInv_D 
   use PIC_ModSize,ONLY: nDim, nCell_D, nX, nY, nZ, x_, y_, z_
   use PIC_ModSize,ONLY: MaxBlock, nPType
   use PIC_ModParticles,ONLY: M_P,Q_P
@@ -9,6 +9,7 @@ module PIC_ModOutput
   use PIC_ModProc,    ONLY: iProc
   use ModIoUnit,      ONLY: io_unit_new
   use PIC_ModLogFile, ONLY: nToWrite     !Number of test particles
+  use PC_BATL_lib,    ONLY: CoordMin_D, CoordMax_D, CoordMin_DB
 
   implicit none
   SAVE
@@ -138,7 +139,7 @@ contains
     integer :: iSort,iParticle, i
     real,dimension(nDim):: X_D
     real,dimension(nDim):: V_D
-    integer :: iBlock=1
+    integer :: iBlock
 
     character(len=:), allocatable, save:: NameVar
     !----------------------------------------------------
@@ -146,8 +147,13 @@ contains
     do iSort = 1, nPType
        Rho_GB = 0.0 ; V_DGB = 0.0
        do iParticle = 1, n_P(iSort)
+          !\
+          ! Get iBlock
+          !/
+          iBlock = Particle_I(iSort)%iIndex_II(0,iParticle)
           !Get the position of particle                                      
-          X_D = Particle_I(iSort)%State_VI(1:nDim,iParticle)
+          X_D = (Particle_I(iSort)%State_VI(1:nDim,iParticle) - &
+               CoordMin_DB(1:nDim,iBlock))*DxInv_D
           !Get the velocity of particle from generalized momentum            
           V_D = Particle_I(iSort)%State_VI(nDim+1:nDim+3,iParticle)
           V_D = c/(sqrt(c2+sum(V_D**2)))*V_D

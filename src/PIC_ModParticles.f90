@@ -16,7 +16,8 @@ module PIC_ModParticles
        Node_D, NodeNew_D, get_form_factors
   use PIC_ModProc,      ONLY:iProc,iError
   use ModNumConst,      ONLY: cHalf
-  use PC_BATL_particles, ONLY:allocate_particles, Particle_I
+  !use PC_BATL_particles, ONLY:SET_POINTER_TO_PARTICLES
+  use PC_BATL_particles
   use PC_BATL_lib, ONLY: CoordMin_DB, CoordMin_D, CoordMax_D
   implicit none
 
@@ -30,7 +31,7 @@ module PIC_ModParticles
   real,dimension(nPType) :: M_P, Q_P
   !Particle's mass and charge
 
-  integer,dimension(nPType) :: n_P,nMax_P
+  integer,dimension(nPType) :: n_P
   real,dimension(nPType)    :: Energy_P
   real,dimension(nPType)    :: OmegaPDtMax_P
 
@@ -38,7 +39,7 @@ module PIC_ModParticles
   integer,dimension(nPType) :: nTotal_P
 
   !Methods
-  public::set_pointer_to_particles !Set pointer to the coordinate array of 
+  !public::set_pointer_to_particles !Set pointer to the coordinate array of 
   !electrons or ions
   public::set_particle_param       !Assigns M_P, Q_P and allocates coordinate
   ! arrays
@@ -60,8 +61,9 @@ contains
   !======================================
   subroutine set_particle_param(MIn_P,QIn_P)
     real,dimension(nPType),intent(in),optional::MIn_P,QIn_P
-    logical::DoInit=.true.
-    integer::iSort
+    logical :: DoInit=.true.
+    integer :: iSort, nMax_P(nPType)
+    !--------------------------
     if(present(MIn_P))M_P=MIn_P
     if(present(QIn_P))Q_P=QIn_P
     n_P=0
@@ -78,8 +80,9 @@ contains
     nMax_P= nint(nElectronMax * abs(Q_P(Electron_)/Q_P) )
 
     do iSort=Electrons_,nPType
-       Particle_I(iSort)%nVar=Wz_
-       Particle_I(iSort)%nIndex=0
+       Particle_I(iSort)%nVar      = Wz_
+       Particle_I(iSort)%nIndex    = 0
+       Particle_I(iSort)%nParticle = 0
        Particle_I(iSort)%nParticleMax=nMax_P(iSort)
     end do
     call allocate_particles
@@ -88,16 +91,16 @@ contains
   subroutine put_particle(iSort,Coords_D,iBlock,W_D)
     integer,intent(in)::iSort, iBlock
     real,intent(in)::Coords_D(nDim)
-    real,intent(in),optional::W_D(MaxDim)
+    real,intent(in),optional::W_D(:)
     !---------------------------------------------
     n_P(iSort) = n_P(iSort)+1
-    if( n_P(iSort) > nMax_P(iSort) )then
+    if( n_P(iSort) > Particle_I(iSort)%nParticleMax )then
        write(*,*)&
             'Cannot put particle of sort ', iSort,' at PE=',iProc
        call CON_stop('Simulation stops')
     end if
     Particle_I(iSort)%State_VI(x_:nDim,n_P(iSort)) = Coords_D
-    Particle_I(iSort)%iIndex_II(0,n_P(iSort)) = iBlock
+    Particle_I(iSort)%iIndex_II(0,n_P(iSort))      = iBlock
     if(present(W_D))then
        Particle_I(iSort)%State_VI(nDim+1:nDim+3,n_P(iSort)) = W_D
     else
@@ -185,7 +188,8 @@ contains
 
        do iP = 1, nPPerPE
           do iDim = 1,nDim
-             Coord_D(iDim) = nCell_D(iDim) * RAND()
+             Coord_D(iDim) = (CoordMax_D(iDim)-CoordMin_D(iDim))&
+                  * RAND() + CoordMin_D(iDim)
           end do
           call put_particle(iSort, Coord_D, iBlockOut)
        end do
@@ -527,7 +531,8 @@ contains
        !/
        iBlock = iIndex_II(0,iParticle)
        !Get coordinates and momentum
-       X_D = Coord_VI(x_:nDim,iParticle)
+       X_D = (Coord_VI(x_:nDim,iParticle) - CoordMin_DB(1:nDim,iBlock))*&
+            DxInv_D
        W_D = Coord_VI(Wx_:Wz_,iParticle)
        
        W2 = sum(W_D**2)
@@ -600,7 +605,7 @@ contains
        
        iShift_D = floor(X_D/nCell_D)
        X_D = X_D - nCell_D*iShift_D
-       Coord_VI(1:nDim,iParticle) = X_D
+       Coord_VI(1:nDim,iParticle) = X_D*Dx_D + CoordMin_DB(1:nDim,iBlock)
        
        !To be done: for non-zero iShift_D, depending on the choice of 
        !the whole scheme and/or boundary conditions, some more action
