@@ -5,7 +5,7 @@ module PIC_ModParticles
   use PIC_ModSize,ONLY: nPType, nElectronMax, x_, y_, z_
   use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D, nDim, MaxDim
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, DxInv_D, CellVolume, &
-       SpeedOfLight_D, vInv
+       SpeedOfLight_D, vInv, IsPeriodicField_D
   use PIC_ModParticleInField,ONLY: &
        Rho_GB,add_current, add_DensityVelocity
   use PIC_ModParticleInField,ONLY: &
@@ -16,7 +16,6 @@ module PIC_ModParticles
        Node_D, NodeNew_D, get_form_factors
   use PIC_ModProc,      ONLY:iProc,iError
   use ModNumConst,      ONLY: cHalf
-  !use PC_BATL_particles, ONLY:SET_POINTER_TO_PARTICLES
   use PC_BATL_particles
   use PC_BATL_lib, ONLY: CoordMin_DB, CoordMin_D, CoordMax_D
   implicit none
@@ -45,19 +44,8 @@ module PIC_ModParticles
   ! arrays
   public::put_particle             !Add particle with known coordinates
   public::advance_particles   !Advance particles and collect moments info in 
-  !certain timestep
+                              !certain timestep
 contains
-  !=====================================================
-  subroutine set_pointer_to_particles(iSort,PointerToSet,IntPointerToSet)
-    integer,intent(in)::iSort
-    real,pointer::PointerToSet(:,:)
-    integer,pointer,optional::IntPointerToSet(:,:)
-    nullify(PointerToSet)
-    PointerToSet=>Particle_I(iSort)%State_VI
-    if(.not.present(IntPointerToSet))RETURN
-    nullify(IntPointerToSet)
-    IntPointerToSet=>Particle_I(iSort)%iIndex_II
-  end subroutine set_pointer_to_particles
   !======================================
   subroutine set_particle_param(MIn_P,QIn_P)
     real,dimension(nPType),intent(in),optional::MIn_P,QIn_P
@@ -508,7 +496,6 @@ contains
     real    :: Gamma
     real,pointer::Coord_VI(:,:)
     integer,pointer::iIndex_II(:,:)
-    integer:: iShift_D(nDim)
     !----------------------------------------------------
     !Initialize the simulation for this sort of particles
 
@@ -603,15 +590,11 @@ contains
        call add_current(QPerVDx_D,W_D,iBlock)
        !call timing_stop('current')
        
-       iShift_D = floor(X_D/nCell_D)
-       X_D = X_D - nCell_D*iShift_D
-       Coord_VI(1:nDim,iParticle) = X_D*Dx_D + CoordMin_DB(1:nDim,iBlock)
-       
-       !To be done: for non-zero iShift_D, depending on the choice of 
-       !the whole scheme and/or boundary conditions, some more action
-       !may be needed.
+       Coord_VI(1:nDim,iParticle)= &
+            X_D*Dx_D + CoordMin_DB(1:nDim,iBlock)
     end do
+    Particle_I(iSort)%nParticle = n_P(iSort)
+    call message_pass_particles(iSort)
   end subroutine advance_particles
-
 end module PIC_ModParticles
 
