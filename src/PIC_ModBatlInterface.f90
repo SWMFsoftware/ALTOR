@@ -10,7 +10,7 @@ contains
   !===========================================================================
   subroutine set_altor_grid
 
-    use PC_BATL_lib, ONLY: nBlock, Unused_B, Unused_BP, iProc, iComm, &
+    use PC_BATL_lib, ONLY: nBlock, Unused_B, Unused_BP, iProc, nProc, iComm, &
          IsNewDecomposition, IsNewTree, nLevelMin, nLevelMax, &
          DomainSize_D, nRoot_D, nI, CellSizeRoot
 
@@ -20,9 +20,13 @@ contains
     integer:: iBlock, iError
     character(len=*), parameter:: NameSub = 'set_altor_grid'
     !-------------------------------------------------------------------------
+    if(nProc/=1)then
+       call MPI_allreduce(nBlock, nBlockMax, 1, MPI_INTEGER, MPI_MAX, &
+            iComm, iError)
+    else
+       nBlockMax = nBlock
+    end if
 
-    call MPI_allreduce(nBlock, nBlockMax, 1, MPI_INTEGER, MPI_MAX, &
-         iComm, iError)
     do iBlock = 1, nBlock
        if(Unused_B(iBlock)) CYCLE
        call set_altor_block(iBlock)
