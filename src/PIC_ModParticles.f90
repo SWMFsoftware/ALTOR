@@ -5,7 +5,7 @@ module PIC_ModParticles
   use PIC_ModSize,ONLY: nPType, nElectronMax, x_, y_, z_
   use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D, nDim, MaxDim
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, DxInv_D, CellVolume, &
-       SpeedOfLight_D, vInv, IsPeriodicField_D
+       SpeedOfLight_D, vInv
   use PIC_ModParticleInField,ONLY: &
        Rho_GB,add_current, add_DensityVelocity
   use PIC_ModParticleInField,ONLY: &
@@ -30,12 +30,11 @@ module PIC_ModParticles
   real,dimension(nPType) :: M_P, Q_P
   !Particle's mass and charge
 
-  integer,dimension(nPType) :: n_P
   real,dimension(nPType)    :: Energy_P
   real,dimension(nPType)    :: OmegaPDtMax_P
 
   !Only at the root PE:
-  integer,dimension(nPType) :: nTotal_P
+  integer,dimension(nPType) :: nTotal_P = 0
 
   !Methods
   !public::set_pointer_to_particles !Set pointer to the coordinate array of 
@@ -47,14 +46,10 @@ module PIC_ModParticles
                               !certain timestep
 contains
   !======================================
-  subroutine set_particle_param(MIn_P,QIn_P)
-    real,dimension(nPType),intent(in),optional::MIn_P,QIn_P
+  subroutine set_particle_param
     logical :: DoInit=.true.
-    integer :: iSort, nMax_P(nPType)
+    integer :: iSort
     !--------------------------
-    if(present(MIn_P))M_P=MIn_P
-    if(present(QIn_P))Q_P=QIn_P
-    n_P=0
     if(DoInit)then
        DoInit=.false.
     else
@@ -64,14 +59,12 @@ contains
           deallocate(Particle_I(iSort)%State_VI,Particle_I(iSort)%iIndex_II)
        end do
     end if
-    !Max number of particles is max number of electrons per unit charge ratio
-    nMax_P= nint(nElectronMax * abs(Q_P(Electron_)/Q_P) )
 
     do iSort=Electrons_,nPType
        Particle_I(iSort)%nVar      = Wz_
        Particle_I(iSort)%nIndex    = 0
        Particle_I(iSort)%nParticle = 0
-       Particle_I(iSort)%nParticleMax=nMax_P(iSort)
+       Particle_I(iSort)%nParticleMax=nElectronMax
     end do
     call allocate_particles
   end subroutine set_particle_param
@@ -80,19 +73,21 @@ contains
     integer,intent(in)::iSort, iBlock
     real,intent(in)::Coords_D(nDim)
     real,intent(in),optional::W_D(:)
+    integer:: nParticle
     !---------------------------------------------
-    n_P(iSort) = n_P(iSort)+1
-    if( n_P(iSort) > Particle_I(iSort)%nParticleMax )then
+    nParticle = Particle_I(iSort)%nParticle + 1
+    Particle_I(iSort)%nParticle = nParticle
+    if( nParticle > Particle_I(iSort)%nParticleMax )then
        write(*,*)&
             'Cannot put particle of sort ', iSort,' at PE=',iProc
        call CON_stop('Simulation stops')
     end if
-    Particle_I(iSort)%State_VI(x_:nDim,n_P(iSort)) = Coords_D
-    Particle_I(iSort)%iIndex_II(0,n_P(iSort))      = iBlock
+    Particle_I(iSort)%State_VI(x_:nDim,nParticle) = Coords_D
+    Particle_I(iSort)%iIndex_II(0,     nParticle)      = iBlock
     if(present(W_D))then
-       Particle_I(iSort)%State_VI(nDim+1:nDim+3,n_P(iSort)) = W_D
+       Particle_I(iSort)%State_VI(nDim+1:nDim+3,nParticle) = W_D
     else
-       Particle_I(iSort)%State_VI(nDim+1:nDim+3,n_P(iSort)) = 0.0
+       Particle_I(iSort)%State_VI(nDim+1:nDim+3,nParticle) = 0.0
     end if
   end subroutine put_particle
   !==========================
@@ -141,16 +136,20 @@ contains
   !================================
   subroutine uniform
     use PIC_ModProc
+    use PIC_ModMpi
     use ModMpi
     use PIC_ModRandom
-    use PIC_ModMain, ONLY: nPPerCellUniform_P
+    use PIC_ModMain, ONLY: nPPerCellUniform_P 
+    use PC_BATL_tree, ONLY: nRoot_D
     integer             :: nPPerCell_P(nPType)
+    integer :: n_P(nPType)
     integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
     real    :: Coord_D(nDim)
     logical :: UseQuasiNeutral
     integer :: iBlockOut=1, iProcOut 
     !--------------------------
     do iSort = 1, nPType
+       Rho_GB = 0
        if(nPPerCellUniform_P(iSort)==0)CYCLE
 
        if(nPPerCellUniform_P(iSort) > 0)then
@@ -161,7 +160,7 @@ contains
           UseQuasiNeutral = .true.
        end if
 
-       nPTotal = product(nCell_D) * NPPerCell_P(iSort)
+       nPTotal = product(nCell_D(1:nDim)*nRoot_D(1:nDim)) * NPPerCell_P(iSort)
        nPPerPE = nPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
 
        if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
@@ -180,7 +179,15 @@ contains
                   * RAND() + CoordMin_D(iDim)
           end do
           call put_particle(iSort, Coord_D, iBlockOut)
+          call get_form_factors(Coord_D,Node_D,HighFF_ID)
+          !hyzhou: I removed add_density. Need to modify this part later
+          call add_densityvelocity((/0.0,0.0,0.0/),Node_D,HighFF_ID,1)
+          
        end do
+       call pass_density(0)
+       if(iProc==0)write(*,*)'Total number of particles of sort ', iSort,&
+            ' equals ',nint(sum(Rho_GB(1:nX,1:nY,1:nZ,1)))
+       n_P(iSort) = Particle_I(iSort)%nParticle
     end do
     if(nProc==1)then
        nTotal_P = n_P
@@ -298,6 +305,7 @@ contains
          FoilWidth_D, AngleFoil
     integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
     integer :: nPPerCell_P(nPType)
+    integer :: n_P(nPType)
     real    :: Coord_D(nDim) 
     real    :: PrimaryCoord_D(nDim)
     real    :: angleSin, angleCos
@@ -356,6 +364,7 @@ contains
           !hyzhou: I removed add_density. Need to modify this part later
           !call add_density(Node_D,HighFF_ID,1)
        end do PART
+       n_P(iSort) = Particle_I(iSort)%nParticle
     end do
        !
     !Rho_GB = 0.0
@@ -382,13 +391,13 @@ contains
     use PIC_ModProc
 
     real :: E_P(nPType), P2
-    integer:: iSort, iP
+    integer:: iSort, iP, nParticle
     real,dimension(:,:),pointer::Coord_VI
     !-----------------------------------
     E_P = 0.0
     do iSort = 1, nPType
-       call set_pointer_to_particles(iSort,Coord_VI)
-       do iP = 1, n_P(iSort)
+       call set_pointer_to_particles(iSort,Coord_VI,nParticle=nParticle)
+       do iP = 1, nParticle
           P2 = sum(Coord_VI(Wx_:Wz_,iP)**2)
           E_P(iSort) = E_P(iSort) + &
                M_P(iSort) * c*P2/(c + sqrt(c2 + P2))
@@ -419,15 +428,15 @@ contains
     real      :: W_D(Wx_:Wz_)
     integer   :: iSort
     real,dimension(:,:),pointer :: Coord_VI
-    integer   :: iP
+    integer   :: iP, nParticle
     !-----------------------------
     call read_var('iSort',iSort)
     call read_var('Wx'   ,W_D(Wx_))
     call read_var('Wy'   ,W_D(Wy_))
     call read_var('Wz'   ,W_D(Wz_))
-    call set_pointer_to_particles(iSort,Coord_VI)
+    call set_pointer_to_particles(iSort,Coord_VI,nParticle=nParticle)
 
-    do iP = 1,n_P(iSort)
+    do iP = 1,nParticle
        Coord_VI(Wx_:Wz_,iP) = Coord_VI(Wx_:Wz_,iP) + W_D
     end do
   end subroutine add_velocity_init
@@ -438,7 +447,7 @@ contains
     real    :: Ampl,WaveNumber
     character(len=3) :: Direction
     integer :: iSort
-    integer :: iP
+    integer :: iP, nParticle
     real,dimension(:,:),pointer :: Coord_VI
     character(len=17) :: NameSub='add_velocity_sine'
     !---------------------------------------
@@ -446,23 +455,23 @@ contains
     call read_var('Amplitude' ,Ampl)      ! u_0
     call read_var('WaveNumber',WaveNumber)! k
     call read_var('Direction' ,Direction)
-    call set_pointer_to_particles(iSort,Coord_VI)
+    call set_pointer_to_particles(iSort,Coord_VI,nParticle=nParticle)
 
     select case(Direction)
     case('x')
-       do iP=1,n_P(iSort)
+       do iP=1,nParticle
           Coord_VI(Wx_,iP) = Coord_VI(Wx_,iP) + &
                Ampl*sin(WaveNumber*Coord_VI(x_,iP))
        end do
 
     case('y')
-       do iP=1,n_P(iSort)
+       do iP=1,nParticle
           Coord_VI(Wy_,iP) = Coord_VI(Wy_,iP) + &
                Ampl*sin(WaveNumber*Coord_VI(y_,iP))
        end do
 
     case('z')
-       do iP=1,n_P(iSort)
+       do iP=1,nParticle
           Coord_VI(Wz_,iP) = Coord_VI(Wz_,iP) + &
                Ampl*sin(WaveNumber*Coord_VI(z_,iP))
        end do
@@ -490,7 +499,7 @@ contains
     real:: QDtPerM
     real,dimension(nDim)::QPerVDx_D
     real:: W2
-    integer::iParticle, iBlock
+    integer::iParticle, iBlock, nParticle
     real,dimension(nDim)::X_D
     real,dimension(x_:z_)   ::W_D,W12_D,EForce_D,BForce_D
     real    :: Gamma
@@ -509,10 +518,10 @@ contains
 
     QPerVDx_D = Q_P(iSort)*vInv*Dx_D
 
-    call set_pointer_to_particles(iSort,Coord_VI,iIndex_II)
+    call set_pointer_to_particles(iSort,Coord_VI,iIndex_II,nParticle=nParticle)
 
     !Looping over particles
-    do iParticle=1,n_P(iSort)
+    do iParticle=1,nParticle
        !\
        ! Get block number
        !/
@@ -593,7 +602,7 @@ contains
        Coord_VI(1:nDim,iParticle)= &
             X_D*Dx_D + CoordMin_DB(1:nDim,iBlock)
     end do
-    Particle_I(iSort)%nParticle = n_P(iSort)
+    !Particle_I(iSort)%nParticle = n_P(iSort)
     call message_pass_particles(iSort)
   end subroutine advance_particles
 end module PIC_ModParticles

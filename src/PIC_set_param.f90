@@ -79,7 +79,6 @@ subroutine PIC_set_param(TypeAction)
               Q_P(iP) = Q_P(iP)*CellVolume/nPPerCellCrit
               M_P(iP) = M_P(iP)*CellVolume/nPPerCellCrit
            end do
-           call set_particle_param(M_P,Q_P)
            call set_altor_grid
         end if
         if(UseUniform)call uniform
@@ -96,6 +95,9 @@ subroutine PIC_set_param(TypeAction)
         write(*,*) NameSub,': READ iSession =',iSession,&
              ' iLine=',i_line_read(),' nLine =',n_line_read()
         call read_echo_set(.true.)
+     end if
+     if(iSession ==1)then
+        call set_particle_param
      end if
   case default
      call CON_stop(NameSub//': TypeAction='//TypeAction// &
@@ -191,10 +193,9 @@ subroutine PIC_set_param(TypeAction)
         end do
         if (iProc==0)then
            nToWrite = nToWrite +1
-           call put_particle(iP,Value_V(1:nDim),1)
-           Particle_I(iP)%State_VI(Wx_:Wz_,n_P(iP)) = Value_V(Wx_:Wz_)
+           call put_particle(iP,Value_V(1:nDim),1,Value_V(Wx_:Wz_))
            nToWrite_II(2,nToWrite) = iP
-           nToWrite_II(3,nToWrite) = n_P(iP)
+           nToWrite_II(3,nToWrite) = Particle_I(iP)%nParticle
         end if
   
      case('#FIELDBC')

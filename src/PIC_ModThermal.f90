@@ -2,7 +2,7 @@ Module PIC_ModThermal
   use PIC_ModSize,      ONLY: nPType
   use PIC_ModMain,      ONLY: c2
   use PIC_ModRandom
-  use PIC_ModParticles, ONLY: Wx_, Wz_, n_P, parallel_init_rand
+  use PIC_ModParticles, ONLY: Wx_, Wz_, parallel_init_rand
   use PIC_ModParticles, ONLY: Energy_P, nTotal_P, M_P, Q_P
   use PC_BATL_particles, ONLY: Particle_I
   use ModNumConst,      ONLY: cTwoPi
@@ -32,8 +32,8 @@ contains
     !------------------
     do iSort = 1, nPType
        if(uTh_P(iSort)<=0.0)CYCLE
-       call parallel_init_rand(6*n_P(iSort),iSort)
-       do iP = 1, n_P(iSort)
+       call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort)
+       do iP = 1, Particle_I(iSort)%nParticle
           call thermalize_particle(iP, iSort)
        end do
     end do

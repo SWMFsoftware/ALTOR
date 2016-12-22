@@ -174,6 +174,7 @@ contains
 
     real(Real8_), external :: timing_func_d
     real(Real8_) :: CpuTimePIC,CpuTimeAdvance
+    integer:: iSumNP, iSort
     !------------------------------------------------
     !\
     ! Show timing results if required
@@ -184,9 +185,12 @@ contains
          .and. nProgress1>0 .and. mod(iStep,nProgress1) == 0 ) then
        CpuTimePIC = timing_func_d('sum',3,'PIC','PIC')
        CpuTimeAdvance=timing_func_d('sum',1,'advance','PIC')
-  
+       iSumNP = 0
+       do iSort = 1,nPType
+          iSumNP = iSumNP + Particle_I(iSort)%nParticle
+       end do
        write(*,'(a,f9.1,a,f9.1,a,i8,a,1p,e10.4,a)') 'Speed is',&
-            sum(n_P) &
+            iSumNP &
             /max(1.D-10,CpuTimeAdvance),&
             ' p/s/pe after',&
             CpuTimePIC,&

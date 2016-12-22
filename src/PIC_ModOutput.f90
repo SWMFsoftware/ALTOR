@@ -32,7 +32,7 @@ contains
   !======================================================================
   subroutine PIC_save_files(TypeSave)
     use ModPlotFile, ONLY: save_plot_file
-    use PIC_ModParticles, ONLY: nPType,n_P
+    use PIC_ModParticles, ONLY: nPType!,n_P
     use PIC_ModSize, ONLY: nCell_D
     use PC_BATL_particles,ONLY: Particle_I
     use ModMpi, ONLY: mpi_reduce_real_array, MPI_SUM
@@ -55,7 +55,7 @@ contains
     case('INITIAL')
        !Do not save in test particle runs alone (test particle number>1 and
        !density of electrons < 1 per cell)
-       if(nToWrite/=0.and.n_P(1)<product(nCell_D)) RETURN
+       if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
 
        !Calculate the initial moments
        call compute_moments
@@ -89,13 +89,13 @@ contains
             RETURN
 
        !Do not save in test particle runs
-       if(nToWrite/=0.and.n_P(1)<product(nCell_D)) RETURN
+       if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
 
        TypePosition = 'append'
 
     case('FINAL')
        !Do not save in test particle runs alone
-       if(nToWrite/=0.and.n_P(1)<product(nCell_D)) RETURN
+       if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
 
        !Calculate the moments at final timestep
        call compute_moments
@@ -129,7 +129,7 @@ contains
   !======================================================================
   !Calculate cell-centered number density and velocity for output
   subroutine compute_moments
-    use PIC_ModParticles, ONLY: nPType,n_P
+    use PIC_ModParticles, ONLY: nPType!,n_P
     use PIC_ModFormFactor,ONLY: HighFF_ID,Node_D, get_form_factors
     use PC_BATL_particles,ONLY: Particle_I
     use PIC_ModParticleInField,ONLY: add_DensityVelocity
@@ -146,7 +146,7 @@ contains
     !Calculate the number densities and velocities                   
     do iSort = 1, nPType
        Rho_GB = 0.0 ; V_DGB = 0.0
-       do iParticle = 1, n_P(iSort)
+       do iParticle = 1, Particle_I(1)%nParticle
           !\
           ! Get iBlock
           !/
