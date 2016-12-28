@@ -1,6 +1,6 @@
 module PIC_ModParticleInField
   use PIC_ModSize, ONLY:nBlock, nX, nY, nZ
-  use PIC_ModField, get_b_from_a_global=>get_b_from_a
+  use PIC_ModField
   use PIC_ModFormFactor, ONLY: lOrderFF, iUpFF, iDownFF, iExt
   use PIC_ModFormfactor, ONLY: Node_D, NodeNew_D
   use PIC_ModFormFactor, ONLY: HighFF_ID, HighFFNew_ID, LowFF_ID
@@ -14,10 +14,6 @@ module PIC_ModParticleInField
   !ModField class (density, electric current)
   !Methods
   public::get_b_from_a
-  interface get_b_from_a
-     module procedure get_b_from_a_global
-     module procedure get_b_from_a_local
-  end interface
   public::e_interpolated_d !Interpolated electric field
   public::b_interpolated_d !Interpolated magnetic field
   public::add_density  !Adds an input to cell-centered density
@@ -25,53 +21,6 @@ module PIC_ModParticleInField
                            !and velocity moments from a given particle
   public::add_current !Adds an input to an electric current
 contains
-  !=============================================================
-  subroutine get_b_from_a_local(iBlock,BOut_GD)  
-    integer,intent(in)::iBlock
-    real,dimension(1:lOrderFF+1,1:lOrderFF+1,1:lOrderFF+1,1:3),&
-           intent(out)::BOut_GD
-    integer::i,j,k,i1,j1,k1
-    character(LEN=*),parameter:: NameSub = 'PIC_get_b_from_a_local'
-    !--------------------
-    !Applied only if UseVectorPotential
-    !The vector potential is in Magnetic_GD
-    !Calculates the magnetic field.
-    !
-    !The resulting magnetic field is saved to BOut_GD
-    !Only those values of the field are calculated which are needed
-    !to interpolated the magnetic field acting on the particle
-    !around Node_D
-    call CON_stop(NameSub//' is not tested')
-    k1=0
-    do k=Node_D(3)+iDownFF,Node_D(3)+iUpFF
-       k1=k1+1
-       j1=0
-       do j=Node_D(2)+iDownFF,Node_D(2)+iUpFF
-          j1=j1+1
-          i1=0
-          do i=Node_D(1)+iDownFF,Node_D(1)+iUpFF
-             i1=i1+1
-             BOut_GD(i1,j1,k1,x_) = &
-                  SpeedOfLight_D(y_)*&
-                  (B_GDB(i,j+1,k,z_,iBlock) - B_GDB(i,j,k,z_,iBlock)) &
-                  - SpeedOfLight_D(z_)*&
-                  (B_GDB(i,j,k+1,y_,iBlock) - B_GDB(i,j,k,y_,iBlock))
-             
-             BOut_GD(i1,j1,k1,y_) = &
-                  SpeedOfLight_D(z_)*&
-                  (B_GDB(i,j,k+1,x_,iBlock) - B_GDB(i,j,k,x_,iBlock)) &
-                  - SpeedOfLight_D(x_)*&
-                  (B_GDB(i+1,j,k,z_,iBlock) - B_GDB(i,j,k,z_,iBlock))
-             
-             BOut_GD(i1,j1,k1,z_) = &
-                  SpeedOfLight_D(x_)*&
-                  (B_GDB(i+1,j,k,y_,iBlock) - B_GDB(i,j,k,y_,iBlock)) &
-                  - SpeedOfLight_D(y_)*& 
-                  (B_GDB(i,j+1,k,x_,iBlock) - B_GDB(i,j,k,x_,iBlock))
-          end do
-       end do
-    end do
-  end subroutine get_b_from_a_local
   !================================
   function e_interpolated_d(iBlock)
     integer, intent(in)::iBlock
@@ -213,7 +162,7 @@ contains
          0:iUpFF-iDownFF+2,&
          0:iUpFF-iDownFF+2,1:3)
     integer :: iD_D(3), iU_D(3)
-    real,parameter::sqrt13=cOne/1.732050808
+    real,parameter::sqrt13=1/1.732050808
 
     real,dimension(1:lOrderFF+1,nDim)::DeltaFPlus,DeltaFMinus
     real,dimension(1:lOrderFF  ,nDim)::FI

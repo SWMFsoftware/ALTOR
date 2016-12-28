@@ -4,8 +4,7 @@
 module PIC_ModField
   use PIC_ModSize, ONLY: nX, nY, nZ, x_, y_, z_, &
        nDim, nCell_D, MaxBlock, jDim_, kDim_, nPType
-  use PC_BATL_size,ONLY: MaxDim
-  use ModNumConst, ONLY: cHalf, cZero, cOne
+  use PC_BATL_size,ONLY: MaxDim, nBlock
   use PIC_ModMain,ONLY:&
        SpeedOfLight_D,&     !This is c\Delta t/\Delta x,...
        UseVectorPotential   !If we use vector-potential, or not
@@ -47,6 +46,7 @@ module PIC_ModField
   real,allocatable:: State_VGBI(:,:,:,:,:,:) 
   real :: B0_D(3) = 0.0
 
+  real,allocatable:: A_GDB(:,:,:,:,:)
   !Methods
 
   public::get_b_from_a   !Transforms the vector potential to magn. field
@@ -68,6 +68,11 @@ contains
     allocate(State_VGBI(10,1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
          1-iGCN*kDim_:nZ+iGCN*kDim_, MaxBlock,nPType)) 
     State_VGBI = 0.0
+    if(UseVectorPotential)then
+       allocate(A_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
+         1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock))
+       A_GDB = 0.0
+    end if
   end subroutine allocate_fields
   !================
   subroutine add_e
@@ -100,16 +105,16 @@ contains
     call read_var('By',B0_D(2))
     call read_var('Bz',B0_D(3))
     do iBlock = 1, MaxBlock
-    do iDim = 1,3
-       do k=1-iGCN,nZ+iGCN
-          do j=1-iGCN,nY+iGCN
-             do i=1-iGCN,nX+iGCN
-                B_GDB(i,j,k,iDim,iBlock) = &
-                     B_GDB(i,j,k,iDim,iBlock) + B0_D(iDim)
+       do iDim = 1,3
+          do k=1-iGCN,nZ+iGCN
+             do j=1-iGCN,nY+iGCN
+                do i=1-iGCN,nX+iGCN
+                   B_GDB(i,j,k,iDim,iBlock) = &
+                        B_GDB(i,j,k,iDim,iBlock) + B0_D(iDim)
+                end do
              end do
           end do
        end do
-    end do
     end do
   end subroutine add_b
   !===================
@@ -117,13 +122,32 @@ contains
     integer, intent(in)::iBlock
     integer::i,j,k
     !Applied only if UseVectorPotential
-    !The vector potential is in B_GDB
+    !The vector potential is in A_GDB
     !Calculates the magnetic field 
 
     !The whole magnetic field is calculated and 
-    !the result is saved to Counter_GDB
+    !the result is saved to B_GDB
     !---------------------------------
-    Counter_GDB = 0.0
+    !Array index is the coordinate of the gridpoint with +1/2 being
+    !approximated as 1
+    !                                                Ez (:,:,nZ+2,1)    
+    !       _!_!x!x               _!_!_!_  Not used: Ex (nX+2,:,:,1)
+    !       _!_!x!x               _!_!_!_            Ey (:,nY+2,:,1)
+    !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
+    !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
+    !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
+    do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
+       do j=1-iGCN*jDim_,nY+(iGCN-1)*jDim_
+          do i=1-iGCN,nX+iGCN
+             B_GDB(i,j,k,x_,iBlock) = &
+                  SpeedOfLight_D(y_)*&
+                  (A_GDB(i,j+jDim_,k,z_,iBlock) - A_GDB(i,j,k,z_,iBlock))-&
+                  SpeedOfLight_D(z_)*&
+                  (A_GDB(i,j,k+kDim_,y_,iBlock) - A_GDB(i,j,k,y_,iBlock)) +&
+                  B0_D(x_)
+          end do
+       end do
+    end do
 
     !Array index is the coordinate of the gridpoint with +1/2 being
     !approximated as 1
@@ -133,13 +157,18 @@ contains
     !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
     !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-    do k=1-iGCN,nZ+iGCN-1; do j=1-iGCN,nY+iGCN-1; do i=1-iGCN,nX+iGCN
-       Counter_GDB(i,j,k,x_,iBlock) = &
-            SpeedOfLight_D(y_)*&
-            (B_GDB(i,j+1,k,z_,iBlock) - B_GDB(i,j,k,z_,iBlock))-&
-            SpeedOfLight_D(z_)*&
-            (B_GDB(i,j,k+1,y_,iBlock) - B_GDB(i,j,k,y_,iBlock))
-    end do; end do; end do
+    do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
+       do j=1-iGCN*jDim_,nY+iGCN*jDim_ 
+          do i=1-iGCN,nX+iGCN-1
+             B_GDB(i,j,k,y_,iBlock) = &
+                  SpeedOfLight_D(z_)*&
+                  (A_GDB(i,j,k+kDim_,x_,iBlock) - A_GDB(i,j,k,x_,iBlock))-&
+                  SpeedOfLight_D(x_)*&
+                  (A_GDB(i+1,j,k,z_,iBlock) - A_GDB(i,j,k,z_,iBlock)) +&
+                  B0_D(y_)
+          end do
+       end do
+    end do
 
     !Array index is the coordinate of the gridpoint with +1/2 being
     !approximated as 1
@@ -149,35 +178,24 @@ contains
     !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
     !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-    do k=1-iGCN,nZ+iGCN-1; do j=1-iGCN,nY+iGCN; do i=1-iGCN,nX+iGCN-1
-       Counter_GDB(i,j,k,y_,iBlock) = &
-            SpeedOfLight_D(z_)*&
-            (B_GDB(i,j,k+1,x_,iBlock) - B_GDB(i,j,k,x_,iBlock))-&
-            SpeedOfLight_D(x_)*&
-            (B_GDB(i+1,j,k,z_,iBlock) - B_GDB(i,j,k,z_,iBlock))
-    end do; end do; end do
-
-    !Array index is the coordinate of the gridpoint with +1/2 being
-    !approximated as 1
-    !                                                Ez (:,:,nZ+2,1)    
-    !       _!_!x!x               _!_!_!_  Not used: Ex (nX+2,:,:,1)
-    !       _!_!x!x               _!_!_!_            Ey (:,nY+2,:,1)
-    !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
-    !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
-    !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-    do k=1-iGCN,nZ+iGCN; do j=1-iGCN,nY+iGCN-1; do i=1-iGCN,nX+iGCN-1
-       Counter_GDB(i,j,k,z_,iBlock) = &
-            SpeedOfLight_D(x_)*&
-            (B_GDB(i+1,j,k,y_,iBlock) - B_GDB(i,j,k,y_,iBlock))-&
-            SpeedOfLight_D(y_)*& 
-            (B_GDB(i,j+1,k,x_,iBlock) - B_GDB(i,j,k,x_,iBlock))
-    end do; end do; end do
+    do k=1-iGCN*kDim_,nZ+iGCN*kDim_
+       do j=1-iGCN*jDim_,nY+(iGCN-1)*jDim_
+          do i=1-iGCN,nX+iGCN-1
+             B_GDB(i,j,k,z_,iBlock) = &
+                  SpeedOfLight_D(x_)*&
+                  (A_GDB(i+1,j,k,y_,iBlock) - A_GDB(i,j,k,y_,iBlock))-&
+                  SpeedOfLight_D(y_)*& 
+                  (A_GDB(i,j+jDim_,k,x_,iBlock) - A_GDB(i,j,k,x_,iBlock)) +&
+                  B0_D(z_)
+          end do
+       end do
+    end do
   end subroutine get_b_from_a
   !==========================
 
   subroutine update_magnetic
     integer::i,j,k,iBlock
-    real,dimension(nDim):: SpeedOfLightHalf_D
+    real,dimension(MaxDim):: SpeedOfLightHalf_D
     !--------------------------
     if(UseVectorPotential)then
 
@@ -190,26 +208,27 @@ contains
        !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
        !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
        !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-       do iBlock = 1,MaxBlock
-       B_GDB(     1-iGCN:nX+iGCN-1,:,:,x_,iBlock) = &
-            B_GDB(1-iGCN:nX+iGCN-1,:,:,x_,iBlock) - &
-            cHalf*E_GDB(1-iGCN:nX+iGCN-1,:,:,x_,iBlock)
-
-       B_GDB(     :,1-iGCN:nY+iGCN-1,:,y_,iBlock) = &
-            B_GDB(:,1-iGCN:nY+iGCN-1,:,y_,iBlock) - &
-            cHalf*E_GDB(:,1-iGCN:nY+iGCN-1,:,y_,iBlock)
-
-       B_GDB(     :,:,1-iGCN:nZ+iGCN-1,z_,iBlock) = &
-            B_GDB(:,:,1-iGCN:nZ+iGCN-1,z_,iBlock) - &
-            cHalf*E_GDB(:,:,1-iGCN:nZ+iGCN-1,z_,iBlock)
+       do iBlock = 1, nBlock
+          A_GDB(     1-iGCN:nX+iGCN-1,:,:,x_,iBlock) = &
+               A_GDB(1-iGCN:nX+iGCN-1,:,:,x_,iBlock) - &
+               0.50*E_GDB(1-iGCN:nX+iGCN-1,:,:,x_,iBlock)
+          
+          A_GDB(     :,1-iGCN*jDim_:nY+(iGCN-1)*jDim_,:,y_,iBlock) = &
+               A_GDB(:,1-iGCN*jDim_:nY+(iGCN-1)*jDim_,:,y_,iBlock) - &
+               0.50*E_GDB(:,1-iGCN*jDim_:nY+(iGCN-1)*jDim_,:,y_,iBlock)
+          
+          A_GDB(     :,:,1-iGCN*kDim_:nZ+(iGCN-1)*kDim_,z_,iBlock) = &
+               A_GDB(:,:,1-iGCN*kDim_:nZ+(iGCN-1)*kDim_,z_,iBlock) - &
+               0.50*E_GDB(:,:,1-iGCN*kDim_:nZ+(iGCN-1)*kDim_,z_,iBlock)
+          call get_b_from_a(iBlock)
        end do
-       return
+       RETURN
     end if
 
     SpeedOfLightHalf_D = &
-         SpeedOfLight_D*cHalf
+         SpeedOfLight_D*0.50
 
-    !Advance vector potential throught a half timestep
+    !Advance field throught a half timestep
     !Array index is the coordinate of the gridpoint with +1/2 being
     !approximated as 1
     !                                                Ez (:,:,nZ+2,1)    
@@ -218,122 +237,107 @@ contains
     !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
     !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-    do iBlock = 1, MaxBlock
-    do k=1-iGCN,nZ+iGCN-1; do j=1-iGCN,nY+iGCN-1; do i=1-iGCN,nX+iGCN
-       B_GDB(i,j,k,x_,iBlock) = B_GDB(i,j,k,x_,iBlock) - &
-            SpeedOfLightHalf_D(y_)*&
-            (E_GDB(i,  j+1,k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock)) + &
-            SpeedOfLightHalf_D(z_)*&
-            (E_GDB(i,  j,  k+1,y_,iBlock) - E_GDB(i,j,k,y_,iBlock))
-    end do; end do; end do
+    do iBlock = 1, nBlock
+       do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
+          do j=1-iGCN*jDim_,nY+(iGCN-1)*jDim_ 
+             do i=1-iGCN,nX+iGCN
+                B_GDB(i,j,k,x_,iBlock) = B_GDB(i,j,k,x_,iBlock) - &
+                     SpeedOfLightHalf_D(y_)*&
+                     (E_GDB(i,  j+1,k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock)) + &
+                     SpeedOfLightHalf_D(z_)*&
+                     (E_GDB(i,  j,  k+1,y_,iBlock) - E_GDB(i,j,k,y_,iBlock))
+             end do
+          end do
+       end do
 
-    !Array index is the coordinate of the gridpoint with +1/2 being
-    !approximated as 1
-    !                                                Ez (:,:,nZ+2)    
-    !       _!_!x!x               _!_!_!_  Not used: Ex (nX+2,:,:,1)
-    !       _!_!x!x               _!_!_!_            Ey (:,nY+2,:,1)
-    !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
-    !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
-    !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-    do k=1-iGCN,nZ+iGCN-1; do j=1-iGCN,nY+iGCN; do i=1-iGCN,nX+iGCN-1
-       B_GDB(i,j,k,y_,iBlock) = B_GDB(i,j,k,y_,iBlock) - &
-            SpeedOfLightHalf_D(z_)*&
-            (E_GDB(i,  j,  k+1,x_,iBlock) - E_GDB(i,j,k,x_,iBlock)) + &
-            SpeedOfLightHalf_D(x_)*&
-            (E_GDB(i+1,j,  k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock))
-    end do; end do; end do
+       !Array index is the coordinate of the gridpoint with +1/2 being
+       !approximated as 1
+       !                                                Ez (:,:,nZ+2)    
+       !       _!_!x!x               _!_!_!_  Not used: Ex (nX+2,:,:,1)
+       !       _!_!x!x               _!_!_!_            Ey (:,nY+2,:,1)
+       !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)     
+       !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
+       !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
+       do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
+          do j=1-iGCN*jDim_,nY+iGCN*jDim_ 
+             do i=1-iGCN,nX+iGCN-1
+                B_GDB(i,j,k,y_,iBlock) = B_GDB(i,j,k,y_,iBlock) - &
+                     SpeedOfLightHalf_D(z_)*&
+                     (E_GDB(i,  j,  k+1,x_,iBlock) - E_GDB(i,j,k,x_,iBlock)) + &
+                     SpeedOfLightHalf_D(x_)*&
+                     (E_GDB(i+1,j,  k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock))
+             end do
+          end do
+       end do
 
-    !Array index is the coordinate of the gridpoint with +1/2 being
-    !approximated as 1
-    !                                                Ez (:,:,nZ+2,1)    
-    !       _!_!x!x               _!_!_!_  Not used: Ex (nX+2,:,:,1)
-    !       _!_!x!x               _!_!_!_            Ey (:,nY+2,:,1)
-    !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
-    !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
-    !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-    do k=1-iGCN,nZ+iGCN; do j=1-iGCN,nY+iGCN-1; do i=1-iGCN,nX+iGCN-1
-       B_GDB(i,j,k,z_,iBlock) = B_GDB(i,j,k,z_,iBlock) - &
-            SpeedOfLightHalf_D(x_)*&
-            (E_GDB(i+1,j,  k  ,y_,iBlock) - E_GDB(i,j,k,y_,iBlock)) + &
-            SpeedOfLightHalf_D(y_)*&
-            (E_GDB(i,  j+1,k  ,x_,iBlock) - E_GDB(i,j,k,x_,iBlock))
-    end do; end do; end do
-    end do
+       !Array index is the coordinate of the gridpoint with +1/2 being
+       !approximated as 1
+       !                                                Ez (:,:,nZ+2,1)    
+       !       _!_!x!x               _!_!_!_  Not used: Ex (nX+2,:,:,1)
+       !       _!_!x!x               _!_!_!_            Ey (:,nY+2,:,1)
+       !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)     
+       !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
+       !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
+       do k=1-iGCN*kDim_,nZ+iGCN*kDim_ 
+          do j=1-iGCN*jDim_,nY+(iGCN-1)*jDim_ 
+             do i=1-iGCN,nX+iGCN-1
+                B_GDB(i,j,k,z_,iBlock) = B_GDB(i,j,k,z_,iBlock) - &
+                     SpeedOfLightHalf_D(x_)*&
+                     (E_GDB(i+1,j,  k  ,y_,iBlock) - E_GDB(i,j,k,y_,iBlock)) + &
+                     SpeedOfLightHalf_D(y_)*&
+                     (E_GDB(i,  j+1,k  ,x_,iBlock) - E_GDB(i,j,k,x_,iBlock))
+              end do
+           end do
+        end do
+     end do
   end subroutine update_magnetic
   !-----------------------------------------------------------------!
   subroutine update_e
-    integer::iBlock
+    integer::iBlock, i, j, k
     !---------------
-    do iBlock = 1, MaxBlock
-    !Add current
-    E_GDB(0:nX,1:nY,1:nZ,x_,iBlock) = E_GDB(0:nX,1:nY,1:nZ,x_,iBlock) - &
-         Counter_GDB(0:nX,1:nY,1:nZ,x_,iBlock)
-    E_GDB(1:nX,0:nY,1:nZ,y_,iBlock) = E_GDB(1:nX,0:nY,1:nZ,y_,iBlock) - &
-         Counter_GDB(1:nX,0:nY,1:nZ,y_,iBlock)
-    E_GDB(1:nX,1:nY,0:nZ,z_,iBlock) = E_GDB(1:nX,1:nY,0:nZ,z_,iBlock) - &
-         Counter_GDB(1:nX,1:nY,0:nZ,z_,iBlock)
-
-    if(UseVectorPotential)then
-       call get_b_from_a(iBlock)!Put the magnetic field to Counter_GDB
-       call use_magnetic_field_from(Counter_GDB(:,:,:,:,iBlock))
-    else
-       call use_magnetic_field_from(B_GDB(:,:,:,:,iBlock))
-    end if
+    do iBlock = 1, nBlock
+       !Add current
+       E_GDB(0:nX,1:nY,1:nZ,x_,iBlock) = E_GDB(0:nX,1:nY,1:nZ,x_,iBlock) - &
+            Counter_GDB(0:nX,1:nY,1:nZ,x_,iBlock)
+       E_GDB(1:nX,1-jDim_:nY,1:nZ,y_,iBlock) = &
+            E_GDB(1:nX,1-jDim_:nY,1:nZ,y_,iBlock) - &
+            Counter_GDB(1:nX,0:nY,1:nZ,y_,iBlock)
+       E_GDB(1:nX,1:nY,0:nZ,z_,iBlock) = E_GDB(1:nX,1:nY,0:nZ,z_,iBlock) - &
+            Counter_GDB(1:nX,1:nY,0:nZ,z_,iBlock)
+       do k=1,nZ
+          do j=1,nY
+             do i=0,nX
+                E_GDB(i,j,k,x_,iBlock) = E_GDB(i,j,k,x_,iBlock) + &
+                     SpeedOfLight_D(y_)*&
+                     (B_GDB(i,j,k,z_,iBlock) - B_GDB(i,j-jDim_,k,z_,iBlock)) - &
+                     SpeedOfLight_D(z_)*&
+                     (B_GDB(i,j,k,y_,iBlock) - B_GDB(i,j,k-kDim_,y_,iBlock))
+             end do
+          end do
+       end do
+       do k=1,nZ
+          do j=1-jDim_,nY
+             do i=1,nX
+                E_GDB(i,j,k,y_,iBlock) = E_GDB(i,j,k,y_,iBlock) + &
+                     SpeedOfLight_D(z_)*&
+                     (B_GDB(i,j,k,x_,iBlock) - B_GDB(i,j,k-kDim_,x_,iBlock))-&
+                     SpeedOfLight_D(x_)*&
+                     (B_GDB(i,j,k,z_,iBlock) - B_GDB(i-1,j,k,z_,iBlock))
+             end do
+          end do
+       end do
+       do k=1-kDim_,nZ
+          do j=1,nY
+             do i=1,nX
+                E_GDB(i,j,k,z_,iBlock) = E_GDB(i,j,k,z_,iBlock)+&
+                     SpeedOfLight_D(x_)*&
+                     (B_GDB(i,j,k,y_,iBlock) - B_GDB(i-1,j,k,y_,iBlock))-&
+                     SpeedOfLight_D(y_)*& 
+                     (B_GDB(i,j,k,x_,iBlock) - B_GDB(i,j-jDim_,k,x_,iBlock))
+             end do
+          end do
+       end do
     end do
-  contains
-    subroutine use_magnetic_field_from(BIn_GD)
-      real,dimension(&
-           1-iGCN:nX+iGCN,&
-           1-iGCN:nY+iGCN,&
-           1-iGCN:nZ+iGCN,3),intent(in)::&
-           BIn_GD
-      integer::i,j,k
-      integer :: i1_D(nDim)
-      !---------------
-      i1_D = 0
-      !\
-      ! Along the directions at which the periodic boundary condition is used
-      ! only the electric field at the faces inside the computation domain
-      ! are calculated here, all the outer face values are filled in with the
-      ! periodic boundary conditions. Along other directions the computational
-      ! domain is extended by iGCN-1 (usually 1 ) layer of the gostcells and 
-      ! all the faces inside the extended domain are filled in here
-      !/
-      where(.not.IsPeriodicField_D)i1_D=1
-      do k=1-i1_D(z_),nZ+i1_D(z_)
-         do j=1-i1_D(y_),nY+i1_D(y_)
-            do i=0-i1_D(x_),nX+i1_D(x_)
-               E_GDB(i,j,k,x_,iBlock) = E_GDB(i,j,k,x_,iBlock) + &
-                    SpeedOfLight_D(y_)*&
-                             (BIn_GD(i,j,k,z_) - BIn_GD(i,j-1,k,z_)) - &
-                    SpeedOfLight_D(z_)*&
-                             (BIn_GD(i,j,k,y_) - BIn_GD(i,j,k-1,y_))
-            end do
-         end do
-      end do
-      do k=1-i1_D(z_),nZ+i1_D(z_)
-         do j=0-i1_D(y_),nY+i1_D(y_);
-            do i=1-i1_D(x_),nX+i1_D(x_)
-               E_GDB(i,j,k,y_,iBlock) = E_GDB(i,j,k,y_,iBlock) + &
-                    SpeedOfLight_D(z_)*&
-                             (BIn_GD(i,j,k,x_) - BIn_GD(i,j,k-1,x_))-&
-                    SpeedOfLight_D(x_)*&
-                             (BIn_GD(i,j,k,z_) - BIn_GD(i-1,j,k,z_))
-            end do
-         end do
-      end do
-      do k=0-i1_D(z_),nZ+i1_D(z_)
-         do j=1-i1_D(y_),nY+i1_D(y_)
-            do i=1-i1_D(x_),nX+i1_D(x_)
-               E_GDB(i,j,k,z_,iBlock) = E_GDB(i,j,k,z_,iBlock)+&
-                    SpeedOfLight_D(x_)*&
-                             (BIn_GD(i,j,k,y_) - BIn_GD(i-1,j,k,y_))-&
-                    SpeedOfLight_D(y_)*& 
-                             (BIn_GD(i,j,k,x_) - BIn_GD(i,j-1,k,x_))
-            end do
-         end do
-      end do
-    end subroutine use_magnetic_field_from
   end subroutine update_e
   !=======================
   subroutine field_bc
@@ -423,12 +427,6 @@ contains
           do i=0-i1_D(x_),nX+i1_D(x_)
              E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(y_)) +&
                   SpeedOfLight_D(y_)*E_GDB(i,j+1,k,x_,1)
-             if(TypeFieldBC_S(3)=='laserbeam')&
-                  call laser_beam(iDir=x_,    &
-                  x= i      *Dx_D(x_),&
-                  y=(j-0.50)*Dx_D(y_),&
-                  z=(k-0.50)*Dx_D(z_),&
-                  EField=E_GDB(i,j,k,x_,1) )
           end do
        end do
 
@@ -436,12 +434,6 @@ contains
           do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
              E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(y_)) +&
                   SpeedOfLight_D(y_)*E_GDB(i,j+1,k,z_,1)
-             if(TypeFieldBC_S(3)=='laserbeam')&
-                  call laser_beam(iDir=z_,    &
-                  x=(i-0.50)*Dx_D(x_),&
-                  y=(j-0.50)*Dx_D(y_),&
-                  z=k       *Dx_D(z_),&
-                  EField=E_GDB(i,j,k,z_,1) )
           end do
        end do
        !\
@@ -452,12 +444,6 @@ contains
           do i=0-i1_D(x_),nX+i1_D(x_)
              E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(y_)) +&
                   SpeedOfLight_D(y_)*E_GDB(i,j-1,k,x_,1)
-             if(TypeFieldBC_S(4)=='laserbeam')&
-                  call laser_beam(iDir=x_,    &
-                  x= i      *Dx_D(x_),&
-                  y=(j-0.50)*Dx_D(y_),&
-                  z=(k-0.50)*Dx_D(z_),&
-                  EField=E_GDB(i,j,k,x_,1) )
           end do
        end do
 
@@ -465,12 +451,6 @@ contains
           do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
              E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(y_)) +&
                   SpeedOfLight_D(y_)*E_GDB(i,j-1,k,z_,1)
-             if(TypeFieldBC_S(4)=='laserbeam')&
-                  call laser_beam(iDir=z_,    &
-                  x=(i-0.50)*Dx_D(x_),&
-                  y=(j-0.50)*Dx_D(y_),&
-                  z=k       *Dx_D(z_),&
-                  EField=E_GDB(i,j,k,z_,1) )
           end do
        end do
 
@@ -542,23 +522,8 @@ contains
     integer::i,j,k,iBlock
     real::Aux_GB(1:nX, 1:nY,1:nZ, MaxBlock)
     !-------------
-    Aux_GB=cZero
-    if(UseVectorPotential)then
-       do iBlock = 1, MaxBlock
-       call get_b_from_a(iBlock)
-       do k=1,nZ; do j=1,nY; do i=1,nX
-          Aux_GB(i,j,k,iBlock)=0.1250*(&
-               sum(Counter_GDB(i,j-1:j,k-1:k,x_,iBlock)**2)+&
-               sum(Counter_GDB(i-1:i,j,k-1:k,y_,iBlock)**2)+&
-               sum(Counter_GDB(i-1:i,j-1:j,k,z_,iBlock)**2))+&
-               0.250 * (&
-               sum(E_GDB(i-1:i,j,k,x_,iBlock)**2)+&
-               sum(E_GDB(i,j-1:j,k,y_,iBlock)**2)+&
-               sum(E_GDB(i,j,k-1:k,z_,iBlock)**2))
-       end do; end do; end do
-       end do
-    else
-       do iBlock = 1, MaxBlock
+    Aux_GB = 0.0
+    do iBlock = 1, nBlock
        do k=1,nZ; do j=1,nY; do i=1,nX
           Aux_GB(i,j,k,iBlock)=0.1250*(&
                sum(B_GDB(i,j-1:j,k-1:k,x_,iBlock)**2)+&
@@ -569,9 +534,8 @@ contains
                sum(E_GDB(i,j-1:j,k,y_,iBlock)**2)+&
                sum(E_GDB(i,j,k-1:k,z_,iBlock)**2))
        end do; end do; end do
-       end do
-    end if
-    EnergyMax = maxval(Aux_GB(1:nX,1:nY,1:nZ,:))
+    end do
+    EnergyMax = maxval(Aux_GB(1:nX,1:nY,1:nZ,1:nBlock))
   end subroutine get_max_intensity
   !====================
   subroutine get_field_energy(Energy_V)
@@ -579,33 +543,8 @@ contains
     real,intent(out)::Energy_V(6)
     integer::i,j,k,iBlock
     !-------------
-    Energy_V = cZero
-    if(UseVectorPotential)then
-       do iBlock = 1, MaxBlock
-       call get_b_from_a(iBlock)
-       do k=1,nZ; do j=1,nY; do i=1,nX
-          Energy_V(1) = Energy_V(1) + 0.1250*&
-               sum((Counter_GDB(i,j-1:j,k-1:k,x_,iBlock) - B0_D(x_))**2)
-          
-          Energy_V(2) = Energy_V(2) + 0.1250*&
-               sum((Counter_GDB(i-1:i,j,k-1:k,y_,iBlock) - B0_D(y_))**2)
-          
-          Energy_V(3) = Energy_V(3) + 0.1250*&
-               sum((Counter_GDB(i-1:i,j-1:j,k,z_,iBlock) - B0_D(z_))**2)
-          
-          
-          Energy_V(4) = Energy_V(4) + 0.250*&
-               sum(E_GDB(i-1:i,j,k,x_,iBlock)**2)
-          
-          Energy_V(5) = Energy_V(5) + 0.250*&
-               sum(E_GDB(i,j-1:j,k,y_,iBlock)**2)
-          
-          Energy_V(6) = Energy_V(6) + 0.250*&
-               sum(E_GDB(i,j,k-1:k,z_,iBlock)**2)
-       end do; end do; end do
-       end do
-    else
-       do iBlock = 1, MaxBlock
+    Energy_V = 0.0
+    do iBlock = 1, nBlock
        do k=1,nZ; do j=1,nY; do i=1,nX
           Energy_V(1) = Energy_V(1) + 0.1250*&
                sum((B_GDB(i,j-1:j,k-1:k,x_,iBlock) - B0_D(x_))**2)
@@ -626,8 +565,7 @@ contains
           Energy_V(6) = Energy_V(6) + 0.250*&
                sum(E_GDB(i,j,k-1:k,z_,iBlock)**2)
        end do; end do; end do
-       end do
-    end if
+    end do
     Energy_V = Energy_V*CellVolume
   end subroutine get_field_energy
 end module PIC_ModField

@@ -79,7 +79,7 @@ subroutine PIC_set_param(TypeAction)
      !\
      ! Initialize parameters
      !/
-     SpeedOfLight_D = Dt * c / Dx_D
+     SpeedOfLight_D(1:nDim) = Dt * c / Dx_D
      RETURN
   case('read','Read','READ')
      if(iProc==0)then

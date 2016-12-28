@@ -1,6 +1,6 @@
 module PIC_ModMain
   use ModNumConst
-  use PIC_ModSize, ONLY: nDim, MaxBlock, nPType
+  use PIC_ModSize, ONLY: nDim, MaxBlock, nPType, MaxDim
   implicit none
   SAVE
   !-----------------------
@@ -11,12 +11,12 @@ module PIC_ModMain
  
   logical:: IsInitialized = .false.
 
-  logical:: UseVectorPotential = .false.
+  logical:: UseVectorPotential = .true.
 
   ! logical::DoAccelerateLight = .false.
 
   real :: c = cHalf, c2 = 0.25
-  real,dimension(nDim):: SpeedOfLight_D = cHalf
+  real,dimension(MaxDim):: SpeedOfLight_D = 0.0
 
   !\
   ! Time stepping parameters and values.
