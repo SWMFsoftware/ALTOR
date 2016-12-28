@@ -3,7 +3,7 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PIC_ModField
   use PIC_ModSize, ONLY: nX, nY, nZ, x_, y_, z_, &
-       nDim, nCell_D, MaxBlock
+       nDim, nCell_D, MaxBlock, jDim_, kDim_, nPType
   use PC_BATL_size,ONLY: MaxDim
   use ModNumConst, ONLY: cHalf, cZero, cOne
   use PIC_ModMain,ONLY:&
@@ -44,31 +44,30 @@ module PIC_ModField
   real,allocatable:: B_GDB(:,:,:,:,:)
   real,allocatable:: Counter_GDB(:,:,:,:,:)
 
-  real,allocatable:: Rho_GB(:,:,:,:)
-  real,allocatable:: V_DGB(:,:,:,:,:)
+  real,allocatable:: State_VGBI(:,:,:,:,:,:) 
   real :: B0_D(3) = 0.0
 
   !Methods
 
   public::get_b_from_a   !Transforms the vector potential to magn. field
   public::update_magnetic!Updates the magnetic field, or vector potential
-  public::update_e       !Updates the electric field
-  public::get_rho_max     
+  public::update_e       !Updates the electric field     
 contains
   !=======================
   subroutine allocate_fields
     
-    allocate(E_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
-         1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); E_GDB = 0.0
-    allocate(B_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
-         1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); B_GDB = 0.0 
-    allocate(Counter_GDB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
-         1-iGCN:nZ+iGCN, MaxDim, MaxBlock)); Counter_GDB = 0.0 
-    allocate(Rho_GB(1-iGCN:nX+iGCN, 1-iGCN:nY+iGCN,&
-         1-iGCN:nZ+iGCN, MaxBlock)); Rho_GB = 0.0
-    allocate(V_DGB(MaxDim, 1-iGCN:nX+iGCN,1-iGCN:nY+iGCN,&
-         1-iGCN:nZ+iGCN, MaxBlock)); V_DGB = 0.0
-
+    allocate(E_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
+         1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock))
+    E_GDB = 0.0
+    allocate(B_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
+         1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock))
+    B_GDB = 0.0 
+    allocate(Counter_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
+         1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock)) 
+    Counter_GDB = 0.0 
+    allocate(State_VGBI(10,1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
+         1-iGCN*kDim_:nZ+iGCN*kDim_, MaxBlock,nPType)) 
+    State_VGBI = 0.0
   end subroutine allocate_fields
   !================
   subroutine add_e
@@ -536,24 +535,19 @@ contains
        end do
     end do
   end subroutine field_bc
-  !=======================
-  subroutine get_rho_max(RhoMax)
-    real,intent(out)::RhoMax
-    !------------------
-    RhoMax = maxval(Rho_GB(1:nX,1:nY,1:nZ,:))
-  end subroutine get_rho_max
   !---------------------------------------------------------------------!
   subroutine get_max_intensity(EnergyMax,Coord_D)
     real,intent(out)::EnergyMax
     real,dimension(nDim),optional,intent(out)::Coord_D
     integer::i,j,k,iBlock
+    real::Aux_GB(1:nX, 1:nY,1:nZ, MaxBlock)
     !-------------
-    Rho_GB=cZero
+    Aux_GB=cZero
     if(UseVectorPotential)then
        do iBlock = 1, MaxBlock
        call get_b_from_a(iBlock)
        do k=1,nZ; do j=1,nY; do i=1,nX
-          Rho_GB(i,j,k,iBlock)=0.1250*(&
+          Aux_GB(i,j,k,iBlock)=0.1250*(&
                sum(Counter_GDB(i,j-1:j,k-1:k,x_,iBlock)**2)+&
                sum(Counter_GDB(i-1:i,j,k-1:k,y_,iBlock)**2)+&
                sum(Counter_GDB(i-1:i,j-1:j,k,z_,iBlock)**2))+&
@@ -566,7 +560,7 @@ contains
     else
        do iBlock = 1, MaxBlock
        do k=1,nZ; do j=1,nY; do i=1,nX
-          Rho_GB(i,j,k,iBlock)=0.1250*(&
+          Aux_GB(i,j,k,iBlock)=0.1250*(&
                sum(B_GDB(i,j-1:j,k-1:k,x_,iBlock)**2)+&
                sum(B_GDB(i-1:i,j,k-1:k,y_,iBlock)**2)+&
                sum(B_GDB(i-1:i,j-1:j,k,z_,iBlock)**2))+&
@@ -577,7 +571,7 @@ contains
        end do; end do; end do
        end do
     end if
-    call get_rho_max(EnergyMax)
+    EnergyMax = maxval(Aux_GB(1:nX,1:nY,1:nZ,:))
   end subroutine get_max_intensity
   !====================
   subroutine get_field_energy(Energy_V)

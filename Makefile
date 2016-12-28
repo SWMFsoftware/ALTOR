@@ -26,7 +26,6 @@ help:
 	@echo ' '
 	@echo '    LIB          (Component library libPC for SWMF)'
 	@echo '    ALTOR        (ALTernating-ORder interpolation scheme for PIC)'
-	@echo '    ALTOR nDim=2 (compile the code with nDim=2)'
 	@echo '    NOMPI        (NOMPI library for compilation without MPI)'
 	@echo ' '
 	@echo '    rundir       (create run directory for standalone or SWMF)'

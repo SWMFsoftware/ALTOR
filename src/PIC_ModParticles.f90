@@ -7,7 +7,7 @@ module PIC_ModParticles
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, DxInv_D, CellVolume, &
        SpeedOfLight_D, vInv
   use PIC_ModParticleInField,ONLY: &
-       Rho_GB,add_current, add_DensityVelocity
+       State_VGBI,add_current, add_moments, add_density
   use PIC_ModParticleInField,ONLY: &
        b_interpolated_d,e_interpolated_d
   use PIC_ModParticleInField,ONLY: &
@@ -149,7 +149,7 @@ contains
     integer :: iBlockOut=1, iProcOut 
     !--------------------------
     do iSort = 1, nPType
-       Rho_GB = 0
+       State_VGBI(:,:,:,:,:,iSort) = 0
        if(nPPerCellUniform_P(iSort)==0)CYCLE
 
        if(nPPerCellUniform_P(iSort) > 0)then
@@ -181,12 +181,12 @@ contains
           call put_particle(iSort, Coord_D, iBlockOut)
           call get_form_factors(Coord_D,Node_D,HighFF_ID)
           !hyzhou: I removed add_density. Need to modify this part later
-          call add_densityvelocity((/0.0,0.0,0.0/),Node_D,HighFF_ID,1)
+          call add_density(Node_D,HighFF_ID,1,iSort)
           
        end do
-       call pass_density(0)
+       call pass_density(0, iSort)
        if(iProc==0)write(*,*)'Total number of particles of sort ', iSort,&
-            ' equals ',nint(sum(Rho_GB(1:nX,1:nY,1:nZ,1)))
+            ' equals ',sum(State_VGBI(1,1:nX,1:nY,1:nZ,1,iSort))
        n_P(iSort) = Particle_I(iSort)%nParticle
     end do
     if(nProc==1)then
@@ -390,25 +390,20 @@ contains
     use ModMpi
     use PIC_ModProc
 
-    real :: E_P(nPType), P2
+    real :: P2
     integer:: iSort, iP, nParticle
     real,dimension(:,:),pointer::Coord_VI
     !-----------------------------------
-    E_P = 0.0
+    Energy_P = 0.0
     do iSort = 1, nPType
        call set_pointer_to_particles(iSort,Coord_VI,nParticle=nParticle)
        do iP = 1, nParticle
           P2 = sum(Coord_VI(Wx_:Wz_,iP)**2)
-          E_P(iSort) = E_P(iSort) + &
+          Energy_P(iSort) = Energy_P(iSort) + &
                M_P(iSort) * c*P2/(c + sqrt(c2 + P2))
        end do
     end do
-    if(nProc==1)then
-       Energy_P = E_P
-    else
-       call MPI_Reduce(&
-            E_P, Energy_P, nPType, MPI_REAL,MPI_SUM,  0, iComm, iError)
-    end if
+    call pass_energy
   end subroutine get_energy
   !==============================
   subroutine pass_energy
@@ -489,7 +484,7 @@ contains
   
   !=======================PARTICLE MOVER=========================!
   !Advance the particles in one timestep; calculate cell-centered
-  !number density and velocity if DoComputeMoments==.true.
+  !number density and velocity moments if DoComputeMoments==.true.
   subroutine advance_particles(iSort,DoComputeMoments)
     use ModCoordTransform, ONLY: cross_product
 
@@ -591,9 +586,14 @@ contains
        !call timing_stop('formfactor')
        
        !Contribute to number density and velocity
-       if(DoComputeMoments)&
-            call add_DensityVelocity(W_D*c,NodeNew_D,HighFFNew_ID,iBlock)
-
+       !call timing_start('moments')
+       if(DoComputeMoments)then 
+          call add_moments(W_D*c,NodeNew_D,HighFFNew_ID,iBlock,iSort)
+       else
+          call add_density(NodeNew_D,HighFFNew_ID,iBlock,iSort)
+       end if
+       !call timing_stop('moments')
+   
        !Contribute to the current
        !call timing_start('current')
        call add_current(QPerVDx_D,W_D,iBlock)
@@ -602,7 +602,6 @@ contains
        Coord_VI(1:nDim,iParticle)= &
             X_D*Dx_D + CoordMin_DB(1:nDim,iBlock)
     end do
-    !Particle_I(iSort)%nParticle = n_P(iSort)
     call message_pass_particles(iSort)
   end subroutine advance_particles
 end module PIC_ModParticles

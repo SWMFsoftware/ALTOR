@@ -1,4 +1,5 @@
 module PIC_ModParticleInField
+  use PIC_ModSize, ONLY:nBlock, nX, nY, nZ
   use PIC_ModField, get_b_from_a_global=>get_b_from_a
   use PIC_ModFormFactor, ONLY: lOrderFF, iUpFF, iDownFF, iExt
   use PIC_ModFormfactor, ONLY: Node_D, NodeNew_D
@@ -19,8 +20,9 @@ module PIC_ModParticleInField
   end interface
   public::e_interpolated_d !Interpolated electric field
   public::b_interpolated_d !Interpolated magnetic field
-  public::add_DensityVelocity  !Adds an input to cell-centered density
-                           !and velocity from a given particle
+  public::add_density  !Adds an input to cell-centered density
+  public::add_moments  !Adds an input to cell-centered density
+                           !and velocity moments from a given particle
   public::add_current !Adds an input to an electric current
 contains
   !=============================================================
@@ -142,39 +144,62 @@ contains
  
   end function b_interpolated_d
   !==============================================================
-  subroutine add_DensityVelocity(V_D,NodeIn_D,HighFFIn_ID,iBlock)
+  subroutine add_moments(W_D,NodeIn_D,HighFFIn_ID,iBlock,iSort)
     !Adds an input to the density and velocity, from a given particle
     !using the same form factors
-    real,   dimension(nDim),intent(in) :: V_D
-    integer,dimension(nDim),intent(in) :: NodeIn_D
-    real,   dimension(1+lOrderFF,nDim),intent(in)::HighFFIn_ID
-    integer,intent(in):: iBlock
+    real,   dimension(MaxDim),intent(in) :: W_D  !Velocity
+    integer,dimension(MaxDim),intent(in) :: NodeIn_D
+    real,   dimension(1+lOrderFF,MaxDim),intent(in)::HighFFIn_ID
+    integer,intent(in):: iBlock,iSort
     integer:: i,j,k,i1,j1,k1
-    real:: FFProduct
-    !-----------------------                                     
+    real:: FFProduct, Var_V(10)
+    !-----------------------   
+    Var_V = (/1.0, W_D, W_D**2, W_D(1)*W_D(2), W_D(1)*W_D(3), W_D(2)*W_D(3)/)
     k1=0
-    do k=NodeIn_D(3)+iDownFF,NodeIn_D(3)+iUpFF
+    do k=NodeIn_D(3)+iDownFF*kDim_,NodeIn_D(3)+iUpFF*kDim_
        k1=k1+1
        j1=0
-       do j=NodeIn_D(2)+iDownFF,NodeIn_D(2)+iUpFF
+       do j=NodeIn_D(2)+iDownFF*jDim_,NodeIn_D(2)+iUpFF*jDim_
           j1=j1+1
           i1=0
           FFProduct=HighFFIn_ID(k1,z_)*HighFFIn_ID(j1,y_)
           do i=NodeIn_D(1)+iDownFF,NodeIn_D(1)+iUpFF
              i1=i1+1
              !Add the product of formfactors
-             Rho_GB(i,j,k,iBlock)=Rho_GB(i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
-                  FFProduct
-             !The real cell-centered velocity should be normalized by
-             !number density after adding up the contribution from
-             !all particles.
-             V_DGB(:,i,j,k,iBlock)=V_DGB(:,i,j,k,iBlock) + HighFFIn_ID(i1,x_)*&
-                  FFProduct*V_D  
+             State_VGBI(:,i,j,k,iBlock,iSort) = State_VGBI(:,i,j,k,iBlock,iSort) + &
+                  HighFFIn_ID(i1,x_)*FFProduct*Var_V  
           end do
        end do
     end do
 
-  end subroutine add_DensityVelocity
+  end subroutine add_moments
+  !=========================
+  subroutine add_density(NodeIn_D,HighFFIn_ID,iBlock,iSort)
+    !Adds an input to the density only.
+    integer,dimension(MaxDim),intent(in) :: NodeIn_D
+    real,   dimension(1+lOrderFF,MaxDim),intent(in)::HighFFIn_ID
+    integer,intent(in):: iBlock,iSort
+    integer:: i,j,k,i1,j1,k1
+    real:: FFProduct
+    !-----------------------   
+    k1=0
+    do k=NodeIn_D(3)+iDownFF*kDim_,NodeIn_D(3)+iUpFF*kDim_
+       k1=k1+1
+       j1=0
+       do j=NodeIn_D(2)+iDownFF*jDim_,NodeIn_D(2)+iUpFF*jDim_
+          j1=j1+1
+          i1=0
+          FFProduct=HighFFIn_ID(k1,z_)*HighFFIn_ID(j1,y_)
+          do i=NodeIn_D(1)+iDownFF,NodeIn_D(1)+iUpFF
+             i1=i1+1
+             !Add the product of formfactors
+             State_VGBI(1,i,j,k,iBlock,iSort) = State_VGBI(1,i,j,k,iBlock,iSort) + &
+                  HighFFIn_ID(i1,x_)*FFProduct
+          end do
+       end do
+    end do
+
+  end subroutine add_density
   !============================================
   subroutine add_current(QPerVDx_D,W_D,iBlock) 
     real,intent(in)::QPerVDx_D(x_:z_),W_D(x_:z_)
@@ -365,21 +390,25 @@ contains
     end subroutine get_current_extended
   end subroutine add_current
   !=========================
-  real function min_val_rho()
+  real function min_val_rho(iSort)
+    integer, intent(in) :: iSort
+    real                :: Aux
     min_val_rho = &
-         minval(Rho_GB(1:nX,1:nY,1:nZ,:))
+         minval(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
   end function min_val_rho
   !=======================
   !=========================
-  real function max_val_rho()
-    max_val_rho = &
-         maxval(Rho_GB(1:nX,1:nY,1:nZ,:))
+  real function max_val_rho(iSort)
+    integer, intent(in) :: iSort
+    max_val_rho  = &
+         maxval(State_VGBI(1, 1:nX,1:nY,1:nZ,1:nBlock, iSort))
   end function max_val_rho
   !=======================
-  real function rho_avr()
+  real function rho_avr(iSort)
     use PIC_ModSize, ONLY: nCell_D
+    integer, intent(in) :: iSort
     rho_avr = &
-         sum(Rho_GB(1:nX,1:nY,1:nZ,:))/product(nCell_D)
+         sum(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))/product(nCell_D)
   end function rho_avr
   !=======================
 end module PIC_ModParticleInField

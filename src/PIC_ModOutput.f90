@@ -3,9 +3,9 @@ module PIC_ModOutput
   use PIC_ModSize,ONLY: nDim, nCell_D, nX, nY, nZ, x_, y_, z_
   use PIC_ModSize,ONLY: MaxBlock, nPType
   use PIC_ModParticles,ONLY: M_P,Q_P
-  use PIC_ModParticleInField,ONLY: Rho_GB, V_DGB
+  use PIC_ModParticleInField,ONLY: State_VGBI, add_moments
   use PIC_ModField,   ONLY: iGCN, E_GDB,B_GDB
-  use PIC_ModMpi,     ONLY: pass_density, pass_velocity
+  use PIC_ModMpi,     ONLY: pass_moments
   use PIC_ModProc,    ONLY: iProc
   use ModIoUnit,      ONLY: io_unit_new
   use PIC_ModLogFile, ONLY: nToWrite     !Number of test particles
@@ -22,7 +22,7 @@ module PIC_ModOutput
   integer,  public :: nStepOut=100000,nStepOutMin=100000
   character(len=5),public :: TypeFile='real4' 
   !Array for saving coordinates, fields and moments in one timestep
-  real   :: State_VCB(6+11*nPType,1:nX,1:nY,1:nZ,MaxBlock)=0.0
+  real   :: PlotVar_VC(6+11*nPType,1:nX,1:nY,1:nZ)=0.0
 
   public :: write_moments
 
@@ -123,7 +123,7 @@ contains
             NameVarIn = NameVar, &
             CoordMinIn_D = 0.5*Dx_D, &
             CoordMaxIn_D = (nCell_D - 0.5)*Dx_D, &
-            VarIn_VIII = State_VCB(:,:,:,:,iBlock))
+            VarIn_VIII = PlotVar_VC(:,:,:,:))
     end if
   end subroutine PIC_save_files
   !======================================================================
@@ -132,7 +132,7 @@ contains
     use PIC_ModParticles, ONLY: nPType!,n_P
     use PIC_ModFormFactor,ONLY: HighFF_ID,Node_D, get_form_factors
     use PC_BATL_particles,ONLY: Particle_I
-    use PIC_ModParticleInField,ONLY: add_DensityVelocity
+    !use PIC_ModParticleInField,ONLY: add_moments
     use PIC_ModMain, ONLY: c,c2
     use ModMpi, ONLY: mpi_reduce_real_array, MPI_SUM
 
@@ -145,7 +145,7 @@ contains
     !----------------------------------------------------
     !Calculate the number densities and velocities                   
     do iSort = 1, nPType
-       Rho_GB = 0.0 ; V_DGB = 0.0
+       State_VGBI(:,:,:,:,:,iSort) = 0.0
        do iParticle = 1, Particle_I(1)%nParticle
           !\
           ! Get iBlock
@@ -160,7 +160,7 @@ contains
 
           call get_form_factors(X_D,Node_D,HighFF_ID)
 
-          call add_DensityVelocity(V_D,Node_D,HighFF_ID,iBlock)
+          call add_moments(V_D,Node_D,HighFF_ID,iBlock,iSort)
        end do
        
        !Save number density, velocity and pressure                           
@@ -176,56 +176,47 @@ contains
     integer, intent(in) :: iSort
     integer :: i,j,k
     integer :: iError
-    real    :: U_GDB(1:nDim,1:nX,1:nY,1:nZ,1)  !cell-centered bulk velocity
     !------------------------------------------------------------------
-    !Collect info from all processor to processor 0 when in parallel
-    !assuming periodic BC.
-    call pass_density(0)
-
+   
     !Periodic velocity BC. Need to be merged into other function later.
-    call pass_velocity(0)
+    call pass_moments(0,iSort)
 
     if(iProc==0)then
        !The cell-centered velocity should be normalized by number density
        !After applying periodic BC.
-       do i=1,3
-          V_DGB(i,1:nX,1:nY,1:nZ,1) = V_DGB(i,1:nX,1:nY,1:nZ,1)&
-               / Rho_GB(1:nX,1:nY,1:nZ,1)
+       do i=2,4
+          State_VGBI(i,1:nX,1:nY,1:nZ,1,iSort) = &
+              State_VGBI(i,1:nX,1:nY,1:nZ,1,iSort)/State_VGBI(1,1:nX,1:nY,1:nZ,1,iSort)
        end do
 
-       State_VCB(iSort+6,:,:,:,1) = abs(Q_P(iSort))*vInv*Rho_GB(1:nX,1:nY,1:nZ,1)
-
-       !Number-density-werighted averaged velocity
-       do i=1,nDim
-          U_GDB(i,:,:,:,1) = sum(Rho_GB(1:nX,1:nY,1:nZ,1)*&
-               V_DGB(i,1:nX,1:nY,1:nZ,1))/sum(Rho_GB(1:nX,1:nY,1:nZ,1))
-       end do
+       PlotVar_VC(iSort+6,:,:,:) = abs(Q_P(iSort))*vInv*State_VGBI(1,1:nX,1:nY,1:nZ,1,iSort)
 
        !Looping over all the cell centers
        do k=1,nZ; do j=1,nY; do i=1,nX
           !Save velocity
-          State_VCB(nPType+3*iSort+4:nPType+3*iSort+6,i,j,k,1) = &
-               V_DGB(:,i,j,k,1)
+          PlotVar_VC(nPType+3*iSort+4:nPType+3*iSort+6,i,j,k) = &
+               State_VGBI(2:4,i,j,k,1,iSort)
           !Save pressure tensor: Pxx Pyy Pzz Pxy Pxz Pyz
-          State_VCB(5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k,1) = &
-               M_P(iSort)*vInv*Rho_GB(i,j,k,1)*&
-               (V_DGB(:,i,j,k,1) - U_GDB(:,i,j,k,1))**2
+          PlotVar_VC(5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k) = &
+               M_P(iSort)*vInv*(State_VGBI(5:7,i,j,k,1,iSort) -&
+               State_VGBI(1,i,j,k,1,iSort)*&
+               State_VGBI(2:4,i,j,k,1,iSort)**2)
           
-          State_VCB(5*nPType+6*iSort+4,:,:,:,1) = M_P(iSort)*vInv*Rho_GB(i,j,k,1)*&
-               (V_DGB(1,i,j,k,1)*V_DGB(2,i,j,k,1) - U_GDB(1,i,j,k,1)*&
-               U_GDB(2,i,j,k,1))
-          State_VCB(5*nPType+6*iSort+5,:,:,:,1) = M_P(iSort)*vInv*Rho_GB(i,j,k,1)*&
-               (V_DGB(1,i,j,k,1)*V_DGB(3,i,j,k,1) - U_GDB(1,i,j,k,1)*&
-               U_GDB(3,i,j,k,1))
-          State_VCB(5*nPType+6*iSort+6,:,:,:,1) = M_P(iSort)*vInv*Rho_GB(i,j,k,1)*&
-               (V_DGB(2,i,j,k,1)*V_DGB(3,i,j,k,1) - U_GDB(2,i,j,k,1)*&
-               U_GDB(3,i,j,k,1))
+          PlotVar_VC(5*nPType+6*iSort+4,:,:,:) = M_P(iSort)*vInv*(State_VGBI(8,i,j,k,1,iSort)&
+               - State_VGBI(1,i,j,k,1,iSort)*&
+               State_VGBI(2,i,j,k,1,iSort)*State_VGBI(3,i,j,k,1,iSort))
+          PlotVar_VC(5*nPType+6*iSort+5,:,:,:) = M_P(iSort)*vInv*(State_VGBI(9,i,j,k,1,iSort)&
+               - State_VGBI(1,i,j,k,1,iSort)*&
+               State_VGBI(2,i,j,k,1,iSort)*State_VGBI(4,i,j,k,1,iSort))
+          PlotVar_VC(5*nPType+6*iSort+6,:,:,:) = M_P(iSort)*vInv*(State_VGBI(10,i,j,k,1,iSort)&
+               - State_VGBI(1,i,j,k,1,iSort)*&
+               State_VGBI(3,i,j,k,1,iSort)*State_VGBI(4,i,j,k,1,iSort))
        end do; end do; end do
 
        !Save scalar pressure
        do k=1,nZ; do j=1,nY; do i=1,nX
-          State_VCB(4*nPType+iSort+6,i,j,k,1) = sum(&
-               State_VCB(5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k,1))/3.0
+          PlotVar_VC(4*nPType+iSort+6,i,j,k) = sum(&
+               PlotVar_VC(5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k))/3.0
        end do; end do; end do
     end if
 
@@ -237,16 +228,16 @@ contains
     !--------------------
     do k=1,nZ; do j=1,nY; do i=1,nX
        ! Cell-centered averaged E field
-       State_VCB(1,i,j,k,iBlock) = &
+       PlotVar_VC(1,i,j,k) = &
             0.5*(E_GDB(i,j,k,1,iBlock)+E_GDB(i-1,j,k,1,iBlock))
-       State_VCB(2,i,j,k,iBlock) = &
+       PlotVar_VC(2,i,j,k) = &
             0.5*(E_GDB(i,j,k,2,iBlock)+E_GDB(i,j-1,k,2,iBlock))
-       State_VCB(3,i,j,k,iBlock) = &
+       PlotVar_VC(3,i,j,k) = &
             0.5*(E_GDB(i,j,k,3,iBlock)+E_GDB(i,j,k-1,3,iBlock))
        ! Cell-centered averaged B field
-       State_VCB(4,i,j,k,iBlock) = 0.25*sum(B_GDB(i,j-1:j,k-1:k,1,iBlock))
-       State_VCB(5,i,j,k,iBlock) = 0.25*sum(B_GDB(i-1:i,j,k-1:k,2,iBlock))
-       State_VCB(6,i,j,k,iBlock) = 0.25*sum(B_GDB(i-1:i,j-1:j,k,3,iBlock))
+       PlotVar_VC(4,i,j,k) = 0.25*sum(B_GDB(i,j-1:j,k-1:k,1,iBlock))
+       PlotVar_VC(5,i,j,k) = 0.25*sum(B_GDB(i-1:i,j,k-1:k,2,iBlock))
+       PlotVar_VC(6,i,j,k) = 0.25*sum(B_GDB(i-1:i,j-1:j,k,3,iBlock))
     end do; end do; end do
   end subroutine average_fields
 

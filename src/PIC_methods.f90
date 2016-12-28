@@ -4,15 +4,32 @@
 ! This file contains the top level methods for ALTOR
 !==========================
 subroutine PIC_setup
-  use PIC_ModMain,      ONLY: IsPeriodicField_D, IsInitialized
+  use PIC_ModProc,      ONLY: iComm
+  use PIC_ModMain,      ONLY: UseSharedField, UseUniform, UseFoil, &
+       UseThermalization
   use PIC_ModLogFile,   ONLY: open_logfile, nLogFile
-  use PC_BATL_geometry, ONLY: init_geometry
+  use PIC_ModOutput,    ONLY: PIC_save_files
+  use PIC_ModThermal,   ONLY: thermalize
+  use PC_BATL_mpi,      ONLY: BATL_iProc=>iProc, BATL_nProc=>nProc
+  use PIC_ModParticles, ONLY: uniform, foil
 
   implicit none
   character(len=*), parameter :: NameSub='PIC_setup'
   !------------------------------------------------
+  if(UseSharedField)then
+     BATL_nProc = 1
+     BATL_iProc = 0
+  else
+     call init_mpi(iComm)
+  end if
+  if(UseUniform)call uniform
+  if(UseFoil)call foil
+  if(UseThermalization)call thermalize
+  !Save the initial outputs
+  call timing_start('output')
   if(nLogFile >=1) call open_logfile
-  IsInitialized = .true.
+  call PIC_save_files('INITIAL')
+  call timing_stop('output')
 end subroutine PIC_setup
 !==========================
 subroutine PIC_init_session(iSession)
@@ -20,23 +37,25 @@ subroutine PIC_init_session(iSession)
   integer, intent(in) :: iSession
   character(len=*), parameter :: NameSub='PIC_init_session'
   !--------------------------------------------------------------------------
-  if(.not.IsInitialized)call PIC_setup
+  if(.not.IsInitialized)then
+     call PIC_setup
+     IsInitialized = .false.
+  end if
 end subroutine PIC_init_session
 !==============================
 subroutine PIC_advance(tMax)
-  use PIC_ModField,     ONLY: update_magnetic, Rho_GB, Counter_GDB,V_DGB
+  use PIC_ModField,     ONLY: update_magnetic, Counter_GDB, State_VGBI
   use PIC_ModParticles, ONLY: Energy_P, nPType, pass_energy
   use PIC_ModParticles, ONLY: advance_particles
   use PIC_ModField,     ONLY: update_e, field_bc, E_GDB, iGCN 
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt, IsPeriodicField_D
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
-  use PIC_ModOutput,    ONLY: nStepOutMin,nStepOut, write_moments
-  use PIC_ModMpi,       ONLY: pass_current
+  use PIC_ModOutput,    ONLY: nStepOutMin, nStepOut, write_moments
+  use PIC_ModMpi,       ONLY: pass_current, pass_density
   use PC_BATL_pass_face_field, ONLY: message_pass_field
   implicit none
   real,intent(in) :: tMax
   integer :: iSort, iBlock
-  logical :: DoComputeMoments
   character(len=*), parameter :: NameSub='PIC_advance'
   !--------------------------------------------------------------------
   if(tSimulation > tMax)return
@@ -66,19 +85,20 @@ subroutine PIC_advance(tMax)
   call timing_start('adv_particles')
 
   do iSort=1, nPType
+     State_VGBI(:,:,:,:,:,iSort) = 0.0
      if(nStepOut>=1.and.nStepOutMin<=iStep.and.mod(iStep+1,nStepOut)==0)then
-        Rho_GB = 0.0; V_DGB = 0.0
         !Calculate cell-centered number density and velocity while
         !advancing the particles
-        DoComputeMoments = .TRUE.
-        call advance_particles(iSort,DoComputeMoments)
+        call advance_particles(iSort,DoComputeMoments=.TRUE.)
         !Save the moments
+        call timing_start('output')
         call write_moments(iSort)
+        call timing_stop('output')
      else
         !Advance the particles without calculating cell-centered
-        !number density and velocity
-        DoComputeMoments = .FALSE.
-        call advance_particles(iSort,DoComputeMoments)
+        !number velocity 
+        call advance_particles(iSort,DoComputeMoments=.FALSE.)
+        call pass_density(0,iSort)
      end if
   end do
 
@@ -142,12 +162,22 @@ end subroutine PIC_advance
 
 subroutine PIC_finalize
   use PIC_ModLogFile, ONLY: nLogFile, close_logfile
+  use PIC_ModProc, ONLY: iProc
+  use PIC_ModOutput, ONLY: PIC_save_files
   implicit none
   character(len=*), parameter :: NameSub='PIC_finalize'
   !--------------------
   if(nLogFile >=1)call close_logfile
-end subroutine PIC_finalize
+  call timing_start('save_final')
+  call PIC_save_files('FINAL') 
+  call timing_stop('save_final')
 
+  if(iProc==0)then
+     write(*,*)
+     write(*,'(a)')'    Finished Saving Output Files'
+     write(*,'(a)')'    ----------------------------'
+  end if
+end subroutine PIC_finalize
 !=====================================================================
 
 subroutine PC_user_specify_region(iArea, iBlock, nValue, NameLocation, &
@@ -167,4 +197,3 @@ subroutine PC_user_specify_region(iArea, iBlock, nValue, NameLocation, &
   !-------------------------------------------------------------------
 end subroutine PC_user_specify_region
 
-!=====================================================================

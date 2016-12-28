@@ -1,5 +1,5 @@
 module PIC_ModFormFactor
-  use PIC_ModSize, ONLY: nDim
+  use PIC_ModSize, ONLY: nDim, MaxDim
   implicit none
 
   integer, parameter :: lOrderFF =  2 
@@ -8,13 +8,13 @@ module PIC_ModFormFactor
 
   !Structures
   !Discsrete particle coordinates
-  integer,dimension(nDim) :: Node_D, NodeNew_D
+  integer,dimension(MaxDim) :: Node_D = 1, NodeNew_D = 1
  
   !Particle form-factors
-  real,dimension(1:lOrderFF+1,nDim)   :: HighFF_ID, HighFFNew_ID
+  real,dimension(1:lOrderFF+1,MaxDim)   :: HighFF_ID = 1.0, HighFFNew_ID = 1.0
                
 
-  real,dimension(0:lOrderFF+1,nDim)   :: LowFF_ID
+  real,dimension(0:lOrderFF+1,MaxDim)   :: LowFF_ID = 1.0
 contains
   subroutine get_form_factors(X_D, NodeOut_D, HighFFOut_ID)
     use ModNumConst,ONLY: cHalf
@@ -24,8 +24,8 @@ contains
 
     !Output parameters
     !The cell-center index    
-    integer,dimension(nDim),intent(out)::NodeOut_D
-    real,dimension(lOrderFF+1,nDim)::HighFFOut_ID
+    integer,dimension(MaxDim),intent(out)::NodeOut_D
+    real,dimension(lOrderFF+1,MaxDim)::HighFFOut_ID
     !Normally both Node_D and HighFF_ID are members of this module
     real,dimension(nDim)::d_D
     integer::iDim
@@ -33,11 +33,11 @@ contains
     integer,dimension(nDim) :: NodeAux_D, iShift_D
     real                    :: Aux_I(lOrderFF+1)
     !--------------------
-    NodeOut_D = floor(X_D)
+    NodeOut_D(1:nDim) = floor(X_D)
 
-    d_D = X_D - real(NodeOut_D)
+    d_D = X_D - real(NodeOut_D(1:nDim))
 
-    NodeOut_D = NodeOut_D + 1
+    NodeOut_D(1:nDim) = NodeOut_D(1:nDim) + 1
 
     !Asterisk means non-zero FF value
     !Node-2!Node-1!Node  !Node+1!           
@@ -57,7 +57,7 @@ contains
     NodeAux_D = floor(X_D + cHalf)
     d_D = X_D + cHalf - real(NodeAux_D)
 
-    iShift_D = NodeAux_D - NodeOut_D
+    iShift_D = NodeAux_D - NodeOut_D(1:nDim)
     !If iShift=0:
     !Asterisk means non-zero FF value
     !Node-2!Node-1!Node  !Node+1!           

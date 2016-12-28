@@ -45,7 +45,7 @@ module PIC_ModMain
   real    :: tMax = -1.0, CpuTimeMax = -1.0
   integer :: nIter = -1
   logical :: UseStopFile = .true.
-  logical :: IsLastRead=.false.
+  logical :: IsLastRead=.false., IsFirstSession = .true.
   !\
   ! Progress variables
   !/

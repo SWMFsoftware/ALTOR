@@ -2,22 +2,18 @@
 !  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 program PIC
-  use PIC_ModProc
-  use PIC_ModParticles
+  use ModKind
+  use PIC_ModProc,  ONLY: iProc, nProc, iComm, iError
   use ModUtilities, ONLY: remove_file, touch_file
-  use PIC_ModRandom
-  use PIC_ModMain
+  use PIC_ModMain,  ONLY: nTiming, iStep, tMax, IsLastRead, &
+       tSimulation, IsFirstSession 
   use ModReadParam
-  use ModIoUnit,ONLY:UNITTMP_
   use ModMpi
-  use PIC_ModField,     ONLY:allocate_fields
   use PIC_ModOutput, ONLY: PIC_save_files
   
   implicit none
 
-  integer:: iSession = 1
-  logical:: IsFound
-  
+  integer:: iSession = 1  
   real(Real8_) :: CpuTimeStart
 
   !------------------------------------------------
@@ -41,8 +37,6 @@ program PIC
      call remove_file('PIC.SUCCESS')
      call remove_file('PIC.STOP')
   end if
-
-  call allocate_fields
   
   !\
   ! Read input parameter file. Provide the default restart file for #RESTART
@@ -59,24 +53,20 @@ program PIC
      !/
      call PIC_set_param('READ')
      call PIC_set_param('CHECK')
-
      !\
      ! Time execution (timing parameters were set by MH_set_parameters)
      !/
-     if(iSession==1)then
+     if(IsFirstSession)then
         call timing_start('PIC')
         call timing_start('setup')
      end if
      call PIC_init_session(iSession)
-     if(iSession==1)then
+     if(IsFirstSession)then
         call timing_stop('setup')
         if(nTiming > -3) call timing_report_total
         if(iProc==0) write(*,*)'Resetting timing counters after setup.'
         call timing_reset('#all',3)
      end if
-
-     !Save the initial outputs
-     call PIC_save_files('INITIAL')
 
      TIMELOOP: do
         if(stop_condition_true())exit TIMELOOP
@@ -90,14 +80,16 @@ program PIC
         end if
 
         call show_progress
-        
+        call timing_start('output')
         call PIC_save_files('NORMAL')
+        call timing_stop('output')
      end do TIMELOOP
 
      if(IsLastRead)exit SESSIONLOOP
      if(iProc==0) &
           write(*,*)'----- End of Session   ',iSession,' ------'   
      iSession=iSession+1
+     IsFirstSession = .false.
      if (nTiming > -2) call timing_report
      call timing_reset_all
   end do SESSIONLOOP
@@ -110,15 +102,7 @@ program PIC
 
   if (nTiming > -2) call timing_report
 
-  call timing_start('save_final')
-  call PIC_save_files('FINAL') 
-  call timing_stop('save_final')
-
-  if(iProc==0)then
-     write(*,*)
-     write(*,'(a)')'    Finished Saving Output Files'
-     write(*,'(a)')'    ----------------------------'
-  end if
+ 
 
   call timing_stop('PIC')
 
@@ -136,13 +120,14 @@ program PIC
   call MPI_Finalize(iError)
   
 contains
-   function stop_condition_true() result(UseStopCondition)
-    logical :: UseStopCondition
+  function stop_condition_true() result(IsStopCondition)
+    use PIC_ModMain, ONLY: nIter 
+    logical :: IsStopCondition
     !--------------------------
-    UseStopCondition = .false.
+    IsStopCondition = .false.
 
-    if(nIter >= 0 .and. iStep >= nIter) UseStopCondition = .true.
-    if(tMax > 0.0 .and. tSimulation >= tMax) UseStopCondition = .true.
+    if(nIter >= 0 .and. iStep >= nIter) IsStopCondition = .true.
+    if(tMax > 0.0 .and. tSimulation >= tMax) IsStopCondition = .true.
 
   end function stop_condition_true
   !===============================
@@ -167,10 +152,10 @@ contains
     call MPI_BCAST(IsTimeToStop,1,MPI_LOGICAL,0,iComm,iError)
 
   end function is_time_to_stop
-!===========================================================================
+  !===================================================================
   subroutine show_progress
-    use PIC_ModMain,      ONLY: nProgress1, nProgress2
-    use PIC_ModMain,      ONLY: Dt
+    use PIC_ModMain,      ONLY: nProgress1, nProgress2, UseTiming
+    use PIC_ModParticles, ONLY: Particle_I, nPType
 
     real(Real8_), external :: timing_func_d
     real(Real8_) :: CpuTimePIC,CpuTimeAdvance
@@ -183,13 +168,13 @@ contains
     ! Show speed as cells/second/PE/step
     if( UseTiming .and. iProc==0 &
          .and. nProgress1>0 .and. mod(iStep,nProgress1) == 0 ) then
-       CpuTimePIC = timing_func_d('sum',3,'PIC','PIC')
+       CpuTimePIC = timing_func_d('sum',1,'PIC','PIC')
        CpuTimeAdvance=timing_func_d('sum',1,'advance','PIC')
        iSumNP = 0
        do iSort = 1,nPType
           iSumNP = iSumNP + Particle_I(iSort)%nParticle
        end do
-       write(*,'(a,f9.1,a,f9.1,a,i8,a,1p,e10.4,a)') 'Speed is',&
+       write(*,'(a,f11.1,a,f9.1,a,i8,a,1p,e10.4,a)') 'Speed is',&
             iSumNP &
             /max(1.D-10,CpuTimeAdvance),&
             ' p/s/pe after',&

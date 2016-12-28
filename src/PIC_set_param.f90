@@ -3,19 +3,21 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 subroutine PIC_set_param(TypeAction)
   use ModReadParam
-  use PIC_ModProc,    ONLY: iProc,iComm
+  use PIC_ModSize,    ONLY: nX, nY, nZ, nCell_D
+  use PIC_ModParticles, ONLY: M_P, Q_P, Electron_, Wx_, Wz_,&
+       add_velocity_init, add_velocity_sine, put_particle,  &
+       read_uniform, read_foil, set_particle_param
+  use PIC_ModProc,    ONLY: iProc
   use PIC_ModMain
   use PIC_ModSize,    ONLY: nDim, MaxDim
-  use PIC_ModParticles
   use PC_BATL_particles, ONLY: Particle_I
   use PIC_ModLogFile, ONLY: nLogFile, nToWrite, nToWrite_II
   use PIC_ModOutput, ONLY: nStepOut, nStepOutMin, TypeFile
-  use PIC_ModThermal, ONLY: read_temperature, thermalize 
-  use PIC_ModField,   ONLY: add_e, add_b, iGCN 
+  use PIC_ModThermal, ONLY: read_temperature
+  use PIC_ModField,   ONLY: add_e, add_b, iGCN, allocate_fields
   use PIC_ModLaserBeam, ONLY: read_laser_beam
   use ModConst
   use PC_BATL_lib,ONLY: init_mpi, init_batl, nG
-  use PC_BATL_mpi,ONLY:BATL_iProc=>iProc, BATL_nProc=>nProc
   use PIC_ModBatlInterface
   implicit none
 
@@ -42,31 +44,23 @@ subroutine PIC_set_param(TypeAction)
   iSession = i_session_read()
   if(iGCN/=nG.and.iProc==0)then
      write(*,'(a)')'Reconfigure ALTOR using the command'
-     write(*,'(a,i1)')'./Config.pl -ng=',iGCN
+     write(*,'(a,i1)')'./Config.pl -np ',iGCN
      call CON_stop('Code stopped')
   end if
   select case(TypeAction)
   case('CHECK','Check','check')
      if(iProc==0)write(*,*) NameSub,': CHECK iSession =',iSession
-     !\
-     ! Initialize timing
-     !/
-     if(iProc==0)then
-        call timing_active(UseTiming)
-        if(iSession==1)then
-           call timing_step(0)
-        end if
-        call timing_depth(TimingDepth)
-        call timing_report_style(TimingStyle)
-     end if
      if(IsUninitialized)then
-        IsUninitialized = .false.
-        if(UseSharedField)then
-           BATL_nProc = 1
-           BATL_iProc = 0
-        else
-           call init_mpi(iComm)
+        !\
+        ! Initialize timing
+        !/
+        if(iProc==0)then
+           call timing_active(UseTiming)
+           call timing_step(0)
+           call timing_depth(TimingDepth)
+           call timing_report_style(TimingStyle)
         end if
+        IsUninitialized = .false.
         if(i_line_command("#GRID", iSessionIn = 1) > 0) then
            call init_batl(XyzMin_D, XyzMax_D, MaxBlock, 'cartesian', &
                 TypeFieldBC_S(1:2*nDim-1:2) == 'periodic', nRootRead_D)
@@ -81,9 +75,6 @@ subroutine PIC_set_param(TypeAction)
            end do
            call set_altor_grid
         end if
-        if(UseUniform)call uniform
-        if(UseFoil)call foil
-        if(UseThermalization)call thermalize
      end if
      !\
      ! Initialize parameters
@@ -97,6 +88,7 @@ subroutine PIC_set_param(TypeAction)
         call read_echo_set(.true.)
      end if
      if(iSession ==1)then
+        call allocate_fields
         call set_particle_param
      end if
   case default

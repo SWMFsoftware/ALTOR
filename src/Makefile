@@ -25,9 +25,9 @@ OBJECTS= \
 	PIC_ModMain.o \
 	PIC_ModFormFactor_${FF}.o \
 	PIC_ModLaserBeam.o \
-	PIC_ModField_${nDim}d.o \
+	PIC_ModField_3d.o \
 	PIC_ModParticleInField_${nDim}d.o \
-	PIC_ModPassField_${nDim}d.o \
+	PIC_ModPassField_3d.o \
 	PIC_ModParticles.o \
 	PIC_ModRandom.o \
 	PIC_ModThermal.o \
