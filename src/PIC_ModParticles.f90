@@ -141,12 +141,13 @@ contains
     use PIC_ModRandom
     use PIC_ModMain, ONLY: nPPerCellUniform_P 
     use PC_BATL_tree, ONLY: nRoot_D
+    use PC_BATL_grid, ONLY: find_grid_block
     integer             :: nPPerCell_P(nPType)
     integer :: n_P(nPType)
     integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
-    real    :: Coord_D(nDim)
+    real    :: Coord_D(MaxDim) = 0.0
     logical :: UseQuasiNeutral
-    integer :: iBlockOut=1, iProcOut 
+    integer :: iBlockOut=1, iProcOut=0
     !--------------------------
     do iSort = 1, nPType
        State_VGBI(:,:,:,:,:,iSort) = 0
@@ -178,15 +179,19 @@ contains
              Coord_D(iDim) = (CoordMax_D(iDim)-CoordMin_D(iDim))&
                   * RAND() + CoordMin_D(iDim)
           end do
-          call put_particle(iSort, Coord_D, iBlockOut)
-          call get_form_factors(Coord_D,Node_D,HighFF_ID)
+          call find_grid_block(Coord_D, iProcOut,iBlockOut)
+          !\
+          ! This verion only works for UseSharedBlock
+          !/
+          call put_particle(iSort, Coord_D(1:nDim), iBlockOut)
+          call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
           !hyzhou: I removed add_density. Need to modify this part later
           call add_density(Node_D,HighFF_ID,1,iSort)
           
        end do
        call pass_density(0, iSort)
        if(iProc==0)write(*,*)'Total number of particles of sort ', iSort,&
-            ' equals ',sum(State_VGBI(1,1:nX,1:nY,1:nZ,1,iSort))
+            ' equals ',sum(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
        n_P(iSort) = Particle_I(iSort)%nParticle
     end do
     if(nProc==1)then

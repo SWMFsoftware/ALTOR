@@ -84,16 +84,16 @@ contains
     call read_var('Ey',E_D(2))
     call read_var('Ez',E_D(3))
     do iBlock = 1, MaxBlock
-    do iDim = 1,3
-       do k=1-iGCN,nZ+iGCN
-          do j=1-iGCN,nY+iGCN
-             do i=1-iGCN,nX+iGCN
-                E_GDB(i,j,k,iDim,iBlock) = &
-                     E_GDB(i,j,k,iDim,iBlock) + E_D(iDim)
+       do iDim = 1,3
+          do k=1-iGCN,nZ+iGCN
+             do j=1-iGCN,nY+iGCN
+                do i=1-iGCN,nX+iGCN
+                   E_GDB(i,j,k,iDim,iBlock) = &
+                        E_GDB(i,j,k,iDim,iBlock) + E_D(iDim)
+                end do
              end do
           end do
        end do
-    end do
     end do
   end subroutine add_e
   !===================

@@ -159,7 +159,7 @@ test_altor:
 	${MAKE} test_altor_check
 
 test_altor_compile:
-	./Config.pl -g=16,16,16,1,2,10000000
+	./Config.pl -g=8,8,8,10,2,10000000
 	${MAKE} 
 
 test_altor_rundir: 
