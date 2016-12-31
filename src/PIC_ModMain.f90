@@ -93,10 +93,10 @@ module PIC_ModMain
   integer :: nPPerCellFoil_P(nPType)
   real :: FoilCenter_D(nDim)=0.0
   real :: FoilWidth_D(nDim)=0.0
-  real :: AngleFoil = 0.0
-  
+  real :: AngleFoil = 0.0  
   !\
   ! Thermalization
   !/
   logical :: UseThermalization = .false.
+  real    :: uTh_P(nPType) = 0.0
 end module PIC_ModMain

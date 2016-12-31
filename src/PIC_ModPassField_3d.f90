@@ -88,7 +88,7 @@ contains
     real,dimension(0:nX,1-jDim_:nY,1-kDim_:nZ,MaxDim)::Buff_G
     integer::iBlock
     !-------------------
-    call add_ghost_face_field(iGCN,Counter_GDB)
+    call add_ghost_face_field(iGCN,Current_GDB)
     if(nProc==1)RETURN
     !\
     ! if the blocks are distributed, the current through the internal
@@ -97,13 +97,13 @@ contains
     if(.not.UseSharedField)RETURN
     do iBlock = 1, nBlock
        call MPI_ALLREDUCE(&
-            Counter_GDB(0:nX,1-jDim_:nY,1-kDim_:nZ,:,iBlock),&
+            Current_GDB(0:nX,1-jDim_:nY,1-kDim_:nZ,:,iBlock),&
             Buff_G,&
             (nX+1)*(nY+jDim_)*(nZ+kDim_)*MaxDim,&
             MPI_REAL,&
             MPI_SUM,&
             iComm,iError)
-       Counter_GDB(0:nX,1-jDim_:nY,1-kDim_:nZ,:,iBlock) = Buff_G 
+       Current_GDB(0:nX,1-jDim_:nY,1-kDim_:nZ,:,iBlock) = Buff_G 
     end do
   end subroutine pass_current
   !--------------------------------------------------------------!

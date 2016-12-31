@@ -176,12 +176,12 @@ contains
        iD_D = min(NodeNew_D - Node_D,0)
        iU_D = max(NodeNew_D - Node_D,0)
 
-       Counter_GDB(&
+       Current_GDB(&
             Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
             Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
             Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),&
             1:3,iBlock) = &
-            Counter_GDB( Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
+            Current_GDB( Node_D(1)+iDownFF+iD_D(1):Node_D(1)+iUpFF+iU_D(1),&
             Node_D(2)+iDownFF+iD_D(2):Node_D(2)+iUpFF+iU_D(2),&
             Node_D(3)+iDownFF+iD_D(3):Node_D(3)+iUpFF+iU_D(3),&
             1:3,iBlock) + & 
@@ -217,9 +217,9 @@ contains
              !\
              !  x_ currents
              !/
-             Counter_GDB(n_D(1):lOrderFF+n1_D(1),&
+             Current_GDB(n_D(1):lOrderFF+n1_D(1),&
                   j+n1_D(2),k+n1_D(3),x_,iBlock) = &
-                  Counter_GDB(n_D(1):lOrderFF+n1_D(1),&
+                  Current_GDB(n_D(1):lOrderFF+n1_D(1),&
                   j+n1_D(2),k+n1_D(3),x_,iBlock) +&
                   FI(:,x_)*(&
                   DeltaFPlus (j,y_)*DeltaFPlus (k,z_)+&
@@ -229,9 +229,9 @@ contains
              !\
              !  y_ currents
              !/
-             Counter_GDB(n_D(1):lOrderFF+n_D(1),&
+             Current_GDB(n_D(1):lOrderFF+n_D(1),&
                   j+n1_D(2),k+n1_D(3),y_,iBlock) = &
-                  Counter_GDB(n_D(1):lOrderFF+n_D(1),&
+                  Current_GDB(n_D(1):lOrderFF+n_D(1),&
                   j+n1_D(2),k+n1_D(3),y_,iBlock) + &
                   FI(j,y_)*(&
                   DeltaFPlus (:,x_)*DeltaFPlus (k,z_)+&
@@ -243,9 +243,9 @@ contains
              !\
              !  z_ currents
              !/
-             Counter_GDB(n_D(1):lOrderFF+n_D(1),&
+             Current_GDB(n_D(1):lOrderFF+n_D(1),&
                   j+n1_D(2),k+n1_D(3),z_,iBlock) = &
-                  Counter_GDB(n_D(1):lOrderFF+n_D(1),&
+                  Current_GDB(n_D(1):lOrderFF+n_D(1),&
                   j+n1_D(2),k+n1_D(3),z_,iBlock) + &
                   FI(k,z_)*(&
                   DeltaFPlus (:,x_)*DeltaFPlus (j,y_)+&
