@@ -6,14 +6,14 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModSize,    ONLY: nX, nY, nZ, nCell_D
   use PIC_ModParticles, ONLY: M_P, Q_P, Electron_, Wx_, Wz_,&
        add_velocity_init, add_velocity_sine, put_particle,  &
-       read_uniform, read_foil, set_particle_param
+       read_uniform, read_foil, set_particle_param, &
+       read_temperature
   use PIC_ModProc,    ONLY: iProc
   use PIC_ModMain
   use PIC_ModSize,    ONLY: nDim, MaxDim
   use PC_BATL_particles, ONLY: Particle_I
   use PIC_ModLogFile, ONLY: nLogFile, nToWrite, nToWrite_II
   use PIC_ModOutput, ONLY: nStepOut, nStepOutMin, TypeFile
-  use PIC_ModThermal, ONLY: read_temperature
   use PIC_ModField,   ONLY: add_e, add_b, iGCN, allocate_fields
   use PIC_ModLaserBeam, ONLY: read_laser_beam
   use ModConst

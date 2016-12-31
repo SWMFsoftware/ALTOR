@@ -5,11 +5,9 @@
 !==========================
 subroutine PIC_setup
   use PIC_ModProc,      ONLY: iComm
-  use PIC_ModMain,      ONLY: UseSharedField, UseUniform, UseFoil, &
-       UseThermalization
+  use PIC_ModMain,      ONLY: UseSharedField, UseUniform, UseFoil
   use PIC_ModLogFile,   ONLY: open_logfile, nLogFile
   use PIC_ModOutput,    ONLY: PIC_save_files
-  use PIC_ModThermal,   ONLY: thermalize
   use PC_BATL_mpi,      ONLY: BATL_iProc=>iProc, BATL_nProc=>nProc
   use PIC_ModParticles, ONLY: uniform, foil
 
@@ -23,8 +21,8 @@ subroutine PIC_setup
      call init_mpi(iComm)
   end if
   if(UseUniform)call uniform
-  if(UseFoil)call foil
-  if(UseThermalization)call thermalize
+  if(UseFoil   )call foil
+
   !Save the initial outputs
   call timing_start('output')
   if(nLogFile >=1) call open_logfile
@@ -36,7 +34,7 @@ subroutine PIC_init_session(iSession)
   use PIC_ModMain, ONLY:IsInitialized
   integer, intent(in) :: iSession
   character(len=*), parameter :: NameSub='PIC_init_session'
-  !--------------------------------------------------------------------------
+  !-------------------------------------------------------------------
   if(.not.IsInitialized)then
      call PIC_setup
      IsInitialized = .false.
@@ -44,7 +42,7 @@ subroutine PIC_init_session(iSession)
 end subroutine PIC_init_session
 !==============================
 subroutine PIC_advance(tMax)
-  use PIC_ModField,     ONLY: update_magnetic, Counter_GDB, State_VGBI
+  use PIC_ModField,     ONLY: update_magnetic, Current_GDB, State_VGBI
   use PIC_ModParticles, ONLY: Energy_P, nPType, pass_energy
   use PIC_ModParticles, ONLY: advance_particles
   use PIC_ModField,     ONLY: update_e, field_bc, E_GDB, iGCN 
@@ -72,15 +70,13 @@ subroutine PIC_advance(tMax)
   call timing_start('adv_b')
   call update_magnetic
   call timing_stop('adv_b')
-
   !\
   ! Electromagnetic fields and the particle coordinates are at the
   !beginning of the time step, the particle velocities are half 
   !time step behind.
   !/
   !2. Prepare to move particles
-  Counter_GDB = 0.0; Energy_P = 0.0
-
+  Current_GDB = 0.0; Energy_P = 0.0
   !3. Move particles
   call timing_start('adv_particles')
 
@@ -103,11 +99,10 @@ subroutine PIC_advance(tMax)
   end do
 
   call pass_energy
-
   !\
-  ! Electromagnetic fields and the particle energies are at the beginning of 
-  ! the time step. Density and the particle coordinates are at the end of the 
-  ! timestep.
+  ! Electromagnetic fields and the particle energies are at  
+  ! the beginning of the time step. Density and the particle 
+  ! coordinates are at the end of the timestep.
   ! The particle velocities are in the middle of the timestep.
   !/
   call timing_stop('adv_particles')
@@ -118,7 +113,6 @@ subroutine PIC_advance(tMax)
      if(iStep/=0.and.mod(iStep,nLogFile)==0)&
           call write_logfile
   end if
-
   !\
   !4. Update Magnetic field through a half timestep
   !/
@@ -126,10 +120,10 @@ subroutine PIC_advance(tMax)
   call update_magnetic
   call timing_stop('adv_b')
   !\
-  ! Electric fields are at the beginning of 
-  ! the time step. The particle coordinates are at the end of the timestep.
-  ! The particle velocities and magnetic fields are in the middle of the
-  ! timestep.
+  ! Electric fields are at the end of the time step.
+  ! The particle coordinates are at the end of the timestep.
+  ! The particle velocities and magnetic fields are in  
+  ! the middle of the timestep.
   !/
   !5. Collect currents
   call pass_current
@@ -147,19 +141,17 @@ subroutine PIC_advance(tMax)
   call timing_stop('adv_e')
 
   !\
-  ! Electric fields are at the end of 
-  ! the time step. The particle coordinates are at the end of the timestep.
-  ! The particle velocities and magnetic fields are in the middle of the 
-  ! timestep.
+  ! Electric fields are at the end of the time step.
+  ! The particle coordinates are at the end of the timestep.
+  ! The particle velocities and magnetic fields are in  
+  ! the middle of the timestep.
   !/
   call message_pass_field(iGCN, E_GDB)
 
   call timing_stop('advance')
 
 end subroutine PIC_advance
-
 !==============================
-
 subroutine PIC_finalize
   use PIC_ModLogFile, ONLY: nLogFile, close_logfile
   use PIC_ModProc, ONLY: iProc
@@ -179,9 +171,8 @@ subroutine PIC_finalize
   end if
 end subroutine PIC_finalize
 !=====================================================================
-
-subroutine PC_user_specify_region(iArea, iBlock, nValue, NameLocation, &
-     IsInside, IsInside_I, Value_I)
+subroutine PC_user_specify_region(iArea, iBlock, nValue, &
+     NameLocation, IsInside, IsInside_I, Value_I)
   implicit none
 
   integer,   intent(in):: iArea        ! area index in BATL_region
