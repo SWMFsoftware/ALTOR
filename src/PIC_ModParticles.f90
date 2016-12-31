@@ -5,17 +5,15 @@ module PIC_ModParticles
   use PIC_ModSize,ONLY: nPType, nElectronMax, x_, y_, z_
   use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D, nDim, MaxDim
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, DxInv_D, CellVolume, &
-       SpeedOfLight_D, vInv
+       SpeedOfLight_D, vInv, uTh_P, UseThermalization
   use PIC_ModParticleInField,ONLY: &
        State_VGBI,add_current, add_moments, add_density
   use PIC_ModParticleInField,ONLY: &
        b_interpolated_d,e_interpolated_d
-  use PIC_ModParticleInField,ONLY: &
-       min_val_rho, max_val_rho, rho_avr
   use PIC_ModFormFactor,ONLY: HighFF_ID, HighFFNew_ID,&
        Node_D, NodeNew_D, get_form_factors
   use PIC_ModProc,      ONLY:iProc,iError
-  use ModNumConst,      ONLY: cHalf
+  use ModNumConst,      ONLY: cHalf, cTwoPi
   use PC_BATL_particles
   use PC_BATL_lib, ONLY: CoordMin_DB, CoordMin_D, CoordMax_D
   implicit none
@@ -35,6 +33,7 @@ module PIC_ModParticles
 
   !Only at the root PE:
   integer,dimension(nPType) :: nTotal_P = 0
+
 
   !Methods
   !public::set_pointer_to_particles !Set pointer to the coordinate array of 
@@ -179,10 +178,10 @@ contains
              Coord_D(iDim) = (CoordMax_D(iDim)-CoordMin_D(iDim))&
                   * RAND() + CoordMin_D(iDim)
           end do
-          call find_grid_block(Coord_D, iProcOut, iBlockOut)
           !\
           ! This verion only works for UseSharedBlock
           !/
+          call find_grid_block(Coord_D, iProcOut, iBlockOut)
           call put_particle(iSort, Coord_D(1:nDim), iBlockOut)
           call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
           call add_density(Node_D,HighFF_ID,1,iSort)
@@ -206,6 +205,7 @@ contains
           write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
        end do
     end if
+    if(UseThermalization)call thermalize
   end subroutine uniform
   !============================================================
   !Test: trying to distribute particles by cell; may be unnecessary!
@@ -388,7 +388,61 @@ contains
     !   write(*,*)'Particle density min:',min_val_rho()
     !   write(*,*)'Particle density average:',rho_avr()
     end if
+    if(UseThermalization)call thermalize
   end subroutine foil
+  !Generate Gaussian distribution using Box-Muller method
+  subroutine thermalize_particle(iSort,W_D)
+    use PIC_ModRandom
+    integer, intent(in ) :: iSort
+    real   , intent(out) :: W_D(MaxDim)
+    real                 :: Energy, MomentumAvr
+    integer              :: iW
+    !-----------------------------------
+    do iW = x_, z_
+       Energy      = -uTh_P(iSort)**2 *LOG(RAND())
+       MomentumAvr = sqrt(2.0*Energy)
+       W_D(iW)     = MomentumAvr*COS(cTwoPi*RAND())
+    end do
+  end subroutine thermalize_particle
+  !==================================
+  subroutine thermalize
+    use PIC_ModProc,     ONLY: iProc
+    integer :: iSort, iP
+    real    :: W_D(MaxDim) = 0.0
+    !------------------
+    do iSort = 1, nPType
+       if(uTh_P(iSort)<=0.0)CYCLE
+       call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort)
+       do iP = 1, Particle_I(iSort)%nParticle
+          call thermalize_particle(iSort, W_D)
+          Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
+               Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
+       end do
+    end do
+    call get_energy
+    if(iProc==0)then
+       do iSort = 1, nPType
+          write(*,*)'For particle of sort ',iSort,&
+               ' averaged energy per elementary chanrge is ',&
+          Energy_P(iSort)/(nTotal_P(iSort)*abs(Q_P(iSort))),' * m c2(=0.51 MeV)'
+          write(*,*)'           should be ', &
+               1.50 * M_P(iSort) * uTh_P(iSort)**2 *&
+               (1.0 -1.250*uTh_P(iSort)**2/c2)/abs(Q_P(iSort)),' * m c2 (=0.51MeV)'
+       end do
+    end if
+  end subroutine thermalize
+  !===========Reading command #THERMALIZE============
+  subroutine read_temperature
+    use ModReadParam,    ONLY: read_var
+    integer:: iSort
+    character(len=8) :: NameVar
+    !--------------
+    do iSort = 1,nPType
+       write(NameVar,'(a6,i1,a1)') 'uTh_P(',iSort,')'
+       !uTh_P is the thermal velocity in normalized units.
+       call read_var(NameVar,uTh_P(iSort))
+    end do
+  end subroutine read_temperature
   !=======================
   subroutine get_energy
     use ModMpi
