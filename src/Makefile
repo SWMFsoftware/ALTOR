@@ -30,7 +30,6 @@ OBJECTS= \
 	PIC_ModPassField_3d.o \
 	PIC_ModParticles.o \
 	PIC_ModRandom.o \
-	PIC_ModThermal.o \
 	PIC_ModLogFile.o \
         PIC_ModOutput.o \
 	PIC_set_param.o \
