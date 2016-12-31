@@ -31,25 +31,15 @@ module PIC_ModField
   !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
   !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
   !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-  !real,dimension(&
-  !     1-iGCN:nX+iGCN,&
-  !     1-iGCN:nY+iGCN,&
-  !     1-iGCN:nZ+iGCN,3,MaxBlock)::&
-  !     E_GDB        = 0.0,& !This is the electric field
-  !     B_GDB = 0.0,& !vector-potential if used, magnetic field otherwise
-  !     Counter_GDB  = 0.0   !Counter for electric current
-  !     V_DGB        = 0.0   !Cell-centered velocity
   real,allocatable:: E_GDB(:,:,:,:,:)
   real,allocatable:: B_GDB(:,:,:,:,:)
-  real,allocatable:: Counter_GDB(:,:,:,:,:)
+  real,allocatable:: Current_GDB(:,:,:,:,:)
 
   real,allocatable:: State_VGBI(:,:,:,:,:,:) 
   real :: B0_D(3) = 0.0
 
   real,allocatable:: A_GDB(:,:,:,:,:)
   !Methods
-
-  public::get_b_from_a   !Transforms the vector potential to magn. field
   public::update_magnetic!Updates the magnetic field, or vector potential
   public::update_e       !Updates the electric field     
 contains
@@ -62,9 +52,9 @@ contains
     allocate(B_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
          1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock))
     B_GDB = 0.0 
-    allocate(Counter_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
+    allocate(Current_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
          1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock)) 
-    Counter_GDB = 0.0 
+    Current_GDB = 0.0 
     allocate(State_VGBI(10,1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
          1-iGCN*kDim_:nZ+iGCN*kDim_, MaxBlock,nPType)) 
     State_VGBI = 0.0
@@ -118,6 +108,7 @@ contains
     end do
   end subroutine add_b
   !===================
+  !Transforms the vector potential to magn. field
   subroutine get_b_from_a(iBlock)
     integer, intent(in)::iBlock
     integer::i,j,k
@@ -192,13 +183,11 @@ contains
     end do
   end subroutine get_b_from_a
   !==========================
-
   subroutine update_magnetic
     integer::i,j,k,iBlock
     real,dimension(MaxDim):: SpeedOfLightHalf_D
     !--------------------------
     if(UseVectorPotential)then
-
        !Advance vector potential throught a half timestep
        !Array index is the coordinate of the gridpoint with +1/2 being
        !approximated as 1
@@ -298,12 +287,12 @@ contains
     do iBlock = 1, nBlock
        !Add current
        E_GDB(0:nX,1:nY,1:nZ,x_,iBlock) = E_GDB(0:nX,1:nY,1:nZ,x_,iBlock) - &
-            Counter_GDB(0:nX,1:nY,1:nZ,x_,iBlock)
+            Current_GDB(0:nX,1:nY,1:nZ,x_,iBlock)
        E_GDB(1:nX,1-jDim_:nY,1:nZ,y_,iBlock) = &
             E_GDB(1:nX,1-jDim_:nY,1:nZ,y_,iBlock) - &
-            Counter_GDB(1:nX,0:nY,1:nZ,y_,iBlock)
+            Current_GDB(1:nX,0:nY,1:nZ,y_,iBlock)
        E_GDB(1:nX,1:nY,0:nZ,z_,iBlock) = E_GDB(1:nX,1:nY,0:nZ,z_,iBlock) - &
-            Counter_GDB(1:nX,1:nY,0:nZ,z_,iBlock)
+            Current_GDB(1:nX,1:nY,0:nZ,z_,iBlock)
        do k=1,nZ
           do j=1,nY
              do i=0,nX
@@ -417,103 +406,6 @@ contains
           end do
        end do
     end if
-
-    if(.not.IsPeriodicField_D(y_))then
-       !\
-       ! Face Y<0
-       !/ 
-       j=1-iGCN
-       do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
-          do i=0-i1_D(x_),nX+i1_D(x_)
-             E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(y_)) +&
-                  SpeedOfLight_D(y_)*E_GDB(i,j+1,k,x_,1)
-          end do
-       end do
-
-       do k=0-i1_D(z_),nZ+i1_D(z_)
-          do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
-             E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(y_)) +&
-                  SpeedOfLight_D(y_)*E_GDB(i,j+1,k,z_,1)
-          end do
-       end do
-       !\
-       ! Face Y>nY.dy
-       !/    
-       j=nY+iGCN
-       do k=1-iGCN*i0_D(z_),nZ+iGCN*i0_D(z_)
-          do i=0-i1_D(x_),nX+i1_D(x_)
-             E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(y_)) +&
-                  SpeedOfLight_D(y_)*E_GDB(i,j-1,k,x_,1)
-          end do
-       end do
-
-       do k=0-i1_D(z_),nZ+i1_D(z_)
-          do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
-             E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(y_)) +&
-                  SpeedOfLight_D(y_)*E_GDB(i,j-1,k,z_,1)
-          end do
-       end do
-
-    end if
-    if(IsPeriodicField_D(z_)) RETURN
-    !\
-    ! Face Z<0
-    !/
-    k=1-iGCN
-    do j=1-iGCN*i0_D(y_),nY+iGCN*i0_D(y_)
-       do i=0-i1_D(x_),nX+i1_D(x_)
-          E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(z_)) + &
-               SpeedOfLight_D(z_)*E_GDB(i,j,k+1,x_,1)
-          if(TypeFieldBC_S(5)=='laserbeam')&
-               call laser_beam(iDir=x_,    &
-               x= i      *Dx_D(x_),&
-               y=(j-0.50)*Dx_D(y_),&
-               z=(k-0.50)*Dx_D(z_),&
-               EField=E_GDB(i,j,k,x_,1) )
-       end do
-    end do
-    do j=0-i1_D(y_),nY+i1_D(y_)
-       do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
-          E_GDB(i,j,k,y_,1) = E_GDB(i,j,k,y_,1)*(1 - SpeedOfLight_D(z_)) + &
-               SpeedOfLight_D(z_)*E_GDB(i,j,k+1,y_,1)
-          if(TypeFieldBC_S(5)=='laserbeam')&
-               call laser_beam(iDir=y_,    &
-               x=(i-0.50)*Dx_D(x_),&
-               y=j       *Dx_D(y_),&
-               z=(k-0.50)*Dx_D(z_),&
-               EField=E_GDB(i,j,k,y_,1) )
-       end do
-    end do
-
-    !\
-    ! Face Z>nZ.dz
-    !/
-    k=nZ+iGCN
-
-    do j=1-iGCN*i0_D(y_),nY+iGCN*i0_D(y_)
-       do i=0-i1_D(x_),nX+i1_D(x_)
-          E_GDB(i,j,k,x_,1) = E_GDB(i,j,k,x_,1)*(1 - SpeedOfLight_D(z_)) + &
-               SpeedOfLight_D(z_)*E_GDB(i,j,k-1,x_,1)
-          if(TypeFieldBC_S(6)=='laserbeam')&
-               call laser_beam(iDir=x_,    &
-               x= i      *Dx_D(x_),&
-               y=(j-0.50)*Dx_D(y_),&
-               z=(k-0.50)*Dx_D(z_),&
-               EField=E_GDB(i,j,k,x_,1) )
-       end do
-    end do
-    do j=0-i1_D(y_),nY+i1_D(y_)
-       do i=1-iGCN*i0_D(x_),nX+iGCN*i0_D(x_)
-          E_GDB(i,j,k,y_,1) = E_GDB(i,j,k,y_,1)*(1 - SpeedOfLight_D(z_)) + &
-               SpeedOfLight_D(z_)*E_GDB(i,j,k-1,y_,1)
-          if(TypeFieldBC_S(6)=='laserbeam')&
-               call laser_beam(iDir=y_,    &
-               x=(i-0.50)*Dx_D(x_),&
-               y=j       *Dx_D(y_),&
-               z=(k-0.50)*Dx_D(z_),&
-               EField=E_GDB(i,j,k,y_,1) )
-       end do
-    end do
   end subroutine field_bc
   !---------------------------------------------------------------------!
   subroutine get_max_intensity(EnergyMax,Coord_D)
