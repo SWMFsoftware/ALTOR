@@ -177,7 +177,7 @@ contains
        !------------------------------------------------------------------
 
        !Periodic velocity BC. Need to be merged into other function later.
-       call pass_moments(0,iSort)
+       call pass_moments(iSort)
 
        if(iProc/=0)RETURN !Version with UseSharedBlock=.true.
        do iBlock = 1, nBlock

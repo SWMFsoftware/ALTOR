@@ -112,7 +112,7 @@ contains
     iRecv_IP = 0
     call MPI_ALLGATHER(iSend_I, 1, MPI_INTEGER, &
          iRecv_IP, 1, MPI_INTEGER, iComm, iError)
-    if(iProc==0)return
+    if(iProc==0)RETURN
     do iLoop =1,sum(iRecv_IP(1,0:iProc-1))
        Aux = RAND()
     end do
@@ -179,17 +179,16 @@ contains
              Coord_D(iDim) = (CoordMax_D(iDim)-CoordMin_D(iDim))&
                   * RAND() + CoordMin_D(iDim)
           end do
-          call find_grid_block(Coord_D, iProcOut,iBlockOut)
+          call find_grid_block(Coord_D, iProcOut, iBlockOut)
           !\
           ! This verion only works for UseSharedBlock
           !/
           call put_particle(iSort, Coord_D(1:nDim), iBlockOut)
           call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
-          !hyzhou: I removed add_density. Need to modify this part later
           call add_density(Node_D,HighFF_ID,1,iSort)
           
        end do
-       call pass_density(0, iSort)
+       call pass_density(iSort)
        if(iProc==0)write(*,*)'Total number of particles of sort ', iSort,&
             ' equals ',sum(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
        n_P(iSort) = Particle_I(iSort)%nParticle
@@ -379,7 +378,7 @@ contains
        call MPI_reduce(n_P, nTotal_P, nPType, MPI_INTEGER,&
             MPI_SUM, 0, iComm, iError)
     end if
-    !call pass_density(0)
+    !call pass_density(iSort)
     if(iProc==0)then
        write(*,*)'Particles are distributed'
        do iSort = 1, nPType
@@ -536,30 +535,21 @@ contains
        
        !Now W_D is the initial momentum, W2=W_D^2
        !Now Gamma is the initial Gamma-factor multiplied by c
-       
-  
 
-       !call timing_start('formfactor')
        call get_form_factors(X_D,Node_D,HighFF_ID)
-       !call timing_stop('formfactor')
        
        !Electric field force
-       !call timing_start('electric')
        EForce_D = QDtPerM * e_interpolated_d(iBlock)
-       !call timing_stop('electric')
 
        !Add kinetic energy
        Energy_P(iSort) = Energy_P(iSort) + &
             M_P(iSort)*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
        !Acceleration from the electric field, for the
        !first half of the time step:
-
        W_D = W_D + EForce_D
 
        !Get magnetic force
-       !call timing_start('magnetic')
-       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d(iBlock)
-       !call timing_stop('magnetic')       
+       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d(iBlock)       
 
        !Add a half of the magnetic rotation:
 
@@ -586,23 +576,18 @@ contains
        X_D = X_D + SpeedOfLight_D*W_D(1:nDim)
 
        !New form factor
-       !call timing_start('formfactor')
        call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
-       !call timing_stop('formfactor')
+       
        
        !Contribute to number density and velocity
-       !call timing_start('moments')
        if(DoComputeMoments)then 
           call add_moments(W_D*c,NodeNew_D,HighFFNew_ID,iBlock,iSort)
        else
           call add_density(NodeNew_D,HighFFNew_ID,iBlock,iSort)
        end if
-       !call timing_stop('moments')
    
        !Contribute to the current
-       !call timing_start('current')
        call add_current(QPerVDx_D,W_D,iBlock)
-       !call timing_stop('current')
        
        Coord_VI(1:nDim,iParticle)= &
             X_D*Dx_D + CoordMin_DB(1:nDim,iBlock)

@@ -98,7 +98,7 @@ subroutine PIC_advance(tMax)
         !Advance the particles without calculating cell-centered
         !number velocity 
         call advance_particles(iSort,DoComputeMoments=.FALSE.)
-        call pass_density(0,iSort)
+        call pass_density(iSort)
      end if
   end do
 
