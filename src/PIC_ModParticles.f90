@@ -8,14 +8,13 @@ module PIC_ModParticles
        SpeedOfLight_D, vInv, uTh_P, UseThermalization
   use PIC_ModParticleInField,ONLY: &
        State_VGBI,add_current, add_moments, add_density
-  use PIC_ModParticleInField,ONLY: &
-       b_interpolated_d,e_interpolated_d
   use PIC_ModFormFactor,ONLY: HighFF_ID, HighFFNew_ID,&
        Node_D, NodeNew_D, get_form_factors
   use PIC_ModProc,      ONLY:iProc,iError
   use ModNumConst,      ONLY: cHalf, cTwoPi
   use PC_BATL_particles
-  use PC_BATL_lib, ONLY: CoordMin_DB, CoordMin_D, CoordMax_D
+  use PC_BATL_lib, ONLY: CoordMin_DB, CoordMax_DB, &
+       CoordMin_D, CoordMax_D
   implicit none
 
   integer,parameter :: W_ = nDim
@@ -32,7 +31,7 @@ module PIC_ModParticles
   real,dimension(nPType)    :: OmegaPDtMax_P
 
   !Only at the root PE:
-  integer,dimension(nPType) :: nTotal_P = 0
+  real            :: nTotal_P(nPType) = 0
 
 
   !Methods
@@ -133,7 +132,7 @@ contains
     end do
   end subroutine read_uniform
   !================================
-  subroutine uniform
+  subroutine uniform_shared_field
     use PIC_ModProc
     use PIC_ModMpi
     use ModMpi
@@ -141,12 +140,13 @@ contains
     use PIC_ModMain, ONLY: nPPerCellUniform_P 
     use PC_BATL_tree, ONLY: nRoot_D
     use PC_BATL_grid, ONLY: find_grid_block
-    integer             :: nPPerCell_P(nPType)
-    integer :: n_P(nPType)
-    integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
-    real    :: Coord_D(MaxDim) = 0.0
-    logical :: UseQuasiNeutral
-    integer :: iBlockOut=1, iProcOut=0
+
+    integer        :: nPPerCell_P(nPType)
+    real :: n_P(nPType)
+    integer        :: nPPerPE, nResidual, nPTotal
+    real           :: Coord_D(MaxDim) = 0.0, W_D(MaxDim)= 0.0
+    logical        :: UseQuasiNeutral
+    integer        :: iBlockOut=1, iProcOut=0, iSort, iDim, iP
     !--------------------------
     do iSort = 1, nPType
        State_VGBI(:,:,:,:,:,iSort) = 0
@@ -184,7 +184,7 @@ contains
           call find_grid_block(Coord_D, iProcOut, iBlockOut)
           call put_particle(iSort, Coord_D(1:nDim), iBlockOut)
           call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
-          call add_density(Node_D,HighFF_ID,1,iSort)
+          call add_density(Node_D,HighFF_ID,iBlockOut,iSort)
           
        end do
        call pass_density(iSort)
@@ -195,7 +195,7 @@ contains
     if(nProc==1)then
        nTotal_P = n_P
     else
-       call MPI_reduce(n_P, nTotal_P, nPType, MPI_INTEGER,&
+       call MPI_reduce(n_P, nTotal_P, nPType, MPI_REAL,&
             MPI_SUM, 0, iComm, iError)
     end if
 
@@ -205,71 +205,140 @@ contains
           write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
        end do
     end if
-    if(UseThermalization)call thermalize
-  end subroutine uniform
+    if(.not.UseThermalization)RETURN
+    do iSort = 1, nPType
+       if(uTh_P(iSort)<=0.0)CYCLE
+       call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort)
+       do iP = 1, Particle_I(iSort)%nParticle
+          call thermalize_particle(iSort, W_D)
+          Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
+               Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
+       end do
+    end do
+    call thermalize
+  end subroutine uniform_shared_field
   !============================================================
-  !Test: trying to distribute particles by cell; may be unnecessary!
-  subroutine uniform_test(nPPerCellIn_P)
+  !Distribute particles by blocks.
+  subroutine uniform
+    use PIC_ModMain,  ONLY: nTotBlocks, UseSharedField, &
+         nPPerCellUniform_P 
+    use PIC_ModSize,  ONLY: nBlock
     use PIC_ModProc
     use PIC_ModRandom
-    integer, intent(in) :: nPPerCellIn_P(nPType)
-    integer             :: nPPerCell_P(nPType)
-    integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
-    real    :: Coord_D(nDim)
-    logical :: UseQuasiNeutral
-    integer :: i,j,k
-    !--------------------------
-    do iSort = 1, nPType
-       if(nPPerCellIn_P(iSort)==0)CYCLE
+    use PIC_ModMpi
+    use PC_BATL_lib,  ONLY: iTree_IA, Block_, iNode_B
 
-       if(nPPerCellIn_P(iSort) > 0)then
-          nPPerCell_P(iSort) = nPPerCellIn_P(iSort)
+    integer             :: nPPerCell_P(nPType), nBPerPE, nBResidual,&
+         nPPerBlock, i, iNodeStart, iNodeEnd,  iNode, iP, &
+         iPStart, iPEnd, iBlock, iDim, iSort
+    real                :: n_P(nPType), Coord_D(nDim), W_D(MaxDim)
+    logical             :: UseQuasiNeutral
+    !--------------------------
+    SORTS:do iSort = 1, nPType
+       State_VGBI(:,:,:,:,:,iSort) = 0
+       if(nPPerCellUniform_P(iSort)==0)CYCLE
+
+       if(nPPerCellUniform_P(iSort) > 0)then
+          nPPerCell_P(iSort) = nPPerCellUniform_P(iSort)
           UseQuasiNeutral = .false.
        else
-          nPPerCell_P(iSort) = -nPPerCellIn_P(iSort)
+          nPPerCell_P(iSort) = -nPPerCellUniform_P(iSort)
           UseQuasiNeutral = .true.
        end if
-
-       nPTotal = product(nCell_D) * NPPerCell_P(iSort)
-       nPPerPE = nPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
-
-       if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
-
-       if(UseQuasiNeutral)then
-          !Initialize the same random number sequence as 
-          !for electrons
-          call parallel_init_rand(nDim * nPPerPE, Electrons_)
+       nPPerBlock = product(nCell_D(1:nDim)) * NPPerCell_P(iSort)
+       if(UseSharedField)then
+          !\
+          ! Blocks are distributed just to distribute particles
+          !/
+          nBPerPE    = nTotBlocks/nProc 
+          nBResidual = nTotBlocks - nProc*nBPerPE
+          if(iProc+1<=nBResidual)then
+             nBPerPE = nBPerPE + 1
+             iNodeStart = nBPerPE*iProc + 1
+             iNodeEnd   = nBPerPE*iProc + nBPerPE
+          else
+             iNodeStart = nBPerPE*iProc + nBResidual + 1
+             iNodeEnd   = nBPerPE*iProc + nBResidual + nBPerPE
+          end if
        else
-          call parallel_init_rand(nDim * nPPerPE, iSort)
+          !\
+          ! Blocks are already distrbuted
+          !/
+          iNodeStart =1; iNodeEnd = nBlock
        end if
-
-       !2core version
-       !Only works for 3D run
-       if(iProc==0) then
-          do k=1,(nCell_D(z_)/2); do j=1,nCell_D(y_); do i=1,nCell_D(x_)
-             do iP=1, nPPerCell_P(iSort)
-                Coord_D(x_) = i-1 + RAND()
-                Coord_D(y_) = j-1 + RAND()
-                Coord_D(z_) = k-1 + RAND()
-                write(*,*) 'Coord_D(z_)=',Coord_D(z_)
-                call put_particle(iSort, Coord_D, 1)
+       BLOCKS:do i = iNodeStart, iNodeEnd
+          if(UseSharedField)then
+             !\
+             ! Blocks are distributed just to distribute particles
+             !/
+             iNode = i
+             iBlock = iTree_IA(Block_,iNode)
+          else
+             !\
+             ! Blocks are already distrbuted
+             !/
+             iBlock = i
+             iNode  = iNode_B(iBlock)
+          end if
+          if(UseQuasiNeutral)then 
+             !Initialize the same random number sequence as 
+             !for electrons
+             call init_rand(nTotBlocks*Electrons_ + iNode)
+          else
+             call init_rand(nTotBlocks*iSort      + iNode)
+          end if
+          iPStart = Particle_I(iSort)%nParticle + 1
+          iPEnd   = Particle_I(iSort)%nParticle + nPPerBlock
+          do iP = iPStart, iPEnd
+             do iDim = 1,nDim
+                Coord_D(iDim) = (CoordMax_DB(iDim,iBlock) -&
+                     CoordMin_DB(iDim,iBlock))&
+                     * RAND() + CoordMin_DB(iDim,iBlock)
              end do
-          end do; end do; end do
-       else
-          do k=(nCell_D(z_)/2)+1,nCell_D(z_); do j=1,nCell_D(y_);
-             do i=1,nCell_D(x_)
-                do iP=1, nPPerCell_P(iSort)
-                   Coord_D(x_) = i-1 + RAND()
-                   Coord_D(y_) = j-1 + RAND()
-                   Coord_D(z_) = k-1 + RAND()
-                   call put_particle(iSort, Coord_D, 1)
-                end do
-             end do
-          end do; end do
+             call put_particle(iSort, Coord_D(1:nDim), iBlock)
+             call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
+             call add_density(Node_D,HighFF_ID,iBlock,iSort)
+          end do
+          if(uTh_P(iSort)<=0.0)CYCLE BLOCKS
+          call init_rand(nTotBlocks*(iSort + nPType) + iNode)
+          do iP = iPStart, iPEnd
+             call thermalize_particle(iSort, W_D)
+             Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
+                  Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
+          end do
+       end do BLOCKS
+       call pass_density(iSort)
+       if(iProc==0)then
+          write(*,*)'Total number of particles of sort ', iSort,&
+            ' equals ',sum(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
+          write(*,*)'UseQuasiNeutral=',UseQuasiNeutral
+          if(UseQuasiNeutral)then
+             write(*,*)'Check quasinuetrality'
+             write(*,*)'Min total charge density=',&
+                  minval(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,Electrons_)-&
+                  State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
+             write(*,*)'Max total charge density=',&
+                  maxval(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,Electrons_)-&
+                  State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
+          end if
        end if
-
-    end do
-  end subroutine uniform_test
+       n_P(iSort) = Particle_I(iSort)%nParticle
+    end do SORTS
+    if(nProc==1)then
+       nTotal_P = n_P
+    else
+       call MPI_reduce(n_P, nTotal_P, nPType, MPI_REAL,&
+            MPI_SUM, 0, iComm, iError)
+    end if
+    
+    if(iProc==0)then
+       write(*,*)'Particles are distributed'
+       do iSort = 1, nPType
+          write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
+       end do
+    end if
+    if(UseThermalization)call thermalize
+  end subroutine uniform
 
   !==========================================
   !=========reading command #FOIL============
@@ -310,7 +379,7 @@ contains
     integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
     integer :: nPPerCell_P(nPType)
     integer :: n_P(nPType)
-    real    :: Coord_D(nDim) 
+    real    :: Coord_D(nDim), W_D(MaxDim) 
     real    :: PrimaryCoord_D(nDim)
     real    :: angleSin, angleCos
     logical :: UseQuasineutral
@@ -375,7 +444,7 @@ contains
     if(nProc==1)then
        nTotal_P = n_P
     else
-       call MPI_reduce(n_P, nTotal_P, nPType, MPI_INTEGER,&
+       call MPI_reduce(n_P, nTotal_P, nPType, MPI_REAL,&
             MPI_SUM, 0, iComm, iError)
     end if
     !call pass_density(iSort)
@@ -388,7 +457,18 @@ contains
     !   write(*,*)'Particle density min:',min_val_rho()
     !   write(*,*)'Particle density average:',rho_avr()
     end if
-    if(UseThermalization)call thermalize
+    if(UseThermalization)then
+       do iSort = 1, nPType
+          if(uTh_P(iSort)<=0.0)CYCLE
+          call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort)
+          do iP = 1, Particle_I(iSort)%nParticle
+             call thermalize_particle(iSort, W_D)
+             Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
+                  Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
+          end do
+       end do
+       call thermalize
+    end if
   end subroutine foil
   !Generate Gaussian distribution using Box-Muller method
   subroutine thermalize_particle(iSort,W_D)
@@ -407,18 +487,8 @@ contains
   !==================================
   subroutine thermalize
     use PIC_ModProc,     ONLY: iProc
-    integer :: iSort, iP
-    real    :: W_D(MaxDim) = 0.0
+    integer :: iSort
     !------------------
-    do iSort = 1, nPType
-       if(uTh_P(iSort)<=0.0)CYCLE
-       call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort)
-       do iP = 1, Particle_I(iSort)%nParticle
-          call thermalize_particle(iSort, W_D)
-          Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
-               Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
-       end do
-    end do
     call get_energy
     if(iProc==0)then
        do iSort = 1, nPType
@@ -426,8 +496,8 @@ contains
                ' averaged energy per elementary chanrge is ',&
           Energy_P(iSort)/(nTotal_P(iSort)*abs(Q_P(iSort))),' * m c2(=0.51 MeV)'
           write(*,*)'           should be ', &
-               1.50 * M_P(iSort) * uTh_P(iSort)**2 *&
-               (1.0 -1.250*uTh_P(iSort)**2/c2)/abs(Q_P(iSort)),' * m c2 (=0.51MeV)'
+               1.50 * M_P(iSort)/abs(Q_P(iSort)) * uTh_P(iSort)**2 *&
+               (1.0 -1.250*uTh_P(iSort)**2/c2),' * m c2 (=0.51MeV)'
        end do
     end if
   end subroutine thermalize
@@ -545,7 +615,8 @@ contains
   !number density and velocity moments if DoComputeMoments==.true.
   subroutine advance_particles(iSort,DoComputeMoments)
     use ModCoordTransform, ONLY: cross_product
-
+    use PIC_ModParticleInField,ONLY: &
+         b_interpolated_d,e_interpolated_d
     integer,intent(in) :: iSort
     logical,intent(in) :: DoComputeMoments
 
@@ -587,23 +658,25 @@ contains
        W2 = sum(W_D**2)
        Gamma = sqrt(c2 + W2)
        
-       !Now W_D is the initial momentum, W2=W_D^2
+       !Now W_D is the initial momentum, divided by mass, W2=W_D^2
        !Now Gamma is the initial Gamma-factor multiplied by c
 
        call get_form_factors(X_D,Node_D,HighFF_ID)
        
-       !Electric field force
+       !Electric field force, divided by particle mass 
+       !and multiplied by \Delta t/2
        EForce_D = QDtPerM * e_interpolated_d(iBlock)
 
-       !Add kinetic energy
+       !Add kinetic energy advanced by half time step
        Energy_P(iSort) = Energy_P(iSort) + &
             M_P(iSort)*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
        !Acceleration from the electric field, for the
        !first half of the time step:
        W_D = W_D + EForce_D
 
-       !Get magnetic force
-       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) ) * b_interpolated_d(iBlock)       
+       !Get magnetic force divided by particle mass and by c 
+       !and multiplied by \Delta t/2
+       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) )*b_interpolated_d(iBlock)       
 
        !Add a half of the magnetic rotation:
 
@@ -622,7 +695,7 @@ contains
        !Now Gamma is the final Gamma-factor multiplied by c
 
        !Save momentum
-       Coord_VI(1+nDim:3+nDim,iParticle) = W_D
+       Coord_VI(Wx_:Wz_,iParticle) = W_D
        W_D = (1.0/Gamma)*W_D
        !Now W_D is the velocity divided by c
 

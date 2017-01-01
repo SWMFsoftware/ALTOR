@@ -31,7 +31,7 @@ standard
 
 #UNIFORM
 1		nPPerCell(1)
-1		nPPerCell(2)
+-1		nPPerCell(2)
 
 #THERMALIZE
 0.05		uTh_P(1)
