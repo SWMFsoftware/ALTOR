@@ -8,6 +8,8 @@ module PIC_ModParticles
        SpeedOfLight_D, vInv, uTh_P, UseThermalization
   use PIC_ModParticleInField,ONLY: &
        State_VGBI,add_current, add_moments, add_density
+  use PIC_ModMpi, ONLY: &
+       get_min_val_rho, get_max_val_rho, get_rho_avr, get_rho_int
   use PIC_ModFormFactor,ONLY: HighFF_ID, HighFFNew_ID,&
        Node_D, NodeNew_D, get_form_factors
   use PIC_ModProc,      ONLY:iProc,iError
@@ -94,17 +96,17 @@ contains
   !== as long as the operation of the random number calculation actually 
   !== becomes serial 
   !===========================
-  subroutine parallel_init_rand(nCall,iSeed)
+  subroutine parallel_init_rand(nCall,iSeed,iIndex)
     use ModMpi
     use PIC_ModProc
     use PIC_ModRandom
-    integer, intent(in)           :: nCall
-    integer, intent(in), optional :: iSeed
+    integer, intent(in)           :: nCall, iSeed
+    integer, intent(in), optional :: iIndex
 
     integer :: iSend_I(1), iRecv_IP(1,0:nProc-1), iLoop
     real :: Aux
     !-----------------------------------------
-    call init_rand(iSeed)
+    call init_rand(iSeed,iIndex)
     if(nProc==1)return
     iSend_I(1) = nCall
     iRecv_IP = 0
@@ -112,7 +114,7 @@ contains
          iRecv_IP, 1, MPI_INTEGER, iComm, iError)
     if(iProc==0)RETURN
     do iLoop =1,sum(iRecv_IP(1,0:iProc-1))
-       Aux = RAND()
+       Aux = RAND(iIndex)
     end do
   end subroutine parallel_init_rand
   !==========================================
@@ -183,6 +185,8 @@ contains
           !/
           call find_grid_block(Coord_D, iProcOut, iBlockOut)
           call put_particle(iSort, Coord_D(1:nDim), iBlockOut)
+          Coord_D(1:nDim) = (Coord_D(x_:nDim) - &
+               CoordMin_DB(1:nDim,iBlockOut))*DxInv_D
           call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
           call add_density(Node_D,HighFF_ID,iBlockOut,iSort)
           
@@ -208,7 +212,7 @@ contains
     if(.not.UseThermalization)RETURN
     do iSort = 1, nPType
        if(uTh_P(iSort)<=0.0)CYCLE
-       call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort)
+       call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort,2)
        do iP = 1, Particle_I(iSort)%nParticle
           call thermalize_particle(iSort, W_D)
           Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
@@ -232,11 +236,13 @@ contains
          nPPerBlock, i, iNodeStart, iNodeEnd,  iNode, iP, &
          iPStart, iPEnd, iBlock, iDim, iSort
     real                :: n_P(nPType), Coord_D(nDim), W_D(MaxDim)
+    real                :: RhoInt, RhoMin, RhoMax, RhoAvr
     logical             :: UseQuasiNeutral
     !--------------------------
     SORTS:do iSort = 1, nPType
        State_VGBI(:,:,:,:,:,iSort) = 0
-       if(nPPerCellUniform_P(iSort)==0)CYCLE
+       if(uTh_P(iSort)==0.0)W_D = 0.0
+       if(nPPerCellUniform_P(iSort)==0)CYCLE SORTS
 
        if(nPPerCellUniform_P(iSort) > 0)then
           nPPerCell_P(iSort) = nPPerCellUniform_P(iSort)
@@ -287,6 +293,11 @@ contains
           else
              call init_rand(nTotBlocks*iSort      + iNode)
           end if
+          !\
+          ! Init another sequence of random numbers to
+          ! assign velocity
+          !/ 
+          call init_rand(nTotBlocks*(iSort + nPType) + iNode,2)
           iPStart = Particle_I(iSort)%nParticle + 1
           iPEnd   = Particle_I(iSort)%nParticle + nPPerBlock
           do iP = iPStart, iPEnd
@@ -295,32 +306,27 @@ contains
                      CoordMin_DB(iDim,iBlock))&
                      * RAND() + CoordMin_DB(iDim,iBlock)
              end do
-             call put_particle(iSort, Coord_D(1:nDim), iBlock)
+             if(uTh_P(iSort)>0.0)&
+                  call thermalize_particle(iSort, W_D)
+             call put_particle(iSort, Coord_D(1:nDim), iBlock,W_D)
+             Coord_D(1:nDim) = (Coord_D(x_:nDim) - &
+                  CoordMin_DB(1:nDim,iBlock))*DxInv_D
              call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
              call add_density(Node_D,HighFF_ID,iBlock,iSort)
           end do
-          if(uTh_P(iSort)<=0.0)CYCLE BLOCKS
-          call init_rand(nTotBlocks*(iSort + nPType) + iNode)
-          do iP = iPStart, iPEnd
-             call thermalize_particle(iSort, W_D)
-             Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
-                  Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
-          end do
        end do BLOCKS
        call pass_density(iSort)
+       Aux_CB(:,:,:,1:nBlock) = &
+            State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort)
+       call get_min_val_rho(RhoMin)
+       call get_max_val_rho(RhoMax)
+       call get_rho_avr(    RhoAvr)
+       call get_rho_int(    RhoInt)
        if(iProc==0)then
           write(*,*)'Total number of particles of sort ', iSort,&
-            ' equals ',sum(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
-          write(*,*)'UseQuasiNeutral=',UseQuasiNeutral
-          if(UseQuasiNeutral)then
-             write(*,*)'Check quasinuetrality'
-             write(*,*)'Min total charge density=',&
-                  minval(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,Electrons_)-&
-                  State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
-             write(*,*)'Max total charge density=',&
-                  maxval(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,Electrons_)-&
-                  State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
-          end if
+            ' equals ',RhoInt
+          write(*,*)'Density min=',Q_P(iSort)*RhoMin,', density max=',&
+               Q_P(iSort)*RhoMax,', average density=',Q_P(iSort)*RhoAvr
        end if
        n_P(iSort) = Particle_I(iSort)%nParticle
     end do SORTS
@@ -479,9 +485,9 @@ contains
     integer              :: iW
     !-----------------------------------
     do iW = x_, z_
-       Energy      = -uTh_P(iSort)**2 *LOG(RAND())
+       Energy      = -uTh_P(iSort)**2 *LOG(RAND(2))
        MomentumAvr = sqrt(2.0*Energy)
-       W_D(iW)     = MomentumAvr*COS(cTwoPi*RAND())
+       W_D(iW)     = MomentumAvr*COS(cTwoPi*RAND(2))
     end do
   end subroutine thermalize_particle
   !==================================
