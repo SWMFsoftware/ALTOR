@@ -7,9 +7,10 @@ module PIC_ModMpi
   use PIC_ModField
   use ModMpi
   use PIC_ModProc
-  use PIC_ModMain, ONLY: UseSharedField
-  use PC_BATL_pass_face_field, ONLY: add_ghost_face_field, add_ghost_cell_field
-  use PC_BATL_lib, ONLY: nBlock
+  use PIC_ModMain, ONLY: UseSharedField, vInv, CellVolume
+  use PC_BATL_pass_face_field, ONLY: &
+       add_ghost_face_field, add_ghost_cell_field
+  use PIC_ModSize, ONLY: nBlock
   implicit none
   !structures
   integer,parameter::iBuffSizeMax=10 !In MByte
@@ -29,9 +30,12 @@ contains
     !-----------------------------------------------------------
     !Set up periodic BC in all three dimensions.
     call add_ghost_cell_field(1,iGCN,State_VGBI(1:1,:,:,:,:,iSort))
-    if(nProc==1)return
+    if(nProc==1)RETURN
+    !\
+    ! if the blocks are distributed, no need to allreduce
+    !/
+    if(.not.UseSharedField)RETURN
     !the result is at PE=iProcIn only
-    
     do iBlock = 1, nBlock
        k=0
        do while(k<nZ)
@@ -43,14 +47,13 @@ contains
                MPI_REAL,&
                MPI_SUM,&
                iProcIn,iComm,iError)
-          if(iProc==iProcIn)State_VGBI(1,1:nX,1:nY,k+1:kNew,iBlock,iSort)=&
-               Buff_G(1,:,:,1:kNew-k)
+          if(iProc==iProcIn)State_VGBI(1,1:nX,1:nY,k+1:kNew,&
+               iBlock,iSort) = Buff_G(1,:,:,1:kNew-k)
           k=kNew
        end do
     end do
   end subroutine pass_density
-  !==============================================================
-  !
+  !======================================================
   subroutine pass_moments(iSort)
     integer,intent(in)::iSort
     integer,parameter::iProcIn = 0
@@ -61,7 +64,10 @@ contains
     !-----------------------------------------------------------
     !Set up periodic BC in all three dimensions.
     call add_ghost_cell_field(10,iGCN,State_VGBI(:,:,:,:,:,iSort))
-    if(nProc==1)return
+    if(nProc==1)RETURN
+    !\
+    ! if the blocks are distributed, no need to allreduce
+    !/
     if(.not.UseSharedField)RETURN
     !the result is at PE=iProcIn only
     do iBlock = 1, nBlock
@@ -106,7 +112,74 @@ contains
        Current_GDB(0:nX,1-jDim_:nY,1-kDim_:nZ,:,iBlock) = Buff_G 
     end do
   end subroutine pass_current
-  !--------------------------------------------------------------!
+  !=======================
+  subroutine get_min_val_rho(RhoMin)
+    real   , intent(out) :: RhoMin
+    real                 :: RhoMinLocal
+    !---------------------------------
+    RhoMin = 0.0 !Initialize output parameter
+    if(UseSharedField)then
+       if(iProc/=0)RETURN
+       RhoMin = minval(Aux_CB(:,:,:,1:nBlock))
+    else
+       RhoMinLocal = minval(Aux_CB(:,:,:,1:nBlock))
+       call MPI_REDUCE(RhoMinLocal, RhoMin, 1, &
+               MPI_REAL, MPI_MIN, 0, iComm, iError)
+    end if
+    RhoMin = RhoMin*vInv
+  end subroutine get_min_val_rho
+  !=======================
+  subroutine get_max_val_rho(RhoMax)
+    real   , intent(out) :: RhoMax
+    real                 :: RhoMaxLocal
+    !---------------------------------
+    RhoMax = 0.0 !Initialize output parameter
+    if(UseSharedField)then
+       if(iProc/=0)RETURN
+       RhoMax = maxval(Aux_CB(:,:,:,1:nBlock))
+    else
+       RhoMaxLocal = maxval(Aux_CB(:,:,:,1:nBlock))
+       call MPI_REDUCE(RhoMaxLocal, RhoMax, 1, &
+               MPI_REAL, MPI_MAX, 0, iComm, iError)
+    end if
+    RhoMax = RhoMax*vInv
+  end subroutine get_max_val_rho
+  !=======================
+  subroutine get_rho_avr(RhoAvr)
+    use PIC_ModSize, ONLY: nCell_D, nDim
+    real   , intent(out) :: RhoAvr
+    real                 :: RhoLoc_I(2), Rho_I(2)
+    !-------------------------------
+    RhoAvr = 0.0 !Initialize output parameter
+    if(UseSharedField)then
+       if(iProc/=0)RETURN
+       RhoAvr = sum(Aux_CB(:,:,:,1:nBlock))/&
+            (product(nCell_D(1:nDim))*nBlock*CellVolume)
+    else
+       RhoLoc_I(1) = sum(Aux_CB(:,:,:,1:nBlock))
+       RhoLoc_I(2) = product(nCell_D(1:nDim))*nBlock*CellVolume
+       call MPI_REDUCE(RhoLoc_I, Rho_I, 2, &
+               MPI_REAL, MPI_SUM, 0, iComm, iError)
+       RhoAvr = Rho_I(1)/Rho_I(2)
+    end if
+  end subroutine get_rho_avr
+ !=======================
+  subroutine get_rho_int(RhoInt)
+    use PIC_ModSize, ONLY: nCell_D, nDim
+    real   , intent(out) :: RhoInt
+    real                 :: RhoIntLoc
+    !-------------------------------
+    RhoInt = 0.0 !Initialize output parameter
+    if(UseSharedField)then
+       if(iProc/=0)RETURN
+       RhoInt = sum(Aux_CB(:,:,:,1:nBlock))
+    else
+       RhoIntLoc = sum(Aux_CB(:,:,:,1:nBlock))
+       call MPI_REDUCE(RhoIntLoc, RhoInt, 1, &
+               MPI_REAL, MPI_SUM, 0, iComm, iError)
+    end if
+  end subroutine get_rho_int
+  !====================
 end module PIC_ModMpi
    
     
