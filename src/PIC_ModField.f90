@@ -31,6 +31,7 @@ module PIC_ModField
   !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
   !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
   !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
+  real,allocatable:: Aux_CB(:,:,:,:)
   real,allocatable:: E_GDB(:,:,:,:,:)
   real,allocatable:: B_GDB(:,:,:,:,:)
   real,allocatable:: Current_GDB(:,:,:,:,:)
@@ -58,6 +59,8 @@ contains
     allocate(State_VGBI(10,1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
          1-iGCN*kDim_:nZ+iGCN*kDim_, MaxBlock,nPType)) 
     State_VGBI = 0.0
+
+    allocate(Aux_CB(1:nX, 1:nY,1:nZ, MaxBlock)); Aux_CB = 0.0 
     if(UseVectorPotential)then
        allocate(A_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
          1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock))
@@ -130,12 +133,12 @@ contains
     do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
        do j=1-iGCN*jDim_,nY+(iGCN-1)*jDim_
           do i=1-iGCN,nX+iGCN
-             B_GDB(i,j,k,x_,iBlock) = &
+             B_GDB(i,j,k,x_,iBlock) = B0_D(x_) + &
                   SpeedOfLight_D(y_)*&
-                  (A_GDB(i,j+jDim_,k,z_,iBlock) - A_GDB(i,j,k,z_,iBlock))-&
+                  (A_GDB(i,j+jDim_,k,z_,iBlock) - A_GDB(i,j,k,z_,iBlock))
+             if(nDim==3)B_GDB(i,j,k,x_,iBlock) = B_GDB(i,j,k,x_,iBlock)-&
                   SpeedOfLight_D(z_)*&
-                  (A_GDB(i,j,k+kDim_,y_,iBlock) - A_GDB(i,j,k,y_,iBlock)) +&
-                  B0_D(x_)
+                  (A_GDB(i,j,k+kDim_,y_,iBlock) - A_GDB(i,j,k,y_,iBlock)) 
           end do
        end do
     end do
@@ -151,12 +154,12 @@ contains
     do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
        do j=1-iGCN*jDim_,nY+iGCN*jDim_ 
           do i=1-iGCN,nX+iGCN-1
-             B_GDB(i,j,k,y_,iBlock) = &
-                  SpeedOfLight_D(z_)*&
-                  (A_GDB(i,j,k+kDim_,x_,iBlock) - A_GDB(i,j,k,x_,iBlock))-&
+             B_GDB(i,j,k,y_,iBlock) = B0_D(y_) - &
                   SpeedOfLight_D(x_)*&
-                  (A_GDB(i+1,j,k,z_,iBlock) - A_GDB(i,j,k,z_,iBlock)) +&
-                  B0_D(y_)
+                  (A_GDB(i+1,j,k,z_,iBlock) - A_GDB(i,j,k,z_,iBlock))
+             if(nDim==3)B_GDB(i,j,k,y_,iBlock) = B_GDB(i,j,k,y_,iBlock) +&
+                  SpeedOfLight_D(z_)*&
+                  (A_GDB(i,j,k+kDim_,x_,iBlock) - A_GDB(i,j,k,x_,iBlock))
           end do
        end do
     end do
@@ -232,7 +235,8 @@ contains
              do i=1-iGCN,nX+iGCN
                 B_GDB(i,j,k,x_,iBlock) = B_GDB(i,j,k,x_,iBlock) - &
                      SpeedOfLightHalf_D(y_)*&
-                     (E_GDB(i,  j+1,k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock)) + &
+                     (E_GDB(i,  j+1,k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock)) 
+                if(nDim==3)B_GDB(i,j,k,x_,iBlock) = B_GDB(i,j,k,x_,iBlock) + &
                      SpeedOfLightHalf_D(z_)*&
                      (E_GDB(i,  j,  k+1,y_,iBlock) - E_GDB(i,j,k,y_,iBlock))
              end do
@@ -250,11 +254,12 @@ contains
        do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
           do j=1-iGCN*jDim_,nY+iGCN*jDim_ 
              do i=1-iGCN,nX+iGCN-1
-                B_GDB(i,j,k,y_,iBlock) = B_GDB(i,j,k,y_,iBlock) - &
-                     SpeedOfLightHalf_D(z_)*&
-                     (E_GDB(i,  j,  k+1,x_,iBlock) - E_GDB(i,j,k,x_,iBlock)) + &
+                B_GDB(i,j,k,y_,iBlock) = B_GDB(i,j,k,y_,iBlock) + &
                      SpeedOfLightHalf_D(x_)*&
                      (E_GDB(i+1,j,  k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock))
+                if(nDim==3)B_GDB(i,j,k,y_,iBlock) = B_GDB(i,j,k,y_,iBlock) - &
+                     SpeedOfLightHalf_D(z_)*&
+                     (E_GDB(i,  j,  k+1,x_,iBlock) - E_GDB(i,j,k,x_,iBlock))
              end do
           end do
        end do
@@ -285,20 +290,14 @@ contains
     integer::iBlock, i, j, k
     !---------------
     do iBlock = 1, nBlock
-       !Add current
-       E_GDB(0:nX,1:nY,1:nZ,x_,iBlock) = E_GDB(0:nX,1:nY,1:nZ,x_,iBlock) - &
-            Current_GDB(0:nX,1:nY,1:nZ,x_,iBlock)
-       E_GDB(1:nX,1-jDim_:nY,1:nZ,y_,iBlock) = &
-            E_GDB(1:nX,1-jDim_:nY,1:nZ,y_,iBlock) - &
-            Current_GDB(1:nX,0:nY,1:nZ,y_,iBlock)
-       E_GDB(1:nX,1:nY,0:nZ,z_,iBlock) = E_GDB(1:nX,1:nY,0:nZ,z_,iBlock) - &
-            Current_GDB(1:nX,1:nY,0:nZ,z_,iBlock)
        do k=1,nZ
           do j=1,nY
              do i=0,nX
-                E_GDB(i,j,k,x_,iBlock) = E_GDB(i,j,k,x_,iBlock) + &
+                E_GDB(i,j,k,x_,iBlock) = E_GDB(i,j,k,x_,iBlock) -&
+                     Current_GDB(i,j,k,x_,iBlock) + &
                      SpeedOfLight_D(y_)*&
-                     (B_GDB(i,j,k,z_,iBlock) - B_GDB(i,j-jDim_,k,z_,iBlock)) - &
+                     (B_GDB(i,j,k,z_,iBlock) - B_GDB(i,j-jDim_,k,z_,iBlock))
+                if(nDim==3) E_GDB(i,j,k,x_,iBlock) = E_GDB(i,j,k,x_,iBlock) - &
                      SpeedOfLight_D(z_)*&
                      (B_GDB(i,j,k,y_,iBlock) - B_GDB(i,j,k-kDim_,y_,iBlock))
              end do
@@ -307,18 +306,21 @@ contains
        do k=1,nZ
           do j=1-jDim_,nY
              do i=1,nX
-                E_GDB(i,j,k,y_,iBlock) = E_GDB(i,j,k,y_,iBlock) + &
-                     SpeedOfLight_D(z_)*&
-                     (B_GDB(i,j,k,x_,iBlock) - B_GDB(i,j,k-kDim_,x_,iBlock))-&
+                E_GDB(i,j,k,y_,iBlock) = E_GDB(i,j,k,y_,iBlock) -&
+                     current_GDB(i,j,k,y_,iBlock)-&
                      SpeedOfLight_D(x_)*&
                      (B_GDB(i,j,k,z_,iBlock) - B_GDB(i-1,j,k,z_,iBlock))
+                if(nDim==3)E_GDB(i,j,k,y_,iBlock) = E_GDB(i,j,k,y_,iBlock) + &
+                     SpeedOfLight_D(z_)*&
+                     (B_GDB(i,j,k,x_,iBlock) - B_GDB(i,j,k-kDim_,x_,iBlock))
              end do
           end do
        end do
        do k=1-kDim_,nZ
           do j=1,nY
              do i=1,nX
-                E_GDB(i,j,k,z_,iBlock) = E_GDB(i,j,k,z_,iBlock)+&
+                E_GDB(i,j,k,z_,iBlock) = E_GDB(i,j,k,z_,iBlock) -&
+                     Current_GDB(i,j,k,z_,iBlock) +&
                      SpeedOfLight_D(x_)*&
                      (B_GDB(i,j,k,y_,iBlock) - B_GDB(i-1,j,k,y_,iBlock))-&
                      SpeedOfLight_D(y_)*& 
@@ -407,28 +409,6 @@ contains
        end do
     end if
   end subroutine field_bc
-  !---------------------------------------------------------------------!
-  subroutine get_max_intensity(EnergyMax,Coord_D)
-    real,intent(out)::EnergyMax
-    real,dimension(nDim),optional,intent(out)::Coord_D
-    integer::i,j,k,iBlock
-    real::Aux_GB(1:nX, 1:nY,1:nZ, MaxBlock)
-    !-------------
-    Aux_GB = 0.0
-    do iBlock = 1, nBlock
-       do k=1,nZ; do j=1,nY; do i=1,nX
-          Aux_GB(i,j,k,iBlock)=0.1250*(&
-               sum(B_GDB(i,j-1:j,k-1:k,x_,iBlock)**2)+&
-               sum(B_GDB(i-1:i,j,k-1:k,y_,iBlock)**2)+&
-               sum(B_GDB(i-1:i,j-1:j,k,z_,iBlock)**2))+&
-               0.250*(&
-               sum(E_GDB(i-1:i,j,k,x_,iBlock)**2)+&
-               sum(E_GDB(i,j-1:j,k,y_,iBlock)**2)+&
-               sum(E_GDB(i,j,k-1:k,z_,iBlock)**2))
-       end do; end do; end do
-    end do
-    EnergyMax = maxval(Aux_GB(1:nX,1:nY,1:nZ,1:nBlock))
-  end subroutine get_max_intensity
   !====================
   subroutine get_field_energy(Energy_V)
     use PIC_ModMain, ONLY: CellVolume
@@ -438,11 +418,11 @@ contains
     Energy_V = 0.0
     do iBlock = 1, nBlock
        do k=1,nZ; do j=1,nY; do i=1,nX
-          Energy_V(1) = Energy_V(1) + 0.1250*&
-               sum((B_GDB(i,j-1:j,k-1:k,x_,iBlock) - B0_D(x_))**2)
+          Energy_V(1) = Energy_V(1) + 0.250/(1 + kDim_)*&
+               sum((B_GDB(i,j-jDim_:j,k-kDim_:k,x_,iBlock) - B0_D(x_))**2)
           
-          Energy_V(2) = Energy_V(2) + 0.1250*&
-               sum((B_GDB(i-1:i,j,k-1:k,y_,iBlock) - B0_D(y_))**2)
+          Energy_V(2) = Energy_V(2) + 0.250/(1 + kDim_)*&
+               sum((B_GDB(i-1:i,j,k-kDim_:k,y_,iBlock) - B0_D(y_))**2)
           
           Energy_V(3) = Energy_V(3) + 0.1250*&
                sum((B_GDB(i-1:i,j-1:j,k,z_,iBlock) - B0_D(z_))**2)
@@ -454,8 +434,8 @@ contains
           Energy_V(5) = Energy_V(5) + 0.250*&
                sum(E_GDB(i,j-1:j,k,y_,iBlock)**2)
           
-          Energy_V(6) = Energy_V(6) + 0.250*&
-               sum(E_GDB(i,j,k-1:k,z_,iBlock)**2)
+          Energy_V(6) = Energy_V(6) + 0.50/(1 + kDim_)*&
+               sum(E_GDB(i,j,k-kDim_:k,z_,iBlock)**2)
        end do; end do; end do
     end do
     Energy_V = Energy_V*CellVolume
