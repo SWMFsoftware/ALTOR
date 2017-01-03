@@ -339,26 +339,5 @@ contains
     end subroutine get_current_extended
   end subroutine add_current
   !=========================
-  real function min_val_rho(iSort)
-    integer, intent(in) :: iSort
-    real                :: Aux
-    min_val_rho = &
-         minval(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
-  end function min_val_rho
-  !=======================
-  !=========================
-  real function max_val_rho(iSort)
-    integer, intent(in) :: iSort
-    max_val_rho  = &
-         maxval(State_VGBI(1, 1:nX,1:nY,1:nZ,1:nBlock, iSort))
-  end function max_val_rho
-  !=======================
-  real function rho_avr(iSort)
-    use PIC_ModSize, ONLY: nCell_D
-    integer, intent(in) :: iSort
-    rho_avr = &
-         sum(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))/product(nCell_D)
-  end function rho_avr
-  !=======================
 end module PIC_ModParticleInField
-!=================================================================!
+
