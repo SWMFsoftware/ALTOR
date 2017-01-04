@@ -411,11 +411,21 @@ contains
   end subroutine field_bc
   !====================
   subroutine get_field_energy(Energy_V)
-    use PIC_ModMain, ONLY: CellVolume
+    !\
+    ! Calculate the field energies, put the result onto the root PE
+    !/
+    use PIC_ModMain, ONLY: CellVolume, UseSharedField
+    use PIC_ModProc
+    use ModMpi
     real,intent(out)::Energy_V(6)
     integer::i,j,k,iBlock
     !-------------
     Energy_V = 0.0
+    !\
+    ! If all field information is available on the root PE
+    ! the other PEs are not involved.
+    !/
+    if(UseSharedField.and.iProc/=0)RETURN
     do iBlock = 1, nBlock
        do k=1,nZ; do j=1,nY; do i=1,nX
           Energy_V(1) = Energy_V(1) + 0.250/(1 + kDim_)*&
@@ -439,5 +449,7 @@ contains
        end do; end do; end do
     end do
     Energy_V = Energy_V*CellVolume
+    if(UseSharedField)RETURN
+    call mpi_reduce_real_array(Energy_V(1),6,MPI_SUM, 0, iComm, iError)
   end subroutine get_field_energy
 end module PIC_ModField
