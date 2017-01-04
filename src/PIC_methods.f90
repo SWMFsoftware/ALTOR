@@ -8,18 +8,11 @@ subroutine PIC_setup
   use PIC_ModMain,      ONLY: UseSharedField, UseUniform, UseFoil
   use PIC_ModLogFile,   ONLY: open_logfile, nLogFile
   use PIC_ModOutput,    ONLY: PIC_save_files
-  use PC_BATL_mpi,      ONLY: BATL_iProc=>iProc, BATL_nProc=>nProc
   use PIC_ModParticles, ONLY: uniform, foil
 
   implicit none
   character(len=*), parameter :: NameSub='PIC_setup'
   !------------------------------------------------
-  if(UseSharedField)then
-     BATL_nProc = 1
-     BATL_iProc = 0
-  else
-     call init_mpi(iComm)
-  end if
   if(UseUniform)call uniform
   if(UseFoil   )call foil
 

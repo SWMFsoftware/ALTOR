@@ -8,7 +8,7 @@ subroutine PIC_set_param(TypeAction)
        add_velocity_init, add_velocity_sine, put_particle,  &
        read_uniform, read_foil, set_particle_param, &
        read_temperature
-  use PIC_ModProc,    ONLY: iProc
+  use PIC_ModProc,    ONLY: iProc, iComm
   use PIC_ModMain
   use PIC_ModSize,    ONLY: nDim, MaxDim
   use PC_BATL_particles, ONLY: Particle_I
@@ -18,6 +18,7 @@ subroutine PIC_set_param(TypeAction)
   use PIC_ModLaserBeam, ONLY: read_laser_beam
   use ModConst
   use PC_BATL_lib,ONLY: init_mpi, init_batl, nG
+  use PC_BATL_mpi,      ONLY: BATL_iProc=>iProc, BATL_nProc=>nProc, init_mpi
   use PIC_ModBatlInterface
   implicit none
 
@@ -51,6 +52,12 @@ subroutine PIC_set_param(TypeAction)
   case('CHECK','Check','check')
      if(iProc==0)write(*,*) NameSub,': CHECK iSession =',iSession
      if(IsUninitialized)then
+        if(UseSharedField)then
+           BATL_nProc = 1
+           BATL_iProc = 0
+        else
+           call init_mpi(iComm)
+        end if
         !\
         ! Initialize timing
         !/
