@@ -88,11 +88,11 @@ contains
     use ModUtilities, ONLY: flush_unit
     integer :: iP
     !-----------------------
-    if(iProc/=0)return
     Value_V = 0.0
+    call get_field_energy(Value_V(Bx_:Ez_))
+    if(iProc/=0)return
     Value_V(Time_) = tSimulation
     Value_V(PartFirst_:PartLast_) = Energy_P
-    call get_field_energy(Value_V(Bx_:Ez_))
     Value_V(ETotal_) = sum(Value_V(PartFirst_:Ez_))
     if(Energy0 <=0)then
        !Initial stage, save ETotal and use it for normalization
