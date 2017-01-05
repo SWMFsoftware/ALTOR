@@ -24,7 +24,7 @@ module PIC_ModOutput
   character(len=5),public :: TypeFile='real4' 
   !Array for saving coordinates, fields and moments in one timestep
   real,allocatable   :: PlotVar_VC(:,:,:,:)
-
+  public :: PlotVar_VC
   public :: write_moments
 
   public :: PIC_save_files

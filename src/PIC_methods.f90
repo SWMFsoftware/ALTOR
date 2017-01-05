@@ -41,7 +41,8 @@ subroutine PIC_advance(tMax)
   use PIC_ModField,     ONLY: update_e, field_bc, E_GDB, iGCN 
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt, IsPeriodicField_D
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
-  use PIC_ModOutput,    ONLY: nStepOutMin, nStepOut, write_moments
+  use PIC_ModOutput,    ONLY: nStepOutMin, nStepOut, &
+       write_moments, PlotVar_VC
   use PIC_ModMpi,       ONLY: pass_current, pass_density
   use PC_BATL_pass_face_field, ONLY: message_pass_field
   implicit none
@@ -73,9 +74,11 @@ subroutine PIC_advance(tMax)
   !3. Move particles
   call timing_start('adv_particles')
 
-  do iSort=1, nPType
-     State_VGBI(:,:,:,:,:,iSort) = 0.0
-     if(nStepOut>=1.and.nStepOutMin<=iStep.and.mod(iStep+1,nStepOut)==0)then
+  State_VGBI = 0.0
+  if(nStepOut>=1.and.nStepOutMin<=iStep+1&
+       .and.mod(iStep+1,nStepOut)==0)then
+     PlotVar_VC = 0.0
+     do iSort=1, nPType
         !Calculate cell-centered number density and velocity while
         !advancing the particles
         call advance_particles(iSort,DoComputeMoments=.TRUE.)
@@ -83,13 +86,15 @@ subroutine PIC_advance(tMax)
         call timing_start('output')
         call write_moments(iSort)
         call timing_stop('output')
-     else
+     end do
+  else
+     do iSort=1, nPType
         !Advance the particles without calculating cell-centered
         !number velocity 
         call advance_particles(iSort,DoComputeMoments=.FALSE.)
         call pass_density(iSort)
-     end if
-  end do
+     end do
+  end if
 
   call pass_energy
   !\
