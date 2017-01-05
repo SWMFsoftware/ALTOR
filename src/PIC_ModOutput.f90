@@ -54,13 +54,12 @@ contains
     !----------------------------------------------------------------------
     if(.not.allocated(PlotVar_VC))allocate(PlotVar_VC(6+11*nPType,&
          1:nX*nRoot_D(x_),1:nY*nRoot_D(y_),1:nZ*nRoot_D(z_)))
-    PlotVar_VC = 0.0
     select case(TypeSave)
     case('INITIAL')
        !Do not save in test particle runs alone (test particle number>1 and
        !density of electrons < 1 per cell)
        if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
-       
+       PlotVar_VC = 0.0
        !Calculate the initial moments
        call compute_moments
        
@@ -100,7 +99,7 @@ contains
     case('FINAL')
        !Do not save in test particle runs alone
        if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
-       
+       PlotVar_VC = 0.0
        !Calculate the moments at final timestep
        call compute_moments
        
