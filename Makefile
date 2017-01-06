@@ -40,7 +40,7 @@ help:
 	@echo '    dist         (create source distribution tar file)'
 
 INSTALLFILES =	src/Makefile.DEPEND srcBATL/Makefile.DEPEND \
-	srcInterface/Makefile.DEPEND
+	srcInterface/Makefile.DEPEND srcBATL_orig/Makefile.DEPEND
 
 
 install: src/PIC_ModSize.f90 srcBATL/Makefile srcBATL/BATL_size.f90
@@ -129,6 +129,7 @@ clean:
 	@touch ${INSTALLFILES}
 	cd src; make clean
 	cd srcInterface; make clean
+	cd srcBATL_orig; make clean
 	@(if [ -d srcBATL  ]; then cd srcBATL;  make clean; fi);
 	@(if [ -d util  ]; then cd util;  make clean; fi);
 	@(if [ -d share ]; then cd share; make clean; fi);
@@ -142,7 +143,7 @@ allclean:
 	cd src; make distclean
 	rm -rf srcBATL
 	cd srcInterface; make distclean
-
+	cd srcBATL_orig; make distclean
 TESTDIR = run_test
 
 test:
