@@ -450,6 +450,7 @@ contains
     end do
     Energy_V = Energy_V*CellVolume
     if(UseSharedField)RETURN
+    if(nProc==1)RETURN
     call mpi_reduce_real_array(Energy_V(1),6,MPI_SUM, 0, iComm, iError)
   end subroutine get_field_energy
 end module PIC_ModField
