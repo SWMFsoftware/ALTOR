@@ -123,8 +123,12 @@ contains
        RhoMin = minval(Aux_CB(:,:,:,1:nBlock))
     else
        RhoMinLocal = minval(Aux_CB(:,:,:,1:nBlock))
-       call MPI_REDUCE(RhoMinLocal, RhoMin, 1, &
+       if(nProc>1)then
+          call MPI_REDUCE(RhoMinLocal, RhoMin, 1, &
                MPI_REAL, MPI_MIN, 0, iComm, iError)
+       else
+          RhoMin = RhoMinLocal
+       end if
     end if
     RhoMin = RhoMin*vInv
   end subroutine get_min_val_rho
@@ -139,8 +143,12 @@ contains
        RhoMax = maxval(Aux_CB(:,:,:,1:nBlock))
     else
        RhoMaxLocal = maxval(Aux_CB(:,:,:,1:nBlock))
-       call MPI_REDUCE(RhoMaxLocal, RhoMax, 1, &
+       if(nProc>1)then
+          call MPI_REDUCE(RhoMaxLocal, RhoMax, 1, &
                MPI_REAL, MPI_MAX, 0, iComm, iError)
+       else
+          RhoMax = RhoMaxLocal
+       end if
     end if
     RhoMax = RhoMax*vInv
   end subroutine get_max_val_rho
@@ -158,8 +166,12 @@ contains
     else
        RhoLoc_I(1) = sum(Aux_CB(:,:,:,1:nBlock))
        RhoLoc_I(2) = product(nCell_D(1:nDim))*nBlock*CellVolume
-       call MPI_REDUCE(RhoLoc_I, Rho_I, 2, &
+       if(nProc>1)then
+          call MPI_REDUCE(RhoLoc_I, Rho_I, 2, &
                MPI_REAL, MPI_SUM, 0, iComm, iError)
+       else
+          Rho_I = RhoLoc_I
+       end if
        RhoAvr = Rho_I(1)/Rho_I(2)
     end if
   end subroutine get_rho_avr
@@ -175,8 +187,12 @@ contains
        RhoInt = sum(Aux_CB(:,:,:,1:nBlock))
     else
        RhoIntLoc = sum(Aux_CB(:,:,:,1:nBlock))
-       call MPI_REDUCE(RhoIntLoc, RhoInt, 1, &
+       if(nProc>1)then
+          call MPI_REDUCE(RhoIntLoc, RhoInt, 1, &
                MPI_REAL, MPI_SUM, 0, iComm, iError)
+       else
+          RhoInt = RhoIntLoc
+       end if
     end if
   end subroutine get_rho_int
   !====================
