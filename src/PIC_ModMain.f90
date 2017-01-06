@@ -7,7 +7,7 @@ module PIC_ModMain
   integer:: nBlockMax, nTotBlocks = 1
   !If UseSharedField==.true. at all processors
   !the field is the same, only particles are distributed.
-  logical, parameter:: UseSharedField = .true.
+  logical, parameter:: UseSharedField = .false.
  
   logical:: IsInitialized = .false.
 
