@@ -154,7 +154,7 @@ contains
     !Calculate the number densities and velocities                   
     do iSort = 1, nPType
        State_VGBI(:,:,:,:,:,iSort) = 0.0
-       do iParticle = 1, Particle_I(1)%nParticle
+       do iParticle = 1, Particle_I(iSort)%nParticle
           !\
           ! Get iBlock
           !/
