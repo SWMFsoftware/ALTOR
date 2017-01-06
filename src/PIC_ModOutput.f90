@@ -7,7 +7,7 @@ module PIC_ModOutput
   use PIC_ModParticleInField,ONLY: State_VGBI, add_moments
   use PIC_ModField,   ONLY: iGCN, E_GDB,B_GDB
   use PIC_ModMpi,     ONLY: pass_moments
-  use PIC_ModProc,    ONLY: iProc, iComm, iError
+  use PIC_ModProc
   use ModIoUnit,      ONLY: io_unit_new
   use PIC_ModLogFile, ONLY: nToWrite     !Number of test particles
   use PC_BATL_lib,    ONLY: CoordMin_D, CoordMax_D, CoordMin_DB
@@ -52,8 +52,11 @@ contains
     character(len=:), allocatable, save:: NameVar
     character(len=*), parameter:: NameSub = 'save_files'
     !----------------------------------------------------------------------
-    if(.not.allocated(PlotVar_VC))allocate(PlotVar_VC(6+11*nPType,&
+    if(.not.allocated(PlotVar_VC))then
+       allocate(PlotVar_VC(6+11*nPType,&
          1:nX*nRoot_D(x_),1:nY*nRoot_D(y_),1:nZ*nRoot_D(z_)))
+       PlotVar_VC = 0.0
+    end if
     select case(TypeSave)
     case('INITIAL')
        !Do not save in test particle runs alone (test particle number>1 and
@@ -110,7 +113,7 @@ contains
             ': Incorrect value for TypeSave='//trim(TypeSave))
     end select
     call average_fields
-    if(.not.UseSharedField)&
+    if(.not.UseSharedField.and.nProc>1)&
          call mpi_reduce_real_array(&
          PlotVar_VC(1,1,1,1), &
          (6 + 11*nPType)*product(nCell_D(1:nDim))*product(nRoot_D(1:nDim)),&
