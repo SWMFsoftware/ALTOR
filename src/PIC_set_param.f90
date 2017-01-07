@@ -19,6 +19,7 @@ subroutine PIC_set_param(TypeAction)
   use ModConst
   use PC_BATL_lib,ONLY: init_mpi, init_batl, nG
   use PC_BATL_mpi,      ONLY: BATL_iProc=>iProc, BATL_nProc=>nProc, init_mpi
+  use PC_ModPhysics,    ONLY: read_units, No2Si_V, set_default_units
   use PIC_ModBatlInterface
   implicit none
 
@@ -87,6 +88,7 @@ subroutine PIC_set_param(TypeAction)
      ! Initialize parameters
      !/
      SpeedOfLight_D(1:nDim) = Dt * c / Dx_D
+     if(No2Si_V(1)<0.0)call set_default_units
      RETURN
   case('read','Read','READ')
      if(iProc==0)then
@@ -258,14 +260,15 @@ subroutine PIC_set_param(TypeAction)
         call read_var('TypeFile',TypeFile)
         call read_var('nStepOutMin', nStepOutMin)
         call read_var('nStepOut', nStepOut)
-
+     case('#UNITX','#UNITT','#UNITOMEGA','#UNITN')
+        call read_units(NameCommand)
      case default
         if(iProc==0) then
            write(*,*) NameSub // ' WARNING: unknown #COMMAND ' // &
                 trim(NameCommand),' !!!'
            call CON_stop('Correct PARAM.in!')
         end if
-
+        
      end select
   end do READPARAM
 contains
