@@ -627,9 +627,9 @@ contains
     logical,intent(in) :: DoComputeMoments
 
     real:: QDtPerM
-    real,dimension(nDim)::QPerVDx_D
+    real,dimension(MaxDim)::QPerVDx_D
     real:: W2
-    integer::iParticle, iBlock, nParticle
+    integer::iParticle, iBlock, nParticle, iDim
     real,dimension(nDim)::X_D
     real,dimension(x_:z_)   ::W_D,W12_D,EForce_D,BForce_D
     real    :: Gamma
@@ -646,7 +646,15 @@ contains
     !Used to calculate J*dt in the charge-conserving scheme
     !QPerVDx_D = (Q_P(iSort)/CellVolume) * Dx_D
 
-    QPerVDx_D = Q_P(iSort)*vInv*Dx_D
+    QPerVDx_D(1:nDim) = Q_P(iSort)*vInv*Dx_D
+    !\
+    ! For directions orthogonal to grid 
+    ! (should be multiplied by 
+    ! velocity-to-the speed of light ratio  
+    !/
+    do iDim = nDim+1, MaxDim
+       QPerVDx_D(iDim)= Q_P(iSort)*vInv*c*Dt
+    end do
 
     call set_pointer_to_particles(iSort,Coord_VI,iIndex_II,nParticle=nParticle)
 

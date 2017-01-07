@@ -13,7 +13,6 @@ module PC_ModParticleInField
   !the input from a given particle to the structures of the 
   !ModField class (density, electric current)
   !Methods
-  public::get_b_from_a
   public::e_interpolated_d !Interpolated electric field
   public::b_interpolated_d !Interpolated magnetic field
   public::add_density  !Adds an input to cell-centered density
@@ -151,9 +150,8 @@ contains
   end subroutine add_density
   !============================================
   subroutine add_current(QPerVDx_D,W_D,iBlock) 
-    real,intent(in)::QPerVDx_D(nDim),W_D(x_:z_)
+    real,intent(in)::QPerVDx_D(MaxDim),W_D(x_:z_)
     integer,intent(in)::iBlock
-    optional::W_D
     logical:: IsExtended
     !\
     ! For extended stencil
@@ -204,6 +202,14 @@ contains
        !and divide \DeltaFMinus by sqrt(3):
        do iDim = 1, nDIm
           FI_ID(:,iDim)=(-QPerVDx_D(iDim)*0.250)*FI_ID(:,iDim)
+       end do
+       !\
+       ! For directions orthogonal to grid 
+       ! (should be multiplied by 
+       ! velocity-to-the speed of light ratio  
+       !/
+       do iDim = nDim+1, MaxDim
+          FI_ID(:,iDim) = 0.250*QPerVDx_D(iDim)*W_D(iDim)
        end do
 
        DeltaFMinus_ID = sqrt13*DeltaFMinus_ID
