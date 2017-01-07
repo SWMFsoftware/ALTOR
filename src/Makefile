@@ -26,7 +26,7 @@ OBJECTS= \
 	PIC_ModFormFactor_${FF}.o \
 	PIC_ModLaserBeam.o \
 	PIC_ModField.o \
-	PIC_ModParticleInField_${nDim}d.o \
+	PC_ModParticleInField.o \
 	PIC_ModPassField_3d.o \
 	PIC_ModParticles.o \
 	PC_ModPhysics.o \

@@ -4,7 +4,7 @@ module PIC_ModOutput
   use PIC_ModSize,ONLY: nDim, nCell_D, nX, nY, nZ, x_, y_, z_
   use PIC_ModSize,ONLY: nBlock, nPType
   use PIC_ModParticles,ONLY: M_P, Q_P, Wx_, Wz_
-  use PIC_ModParticleInField,ONLY: State_VGBI, add_moments
+  use PC_ModParticleInField,ONLY: State_VGBI, add_moments
   use PIC_ModField,   ONLY: iGCN, E_GDB,B_GDB
   use PIC_ModMpi,     ONLY: pass_moments
   use PIC_ModProc
