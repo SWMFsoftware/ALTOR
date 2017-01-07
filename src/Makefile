@@ -29,6 +29,7 @@ OBJECTS= \
 	PIC_ModParticleInField_${nDim}d.o \
 	PIC_ModPassField_3d.o \
 	PIC_ModParticles.o \
+	PC_ModPhysics.o \
 	PIC_ModRandom.o \
 	PIC_ModLogFile.o \
         PIC_ModOutput.o \
