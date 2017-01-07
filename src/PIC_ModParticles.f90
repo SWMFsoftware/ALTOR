@@ -432,12 +432,12 @@ contains
           do iDim = 1,nDim
              Coord_D(iDim) = (FoilCenter_D(iDim)+Coord_D(iDim))/Dx_D(iDim)
           end do
-          if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. real(nCell_D(1))&
-               .or.&
-               Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. real(nCell_D(2))&
-               .or.&
-               Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. real(nCell_D(3))&
-               ) cycle PART
+!          if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. real(nCell_D(1))&
+!               .or.&
+!               Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. real(nCell_D(2))&
+!               .or.&
+!               Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. real(nCell_D(3))&
+!               ) cycle PART
           call put_particle(iSort, Coord_D, iBlockOut)
           !call get_form_factors(Coord_D,Node_D,HighFF_ID)
           !hyzhou: I removed add_density. Need to modify this part later
@@ -706,7 +706,7 @@ contains
        !Now W_D is the velocity divided by c
 
        !Update coordinate
-       X_D = X_D + SpeedOfLight_D*W_D(1:nDim)
+       X_D = X_D + SpeedOfLight_D(1:nDim)*W_D(1:nDim)
 
        !New form factor
        call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
@@ -723,7 +723,7 @@ contains
        call add_current(QPerVDx_D,W_D,iBlock)
        
        Coord_VI(1:nDim,iParticle)= &
-            X_D*Dx_D + CoordMin_DB(1:nDim,iBlock)
+            X_D*Dx_D(1:nDIm) + CoordMin_DB(1:nDim,iBlock)
     end do
     call message_pass_particles(iSort)
   end subroutine advance_particles
