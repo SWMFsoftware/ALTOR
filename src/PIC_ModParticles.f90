@@ -6,7 +6,7 @@ module PIC_ModParticles
   use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D, nDim, MaxDim
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, DxInv_D, CellVolume, &
        SpeedOfLight_D, vInv, uTh_P, UseThermalization
-  use PIC_ModParticleInField,ONLY: &
+  use PC_ModParticleInField,ONLY: &
        State_VGBI,add_current, add_moments, add_density
   use PIC_ModMpi, ONLY: &
        get_min_val_rho, get_max_val_rho, get_rho_avr, get_rho_int
@@ -621,7 +621,7 @@ contains
   !number density and velocity moments if DoComputeMoments==.true.
   subroutine advance_particles(iSort,DoComputeMoments)
     use ModCoordTransform, ONLY: cross_product
-    use PIC_ModParticleInField,ONLY: &
+    use PC_ModParticleInField,ONLY: &
          b_interpolated_d,e_interpolated_d
     integer,intent(in) :: iSort
     logical,intent(in) :: DoComputeMoments

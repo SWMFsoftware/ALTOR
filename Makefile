@@ -8,8 +8,6 @@ default : ${DEFAULT_TARGET}
 
 include Makefile.def
 
-nDim = 3
-
 FF = 1.5
 
 #
@@ -63,20 +61,20 @@ srcBATL/BATL_size.f90: srcBATL/BATL_size_orig.f90
 
 LIB:
 	cd srcBATL; make LIB
-	cd src; make LIB nDim=${nDim} FF=${FF}
+	cd src; make LIB FF=${FF}
 	cd srcInterface; make LIB
 
 ALTOR:
 	cd ${SHAREDIR}; ${MAKE} LIB
 	cd ${TIMINGDIR}; ${MAKE} LIB
 	cd srcBATL; make LIB
-	cd src; ${MAKE} LIB nDim=${nDim} FF=${FF}
-	cd src; ${MAKE} ALTOR nDim=${nDim} FF=${FF}
+	cd src; ${MAKE} LIB  FF=${FF}
+	cd src; ${MAKE} ALTOR FF=${FF}
 
 QED:
 	cd ${SHAREDIR}; ${MAKE} LIB
 	cd ${TIMINGDIR}; ${MAKE} LIB
-	cd srcQED; ${MAKE} LIB nDim=${nDim} FF=${FF}
+	cd srcQED; ${MAKE} LIB FF=${FF}
 	cd srcQED; ${MAKE} ALTOR
 
 NOMPI:
