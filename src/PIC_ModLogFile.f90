@@ -76,6 +76,11 @@ contains
              'iStep Time x y z Wx Wy Wz'
         end do
      end if
+
+     !\
+     !Calculate the particle energies
+     !/
+     call get_energy
      call write_logfile
   end subroutine open_logfile
   !===========================
