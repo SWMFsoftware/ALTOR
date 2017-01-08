@@ -146,6 +146,7 @@ TESTDIR = run_test
 
 test:
 	-@(${MAKE} test_altor)
+	-@(${MAKE} test_altor_2d)
 
 test_altor:
 	@echo "test_altor_compile..." > test_altor.diff
@@ -182,3 +183,30 @@ test_altor_update:
 	cp ${TESTDIR}/PC/plots/log_n0001.log Param/TestOutput/log_noise.log
 	gzip -c ${TESTDIR}/PC/plots/variables.outs>Param/TestOutput/variables.outs.gz
 	${MAKE} test_altor_check
+
+test_altor_2d:
+	@echo "test_altor_2d_compile..." > test_altor_2d.diff
+	${MAKE} test_altor_2d_compile
+	@echo "test_altor_2d_rundir..." >> test_altor_2d.diff
+	${MAKE} test_altor_2d_rundir
+	@echo "test_altor_2d_run..." >> test_altor_2d.diff
+	${MAKE} test_altor_2d_run
+	@echo "test_altor_2d_check..." >> test_altor_2d.diff
+	${MAKE} test_altor_2d_check
+
+test_altor_2d_compile:
+	./Config.pl -g=16,16,1,16,1,10000000
+	${MAKE} 
+
+test_altor_2d_rundir: 
+	rm -rf ${TESTDIR}
+	${MAKE} rundir RUNDIR=${TESTDIR} STANDALONE=YES PCDIR=`pwd`
+	cd ${TESTDIR}; cp -f Param/PARAM.TEST_2D PARAM.in; mkdir PC/plots/
+
+test_altor_2d_run:
+	cd ${TESTDIR}; ${MPIRUN} ./ALTOR.exe | tee -a runlog
+
+test_altor_2d_check:
+	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
+		Param/TestOutput/log_Langmuir_2d.log ${TESTDIR}/PC/plots/log_n0001.log > test_altor_2d.diff	
+	ls -l test_altor*.diff
