@@ -306,8 +306,16 @@ contains
 
       !To optimize algebra, multiply FI by -q*4*\pi*dt/4
       !and divide \DeltaFMinus by sqrt(3):
-      do iDim=x_,z_
+      do iDim=1,nDim
          FIExt_ID(:,iDim) = (-QPerVDx_D(iDim)*0.250)*FIExt_ID(:,iDim)
+      end do
+      !\
+      ! For directions orthogonal to grid 
+      ! (should be multiplied by 
+      ! velocity-to-the speed of light ratio  
+      !/
+      do iDim = nDim+1, MaxDim
+         FIExt_ID(:,iDim) = 0.250*QPerVDx_D(iDim)*W_D(iDim)
       end do
       DeltaFMinusExt_ID = sqrt13*DeltaFMinusExt_ID
 
