@@ -25,7 +25,7 @@ contains
     integer, intent(in)::iBlock
     !Sets the pointer to the fragment of E_GDB array to interpolate E
     real,dimension(1:3)::e_interpolated_d
-    integer::i, j, k, n_D(3), n1_D(3)
+    integer::i, j, k, n_D(3)=1, n1_D(3)
     !----------------
 
     e_interpolated_d = 0.0
@@ -62,7 +62,7 @@ contains
     !interpolate B
     real,dimension(1:3)::b_interpolated_d
  
-    integer::i, j, k, n_D(3), n1_D(3)
+    integer::i, j, k, n_D(3)=1, n1_D(3)
     !--------------
     b_interpolated_d = 0.0
 
@@ -164,7 +164,7 @@ contains
 
     real,dimension(1:lOrderFF+1,MaxDim)::DeltaFPlus_ID,DeltaFMinus_ID
     real,dimension(1:lOrderFF  ,MaxDim)::FI_ID
-    integer::i, j, k, iDim, n_D(3), n1_D(3)
+    integer::i, j, k, iDim, n_D(3)=1, n1_D(3)
     !-------------------
     IsExtended = any(Node_D(1:nDim)/=NodeNew_D(1:nDim))
 
