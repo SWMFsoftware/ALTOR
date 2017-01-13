@@ -34,11 +34,13 @@ module PIC_ModParticles
 
   !Only at the root PE:
   real            :: nTotal_P(nPType) = 0
-
+  !\
+  ! Add velocity
+  !/
+  logical :: DoAddVelocity_P(nPType) = .false.
+  real    :: VelocityToAdd_DP(Wx_:Wz_,nPType) = 0.0
 
   !Methods
-  !public::set_pointer_to_particles !Set pointer to the coordinate array of 
-  !electrons or ions
   public::set_particle_param       !Assigns M_P, Q_P and allocates coordinate
   ! arrays
   public::put_particle             !Add particle with known coordinates
@@ -239,6 +241,7 @@ contains
     real                :: RhoInt, RhoMin, RhoMax, RhoAvr
     logical             :: UseQuasiNeutral
     !--------------------------
+    DoAddVelocity_P = .false. !Added here
     SORTS:do iSort = 1, nPType
        State_VGBI(:,:,:,:,:,iSort) = 0
        if(uTh_P(iSort)==0.0)W_D = 0.0
@@ -308,7 +311,8 @@ contains
              end do
              if(uTh_P(iSort)>0.0)&
                   call thermalize_particle(iSort, W_D)
-             call put_particle(iSort, Coord_D(1:nDim), iBlock,W_D)
+             call put_particle(iSort, Coord_D(1:nDim), iBlock, &
+                  W_D + VelocityToAdd_DP(:,iSort))
              Coord_D(1:nDim) = (Coord_D(x_:nDim) - &
                   CoordMin_DB(1:nDim,iBlock))*DxInv_D
              call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
@@ -502,7 +506,8 @@ contains
                ' averaged energy per elementary chanrge is ',&
           Energy_P(iSort)/(nTotal_P(iSort)*abs(Q_P(iSort))),' * m c2(=0.51 MeV)'
           write(*,*)'           should be ', &
-               1.50 * M_P(iSort)/abs(Q_P(iSort)) * uTh_P(iSort)**2 *&
+               0.50 * M_P(iSort)/abs(Q_P(iSort)) *(3*uTh_P(iSort)**2 +&
+               sum(VelocityToAdd_DP(:,iSort)**2))*&
                (1.0 -1.250*uTh_P(iSort)**2/c2),' * m c2 (=0.51MeV)'
        end do
     end if
@@ -552,7 +557,7 @@ contains
          E_P, Energy_P, nPType, MPI_REAL,MPI_SUM,  0, iComm, iError)
   end subroutine pass_energy
   !=========================
-  subroutine add_velocity_init
+  subroutine read_initial_velocity
     use ModReadParam, ONLY: read_var
     real      :: W_D(Wx_:Wz_)
     integer   :: iSort
@@ -560,15 +565,25 @@ contains
     integer   :: iP, nParticle
     !-----------------------------
     call read_var('iSort',iSort)
-    call read_var('Wx'   ,W_D(Wx_))
-    call read_var('Wy'   ,W_D(Wy_))
-    call read_var('Wz'   ,W_D(Wz_))
+    DoAddVelocity_P(iSort) = .true.
+    call read_var('Wx'   ,VelocityToAdd_DP(Wx_,iSort))
+    call read_var('Wy'   ,VelocityToAdd_DP(Wy_,iSort))
+    call read_var('Wz'   ,VelocityToAdd_DP(Wz_,iSort))
+  end subroutine read_initial_velocity
+  !===========================
+  subroutine add_initial_velocity(iSort)
+    use ModReadParam, ONLY: read_var
+    integer,intent(in) ::iSort
+    real,dimension(:,:),pointer :: Coord_VI
+    integer   :: iP, nParticle
+    !-----------------------------
     call set_pointer_to_particles(iSort,Coord_VI,nParticle=nParticle)
 
     do iP = 1,nParticle
-       Coord_VI(Wx_:Wz_,iP) = Coord_VI(Wx_:Wz_,iP) + W_D
+       Coord_VI(Wx_:Wz_,iP) = Coord_VI(Wx_:Wz_,iP) + &
+            VelocityToAdd_DP(Wx_:Wz_,iSort)
     end do
-  end subroutine add_velocity_init
+  end subroutine add_initial_velocity
   !==============================================================
   !u = u_0*sin(kx)
   subroutine add_velocity_sine

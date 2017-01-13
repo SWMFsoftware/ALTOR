@@ -8,14 +8,21 @@ subroutine PIC_setup
   use PIC_ModMain,      ONLY: UseSharedField, UseUniform, UseFoil
   use PIC_ModLogFile,   ONLY: open_logfile, nLogFile
   use PIC_ModOutput,    ONLY: PIC_save_files
-  use PIC_ModParticles, ONLY: uniform, foil
+  use PIC_ModParticles, ONLY: uniform, foil, DoAddVelocity_P, &
+       add_initial_velocity, nPType
 
   implicit none
+  integer :: iSort
   character(len=*), parameter :: NameSub='PIC_setup'
   !------------------------------------------------
   if(UseUniform)call uniform
   if(UseFoil   )call foil
-
+  if(any(DoAddVelocity_P))then
+     do iSort = 1, nPType
+        if(DoAddVelocity_P(iSort))&
+             call add_initial_velocity(iSort)
+     end do
+  end if
   !Save the initial outputs
   call timing_start('output')
   if(nLogFile >=1) call open_logfile
@@ -41,9 +48,8 @@ subroutine PIC_advance(tMax)
   use PIC_ModField,     ONLY: update_e, field_bc, E_GDB, iGCN 
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt, IsPeriodicField_D
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
-  use PIC_ModOutput,    ONLY: nStepOutMin, nStepOut, &
-       write_moments, PlotVar_VC
-  use PIC_ModMpi,       ONLY: pass_current, pass_density
+  use PIC_ModOutput,    ONLY: nStepOutMin, nStepOut
+  use PIC_ModMpi,       ONLY: pass_current, pass_density, pass_moments
   use PC_BATL_pass_face_field, ONLY: message_pass_field
   implicit none
   real,intent(in) :: tMax
@@ -77,15 +83,12 @@ subroutine PIC_advance(tMax)
   State_VGBI = 0.0
   if(nStepOut>=1.and.nStepOutMin<=iStep+1&
        .and.mod(iStep+1,nStepOut)==0)then
-     PlotVar_VC = 0.0
      do iSort=1, nPType
         !Calculate cell-centered number density and velocity while
         !advancing the particles
         call advance_particles(iSort,DoComputeMoments=.TRUE.)
         !Save the moments
-        call timing_start('output')
-        call write_moments(iSort)
-        call timing_stop('output')
+        call pass_moments(iSort)
      end do
   else
      do iSort=1, nPType
