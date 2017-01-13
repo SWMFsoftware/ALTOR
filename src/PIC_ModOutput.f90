@@ -2,8 +2,8 @@ module PIC_ModOutput
   use PIC_ModMain,ONLY: iStep, tSimulation, Dt, DX_D, &
        vInv, DxInv_D, UseSharedField 
   use PIC_ModSize,ONLY: nDim, nCell_D, nX, nY, nZ, x_, y_, z_
-  use PIC_ModSize,ONLY: nBlock, nPType
-  use PIC_ModParticles,ONLY: M_P, Q_P, Wx_, Wz_
+  use PIC_ModSize,ONLY: nBlock, nPType, jDim_, kDim_
+  use PIC_ModParticles,     ONLY: M_P, Q_P, Wx_, Wz_, nPType
   use PC_ModParticleInField,ONLY: State_VGBI, add_moments
   use PIC_ModField,   ONLY: iGCN, E_GDB,B_GDB
   use PIC_ModMpi,     ONLY: pass_moments
@@ -11,6 +11,7 @@ module PIC_ModOutput
   use ModIoUnit,      ONLY: io_unit_new
   use PIC_ModLogFile, ONLY: nToWrite     !Number of test particles
   use PC_BATL_lib,    ONLY: CoordMin_D, CoordMax_D, CoordMin_DB
+  use PC_BATL_tree,     ONLY: nRoot_D
 
   implicit none
   SAVE
@@ -24,15 +25,11 @@ module PIC_ModOutput
   character(len=5),public :: TypeFile='real4' 
   !Array for saving coordinates, fields and moments in one timestep
   real,allocatable   :: PlotVar_VC(:,:,:,:)
-  public :: PlotVar_VC
-  public :: write_moments
-
   public :: PIC_save_files
 
 contains
   !======================================================================
   subroutine PIC_save_files(TypeSave)
-    use PC_BATL_tree,     ONLY: nRoot_D
     use ModPlotFile,      ONLY: save_plot_file
     use PIC_ModParticles, ONLY: nPType
     use ModMpi  
@@ -52,21 +49,15 @@ contains
     character(len=:), allocatable, save:: NameVar
     character(len=*), parameter:: NameSub = 'save_files'
     !----------------------------------------------------------------------
-    if(.not.allocated(PlotVar_VC))then
-       allocate(PlotVar_VC(6+11*nPType,&
-         1:nX*nRoot_D(x_),1:nY*nRoot_D(y_),1:nZ*nRoot_D(z_)))
-       PlotVar_VC = 0.0
-    end if
     select case(TypeSave)
     case('INITIAL')
        !Do not save in test particle runs alone (test particle number>1 and
        !density of electrons < 1 per cell)
        if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
-       PlotVar_VC = 0.0
        !Calculate the initial moments
        call compute_moments
        
-       if(iProc==0.and.nDim==3) then
+       if(iProc==0) then
           allocate(character(len=69*nPType) :: NameVar)
           do iSort=1,nPType
              write(NameVar((6*iSort-5):(6*iSort)),'(a4,i1,1x)') 'rhoS',iSort-1
@@ -82,10 +73,15 @@ contains
              write(NameVar((4*iSort-3+65*nPType):(4*iSort+65*nPType)),&
                   '(a2,i1,1x)') 'MS',iSort-1
           end do
-          NameVar = 'x y z Ex Ey Ez Bx By Bz '//NameVar
+          NameVar = 'Ex Ey Ez Bx By Bz '//NameVar
           TypePosition = 'rewind'
-       elseif(nDim==2) then
-          NameVar = 'x y Ex Ey Ez Bx By Bz '//NameVar
+          if(nDim==3)then
+             NameVar = 'x y z '//NameVar
+          elseif(nDim==2) then
+             NameVar = 'x y '//NameVar
+          else
+             NameVar = 'x '//NameVar
+          end if
        end if
        
     case('NORMAL')
@@ -102,7 +98,6 @@ contains
     case('FINAL')
        !Do not save in test particle runs alone
        if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
-       PlotVar_VC = 0.0
        !Calculate the moments at final timestep
        call compute_moments
        
@@ -112,6 +107,7 @@ contains
        call CON_stop('ALTOR '//NameSub// &
             ': Incorrect value for TypeSave='//trim(TypeSave))
     end select
+    call write_moments
     call average_fields
     if(.not.UseSharedField.and.nProc>1)&
          call mpi_reduce_real_array(&
@@ -127,6 +123,7 @@ contains
        call save_plot_file(FileDir//NameFile,     &
             TypeFileIn = TypeFile,         &
             TypePositionIn = TypePosition, &
+            nDimIn  = nDim,  &
             nStepIn = iStep, &
             TimeIn  = tSimulation, &
             ParamIn_I = Param_I, &
@@ -139,7 +136,6 @@ contains
   !======================================================================
   !Calculate cell-centered number density and velocity for output
   subroutine compute_moments
-    use PIC_ModParticles, ONLY: nPType
     use PIC_ModFormFactor,ONLY: HighFF_ID,Node_D, get_form_factors
     use PC_BATL_particles,ONLY: Particle_I
     use PIC_ModSize, ONLY: MaxDim
@@ -172,79 +168,84 @@ contains
        end do
        
        !Save number density, velocity and pressure                           
-       call write_moments(iSort)
+       call pass_moments(iSort)
     end do
   end subroutine compute_moments
   !=====================================================================
   !Save the number density, velocity and pressure at certain timestep
-  subroutine write_moments(iSort)
+  subroutine write_moments
     use PIC_ModSize, ONLY: MaxDim
-    integer, intent(in) :: iSort
+    integer :: iSort
     integer :: iVar,i,j,k, iBlock, iOffset_D(MaxDim) = 0
     !------------------------------------------------------------------
     
     !Periodic velocity BC. Need to be merged into other function later.
-    call pass_moments(iSort)
     if(UseSharedField)then
        !\
        !True array State_VGBI is available only on the root PE
        !/
        if(iProc/=0)RETURN !Version with UseSharedBlock=.true.
     end if
-    
-    do iBlock = 1, nBlock
-       iOffset_D(1:nDim) = nint((CoordMin_DB(1:nDim,iBlock) - &
-            CoordMin_D(1:nDim))/dX_D(1:nDim))
-       !The cell-centered velocity should be normalized by number density
-       do iVar=2,4
-          State_VGBI(iVar,1:nX,1:nY,1:nZ,iBlock,iSort) = &
-               State_VGBI(iVar,1:nX,1:nY,1:nZ,iBlock,iSort)/&
-               State_VGBI(1,1:nX,1:nY,1:nZ,iBlock,iSort)
-       end do
-       !Looping over all the cell centers
-       do k=1,nZ; do j=1,nY; do i=1,nX
-          PlotVar_VC(iSort+6,&
-               i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_))  = &
-               abs(Q_P(iSort))*vInv*State_VGBI(1,i,j,k,iBlock,iSort)
-          
-          
-          !Save velocity
-          PlotVar_VC(nPType+3*iSort+4:nPType+3*iSort+6,&
-               i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               State_VGBI(2:4,i,j,k,iBlock,iSort)
-          !Save pressure tensor: Pxx Pyy Pzz Pxy Pxz Pyz
-          PlotVar_VC(5*nPType+6*iSort+1:5*nPType+6*iSort+3,&
-               i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               M_P(iSort)*vInv*(State_VGBI(5:7,i,j,k,iBlock,iSort) -&
-               State_VGBI(1,i,j,k,iBlock,iSort)*&
-               State_VGBI(2:4,i,j,k,iBlock,iSort)**2)
-          
-          PlotVar_VC(5*nPType+6*iSort+4,&
-               i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               M_P(iSort)*vInv*(State_VGBI(8,i,j,k,iBlock,iSort)&
-               - State_VGBI(1,i,j,k,iBlock,iSort)*&
-               State_VGBI(2,i,j,k,iBlock,iSort)*&
-               State_VGBI(3,i,j,k,iBlock,iSort))
-          PlotVar_VC(5*nPType+6*iSort+5,&
-               i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               M_P(iSort)*vInv*(State_VGBI(9,i,j,k,iBlock,iSort)&
-               - State_VGBI(1,i,j,k,iBlock,iSort)*&
-               State_VGBI(2,i,j,k,iBlock,iSort)*&
-               State_VGBI(4,i,j,k,iBlock,iSort))
-          PlotVar_VC(5*nPType+6*iSort+6,&
-               i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               M_P(iSort)*vInv*(State_VGBI(10,i,j,k,iBlock,iSort)&
-               - State_VGBI(1,i,j,k,iBlock,iSort)*&
-               State_VGBI(3,i,j,k,iBlock,iSort)*&
-               State_VGBI(4,i,j,k,iBlock,iSort))
-       end do; end do; end do
+    if(.not.allocated(PlotVar_VC))&
+         allocate(PlotVar_VC(6+11*nPType,&
+         1:nX*nRoot_D(x_),1:nY*nRoot_D(y_),1:nZ*nRoot_D(z_)))
+  
+    PlotVar_VC = 0.0
+    do iSort = 1, nPType
+       do iBlock = 1, nBlock
+          iOffset_D(1:nDim) = nint((CoordMin_DB(1:nDim,iBlock) - &
+               CoordMin_D(1:nDim))/dX_D(1:nDim))
+          !The cell-centered velocity should be normalized by number density
+          do iVar=2,4
+             State_VGBI(iVar,1:nX,1:nY,1:nZ,iBlock,iSort) = &
+                  State_VGBI(iVar,1:nX,1:nY,1:nZ,iBlock,iSort)/&
+                  State_VGBI(1,1:nX,1:nY,1:nZ,iBlock,iSort)
+          end do
+          !Looping over all the cell centers
+          do k=1,nZ; do j=1,nY; do i=1,nX
+             PlotVar_VC(iSort+6,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_))  = &
+                  abs(Q_P(iSort))*vInv*State_VGBI(1,i,j,k,iBlock,iSort)
+             
+             
+             !Save velocity
+             PlotVar_VC(nPType+3*iSort+4:nPType+3*iSort+6,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
+                  State_VGBI(2:4,i,j,k,iBlock,iSort)
+             !Save pressure tensor: Pxx Pyy Pzz Pxy Pxz Pyz
+             PlotVar_VC(5*nPType+6*iSort+1:5*nPType+6*iSort+3,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
+                  M_P(iSort)*vInv*(State_VGBI(5:7,i,j,k,iBlock,iSort) -&
+                  State_VGBI(1,i,j,k,iBlock,iSort)*&
+                  State_VGBI(2:4,i,j,k,iBlock,iSort)**2)
+             
+             PlotVar_VC(5*nPType+6*iSort+4,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
+                  M_P(iSort)*vInv*(State_VGBI(8,i,j,k,iBlock,iSort)&
+                  - State_VGBI(1,i,j,k,iBlock,iSort)*&
+                  State_VGBI(2,i,j,k,iBlock,iSort)*&
+                  State_VGBI(3,i,j,k,iBlock,iSort))
+             PlotVar_VC(5*nPType+6*iSort+5,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
+                  M_P(iSort)*vInv*(State_VGBI(9,i,j,k,iBlock,iSort)&
+                  - State_VGBI(1,i,j,k,iBlock,iSort)*&
+                  State_VGBI(2,i,j,k,iBlock,iSort)*&
+                  State_VGBI(4,i,j,k,iBlock,iSort))
+             PlotVar_VC(5*nPType+6*iSort+6,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
+                  M_P(iSort)*vInv*(State_VGBI(10,i,j,k,iBlock,iSort)&
+                  - State_VGBI(1,i,j,k,iBlock,iSort)*&
+                  State_VGBI(3,i,j,k,iBlock,iSort)*&
+                  State_VGBI(4,i,j,k,iBlock,iSort))
+          end do; end do; end do
        
-       !Save scalar pressure
-       do k=1+iOffset_D(z_),nZ+iOffset_D(z_)
-          do j=1+iOffset_D(y_),nY+iOffset_D(y_)
-             do i=1+iOffset_D(x_),nX+iOffset_D(x_)
-                PlotVar_VC(4*nPType+iSort+6,i,j,k) = sum(PlotVar_VC(&
-                     5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k))/3.0
+          !Save scalar pressure
+          do k=1+iOffset_D(z_),nZ+iOffset_D(z_)
+             do j=1+iOffset_D(y_),nY+iOffset_D(y_)
+                do i=1+iOffset_D(x_),nX+iOffset_D(x_)
+                   PlotVar_VC(4*nPType+iSort+6,i,j,k) = sum(PlotVar_VC(&
+                        5*nPType+6*iSort+1:5*nPType+6*iSort+3,i,j,k))/3.0
+                end do
              end do
           end do
        end do
@@ -271,16 +272,17 @@ contains
           PlotVar_VC(1,i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
                0.5*(E_GDB(i,j,k,1,iBlock)+E_GDB(i-1,j,k,1,iBlock))
           PlotVar_VC(2,i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               0.5*(E_GDB(i,j,k,2,iBlock)+E_GDB(i,j-1,k,2,iBlock))
+               0.5*(E_GDB(i,j,k,2,iBlock)+E_GDB(i,j-jDim_,k,2,iBlock))
           PlotVar_VC(3,i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               0.5*(E_GDB(i,j,k,3,iBlock)+E_GDB(i,j,k-1,3,iBlock))
+               0.5*(E_GDB(i,j,k,3,iBlock)+E_GDB(i,j,k-kDim_,3,iBlock))
           ! Cell-centered averaged B field
           PlotVar_VC(4,i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               0.25*sum(B_GDB(i,j-1:j,k-1:k,1,iBlock))
+               1.0/((1 + jDim_)*(1 + kDim_))*&
+               sum(B_GDB(i,j-jDim_:j,k-kDim_:k,1,iBlock))
           PlotVar_VC(5,i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               0.25*sum(B_GDB(i-1:i,j,k-1:k,2,iBlock))
+               0.50/(1 + kDim_)*sum(B_GDB(i-1:i,j,k-kDim_:k,2,iBlock))
           PlotVar_VC(6,i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = &
-               0.25*sum(B_GDB(i-1:i,j-1:j,k,3,iBlock))
+               0.50/(1 + jDim_)*sum(B_GDB(i-1:i,j-jDim_:j,k,3,iBlock))
        end do; end do; end do
     end do
   end subroutine average_fields
