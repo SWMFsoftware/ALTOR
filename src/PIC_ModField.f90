@@ -22,6 +22,9 @@ module PIC_ModField
   !because for lOrderFF>1 the particle form-factor
   !is wider than a mesh size
 
+  !For fields the number of ghostcells may be less
+  integer, parameter:: nGF = (1 + lOrderFF)/2
+
   !Structures
   !Array index is the coordinate of the gridpoint with +1/2 being
   !approximated as 1
@@ -47,11 +50,11 @@ contains
   !=======================
   subroutine allocate_fields
     
-    allocate(E_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
-         1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock))
+    allocate(E_GDB(1-nGF:nX+nGF, 1-nGF*jDim_:nY+nGF*jDim_,&
+          1-nGF*kDim_:nZ+nGF*kDim_,MaxDim, MaxBlock))
     E_GDB = 0.0
-    allocate(B_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
-         1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock))
+    allocate(B_GDB(1-nGF:nX+nGF, 1-nGF*jDim_:nY+nGF*jDim_,&
+         1-nGF*kDim_:nZ+nGF*kDim_, MaxDim, MaxBlock))
     B_GDB = 0.0 
     allocate(Current_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
          1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock)) 
@@ -62,8 +65,8 @@ contains
 
     allocate(Aux_CB(1:nX, 1:nY,1:nZ, MaxBlock)); Aux_CB = 0.0 
     if(UseVectorPotential)then
-       allocate(A_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
-         1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock))
+       allocate(A_GDB(1-nGF:nX+nGF, 1-nGF*jDim_:nY+nGF*jDim_,&
+         1-nGF*kDim_:nZ+nGF*kDim_, MaxDim, MaxBlock))
        A_GDB = 0.0
     end if
   end subroutine allocate_fields
@@ -78,9 +81,9 @@ contains
     call read_var('Ez',E_D(3))
     do iBlock = 1, MaxBlock
        do iDim = 1,3
-          do k=1-iGCN*kDim_,nZ+iGCN*kDim_
-             do j=1-iGCN*jDim_,nY+iGCN*jDim_
-                do i=1-iGCN,nX+iGCN
+          do k=1-nGF*kDim_,nZ+nGF*kDim_
+             do j=1-nGF*jDim_,nY+nGF*jDim_
+                do i=1-nGF,nX+nGF
                    E_GDB(i,j,k,iDim,iBlock) = &
                         E_GDB(i,j,k,iDim,iBlock) + E_D(iDim)
                 end do
@@ -99,9 +102,9 @@ contains
     call read_var('Bz',B0_D(3))
     do iBlock = 1, MaxBlock
        do iDim = 1,3
-          do k=1-iGCN*kDim_,nZ+iGCN*kDim_
-             do j=1-iGCN*jDim_,nY+iGCN*jDim_
-                do i=1-iGCN,nX+iGCN
+          do k=1-nGF*kDim_,nZ+nGF*kDim_
+             do j=1-nGF*jDim_,nY+nGF*jDim_
+                do i=1-nGF,nX+nGF
                    B_GDB(i,j,k,iDim,iBlock) = &
                         B_GDB(i,j,k,iDim,iBlock) + B0_D(iDim)
                 end do
@@ -130,9 +133,9 @@ contains
     !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
     !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-    do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
-       do j=1-iGCN*jDim_,nY+(iGCN-1)*jDim_
-          do i=1-iGCN,nX+iGCN
+    do k=1-nGF*kDim_,nZ+(nGF-1)*kDim_ 
+       do j=1-nGF*jDim_,nY+(nGF-1)*jDim_
+          do i=1-nGF,nX+nGF
              B_GDB(i,j,k,x_,iBlock) = B0_D(x_) + &
                   SpeedOfLight_D(y_)*&
                   (A_GDB(i,j+jDim_,k,z_,iBlock) - A_GDB(i,j,k,z_,iBlock))
@@ -151,9 +154,9 @@ contains
     !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
     !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-    do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
-       do j=1-iGCN*jDim_,nY+iGCN*jDim_ 
-          do i=1-iGCN,nX+iGCN-1
+    do k=1-nGF*kDim_,nZ+(nGF-1)*kDim_ 
+       do j=1-nGF*jDim_,nY+nGF*jDim_ 
+          do i=1-nGF,nX+nGF-1
              B_GDB(i,j,k,y_,iBlock) = B0_D(y_) - &
                   SpeedOfLight_D(x_)*&
                   (A_GDB(i+1,j,k,z_,iBlock) - A_GDB(i,j,k,z_,iBlock))
@@ -172,9 +175,9 @@ contains
     !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)       
     !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-    do k=1-iGCN*kDim_,nZ+iGCN*kDim_
-       do j=1-iGCN*jDim_,nY+(iGCN-1)*jDim_
-          do i=1-iGCN,nX+iGCN-1
+    do k=1-nGF*kDim_,nZ+nGF*kDim_
+       do j=1-nGF*jDim_,nY+(nGF-1)*jDim_
+          do i=1-nGF,nX+nGF-1
              B_GDB(i,j,k,z_,iBlock) = &
                   SpeedOfLight_D(x_)*&
                   (A_GDB(i+1,j,k,y_,iBlock) - A_GDB(i,j,k,y_,iBlock))-&
@@ -201,17 +204,26 @@ contains
        !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
        !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
        do iBlock = 1, nBlock
-          A_GDB(     1-iGCN:nX+iGCN-1,:,:,x_,iBlock) = &
-               A_GDB(1-iGCN:nX+iGCN-1,:,:,x_,iBlock) - &
-               0.50*E_GDB(1-iGCN:nX+iGCN-1,:,:,x_,iBlock)
+          A_GDB(     1-nGF:nX+nGF-1,1-nGF*jDim_:nY+nGF*jDim_,&
+               1-nGF*kDim_:nZ+nGF*kDim_,x_,iBlock) = &
+               A_GDB(1-nGF:nX+nGF-1,1-nGF*jDim_:nY+nGF*jDim_,&
+               1-nGF*kDim_:nZ+nGF*kDim_,x_,iBlock) - 0.50*&
+               E_GDB(1-nGF:nX+nGF-1,1-nGF*jDim_:nY+nGF*jDim_,&
+               1-nGF*kDim_:nZ+nGF*kDim_,x_,iBlock)
           
-          A_GDB(     :,1-iGCN*jDim_:nY+(iGCN-1)*jDim_,:,y_,iBlock) = &
-               A_GDB(:,1-iGCN*jDim_:nY+(iGCN-1)*jDim_,:,y_,iBlock) - &
-               0.50*E_GDB(:,1-iGCN*jDim_:nY+(iGCN-1)*jDim_,:,y_,iBlock)
+          A_GDB(     1-nGF:nX+nGF,1-nGF*jDim_:nY+(nGF-1)*jDim_,&
+               1-nGF*kDim_:nZ+nGF*kDim_,y_,iBlock) = &
+               A_GDB(1-nGF:nX+nGF,1-nGF*jDim_:nY+(nGF-1)*jDim_,&
+               1-nGF*kDim_:nZ+nGF*kDim_,y_,iBlock) - 0.50*&
+               E_GDB(1-nGF:nX+nGF,1-nGF*jDim_:nY+(nGF-1)*jDim_,&
+               1-nGF*kDim_:nZ+nGF*kDim_,y_,iBlock)
           
-          A_GDB(     :,:,1-iGCN*kDim_:nZ+(iGCN-1)*kDim_,z_,iBlock) = &
-               A_GDB(:,:,1-iGCN*kDim_:nZ+(iGCN-1)*kDim_,z_,iBlock) - &
-               0.50*E_GDB(:,:,1-iGCN*kDim_:nZ+(iGCN-1)*kDim_,z_,iBlock)
+          A_GDB(     1-nGF:nX+nGF, 1-nGF*jDim_:nY+nGF*jDim_,&
+               1-nGF*kDim_:nZ+(nGF-1)*kDim_,z_,iBlock) = &
+               A_GDB(1-nGF:nX+nGF, 1-nGF*jDim_:nY+nGF*jDim_,&
+               1-nGF*kDim_:nZ+(nGF-1)*kDim_,z_,iBlock) - 0.50*&
+               E_GDB(1-nGF:nX+nGF, 1-nGF*jDim_:nY+nGF*jDim_,&
+               1-nGF*kDim_:nZ+(nGF-1)*kDim_,z_,iBlock)
           call get_b_from_a(iBlock)
        end do
        RETURN
@@ -230,9 +242,9 @@ contains
     !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
     !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
     do iBlock = 1, nBlock
-       do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
-          do j=1-iGCN*jDim_,nY+(iGCN-1)*jDim_ 
-             do i=1-iGCN,nX+iGCN
+       do k=1-nGF*kDim_,nZ+(nGF-1)*kDim_ 
+          do j=1-nGF*jDim_,nY+(nGF-1)*jDim_ 
+             do i=1-nGF,nX+nGF
                 B_GDB(i,j,k,x_,iBlock) = B_GDB(i,j,k,x_,iBlock) - &
                      SpeedOfLightHalf_D(y_)*&
                      (E_GDB(i,  j+1,k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock)) 
@@ -251,9 +263,9 @@ contains
        !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)     
        !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
        !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-       do k=1-iGCN*kDim_,nZ+(iGCN-1)*kDim_ 
-          do j=1-iGCN*jDim_,nY+iGCN*jDim_ 
-             do i=1-iGCN,nX+iGCN-1
+       do k=1-nGF*kDim_,nZ+(nGF-1)*kDim_ 
+          do j=1-nGF*jDim_,nY+nGF*jDim_ 
+             do i=1-nGF,nX+nGF-1
                 B_GDB(i,j,k,y_,iBlock) = B_GDB(i,j,k,y_,iBlock) + &
                      SpeedOfLightHalf_D(x_)*&
                      (E_GDB(i+1,j,  k  ,z_,iBlock) - E_GDB(i,j,k,z_,iBlock))
@@ -272,9 +284,9 @@ contains
        !       _!_!_!                x!x!_!_  Bz(:,nY+2,:,1),Bz(nX+2,:,:,1)     
        !    -2  ! ! !                x!x!_!_  Bx(:,nY+2,:,1),Bx(:,:,nZ+2,1)
        !       -2                             By(nX+2,:,:,1),By(:,:,nZ+2,1)
-       do k=1-iGCN*kDim_,nZ+iGCN*kDim_ 
-          do j=1-iGCN*jDim_,nY+(iGCN-1)*jDim_ 
-             do i=1-iGCN,nX+iGCN-1
+       do k=1-nGF*kDim_,nZ+nGF*kDim_ 
+          do j=1-nGF*jDim_,nY+(nGF-1)*jDim_ 
+             do i=1-nGF,nX+nGF-1
                 B_GDB(i,j,k,z_,iBlock) = B_GDB(i,j,k,z_,iBlock) - &
                      SpeedOfLightHalf_D(x_)*&
                      (E_GDB(i+1,j,  k  ,y_,iBlock) - E_GDB(i,j,k,y_,iBlock)) + &

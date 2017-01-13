@@ -45,7 +45,7 @@ subroutine PIC_advance(tMax)
   use PIC_ModField,     ONLY: update_magnetic, Current_GDB, State_VGBI
   use PIC_ModParticles, ONLY: Energy_P, nPType, pass_energy
   use PIC_ModParticles, ONLY: advance_particles
-  use PIC_ModField,     ONLY: update_e, field_bc, E_GDB, iGCN 
+  use PIC_ModField,     ONLY: update_e, field_bc, E_GDB, nGF 
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt, IsPeriodicField_D
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
   use PIC_ModOutput,    ONLY: nStepOutMin, nStepOut
@@ -147,7 +147,7 @@ subroutine PIC_advance(tMax)
   ! The particle velocities and magnetic fields are in  
   ! the middle of the timestep.
   !/
-  call message_pass_field(iGCN, E_GDB)
+  call message_pass_field(nGF, E_GDB)
 
   call timing_stop('advance')
 
