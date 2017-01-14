@@ -2,4 +2,4 @@
 *.o
 Makefile.RULES
 Makefile.DEPEND
-PIC_ModSize.f90
+PC_ModSize.f90
