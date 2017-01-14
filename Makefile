@@ -29,13 +29,10 @@ help:
 	@echo '    rundir       (create run directory for standalone or SWMF)'
 	@echo '    rundir RUNDIR=run_test (create run directory run_test)'
 	@echo ' '
-	@echo "    serialrun    (make and run ${DEFAULT_EXE} on 1 PE)"
-	@echo "    parallelrun  (make and run ${DEFAULT_EXE} on ${NP} PEs)"
-	@echo "    parallelrun NP=7 RUNDIR=run_test (run on 7 PEs in run_test)"
 	@echo ' '	
 	@echo '    clean        (remove temp files like: *~ *.o *.kmo *.mod *.T *.lst core)'
 	@echo '    distclean    (equivalent to ./Config.pl -uninstall)'
-	@echo '    dist         (create source distribution tar file)'
+#	@echo '    dist         (create source distribution tar file)'
 
 INSTALLFILES =	src/Makefile.DEPEND srcBATL/Makefile.DEPEND \
 	srcInterface/Makefile.DEPEND srcBATL_orig/Makefile.DEPEND
@@ -108,15 +105,6 @@ rundir:
 		ln -s ${COMPONENT}/* .; \
 	fi);
 
-#
-#       Run the default code on NP processors
-#
-
-parallelrun: ${DEFAULT_TARGET}
-	cd ${RUNDIR}; ${MPIRUN} ./${DEFAULT_EXE}
-
-serialrun: ${DEFAULT_TARGET}
-	cd ${RUNDIR}; ${SERIAL} ./${DEFAULT_EXE}
 
 
 #
@@ -137,7 +125,7 @@ distclean: cleanfiles
 	./Config.pl -uninstall
 	rm -rf srcBATL
 
-allclean: cleanfiles
+allclean: 
 	@touch ${INSTALLFILES}
 	rm -f test*.diff
 	cd src; make distclean
