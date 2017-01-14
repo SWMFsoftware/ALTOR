@@ -6,12 +6,20 @@ module PIC_ModLaserBeam
   implicit none
   SAVE
   PRIVATE
-  real :: laserAmplitude(2:3)=0.0 !amplitude * polarization for Ey,Ez          
-  real :: phaseShift=0.0 !Ey(center)=cos(0), Ez(center)=sin(0)                 
+  !LaserAmplitude in focus
+  !Polarization {Ey/=0 Ez=0} p-pol, {Ey=0 Ez/=0} s-pol 
+  !Polarization {Ey/=0 Ez/=0} circular, elliptical
+  real :: laserAmplitude(2:3)=0.0 !amplitude * polarization for Ey,Ez
+
+  real :: phaseShift=0.0 !Ey(center)=cos(0), Ez(center)=sin(0)
+  !\
+  ! Upon reading, the transformation may be done as follows:
+  ! if(PulseWidth_D(2)<=0.0.or. PulseWidth_D(3)<=0) then   
+  !           PulseWidth_D(2:3)=0.42*XyzFocus_D1(1)
+  ! which corresponds to focusing in 1 wavelength        
+  !/                                                            
   real :: PulseWidth_D(nDim)=-1. !In cycles, wavelengths
-  real :: XyzFocus_D(nDim)=-1. !if(PulseWidth_D(2)<=0.0.or. PulseWidth_D(3)<=0) then   
-                           !           PulseWidth_D(2:3)=0.42*xFocus1(1)        
-  !                                                                           
+  real :: XyzFocus_D(nDim)=-1.            
   real :: coeff=-1.!Gaussian distribution: Intensity/2 at pulse width          
   real :: timePulseBegin=0.0,timePulseEnd=0.0,xPulseCenter=0.0
   !                                                                            
