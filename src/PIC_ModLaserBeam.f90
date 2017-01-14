@@ -8,9 +8,9 @@ module PIC_ModLaserBeam
   PRIVATE
   real :: laserAmplitude(2:3)=0.0 !amplitude * polarization for Ey,Ez          
   real :: phaseShift=0.0 !Ey(center)=cos(0), Ez(center)=sin(0)                 
-  real :: pulseWidth(nDim)=-1. !In cycles, wavelengths
-  real :: xFocus(nDim)=-1. !if(pulseWidth(2)<=0.0.or. pulseWidth(3)<=0) then   
-                           !           pulseWidth(2:3)=0.42*xFocus1(1)        
+  real :: PulseWidth_D(nDim)=-1. !In cycles, wavelengths
+  real :: XyzFocus_D(nDim)=-1. !if(PulseWidth_D(2)<=0.0.or. PulseWidth_D(3)<=0) then   
+                           !           PulseWidth_D(2:3)=0.42*xFocus1(1)        
   !                                                                           
   real :: coeff=-1.!Gaussian distribution: Intensity/2 at pulse width          
   real :: timePulseBegin=0.0,timePulseEnd=0.0,xPulseCenter=0.0
@@ -32,7 +32,7 @@ contains
     real, optional, intent(in):: z !not used in 2D geometry
     real,   intent(inout)     :: EField !Before 
     !-------------------------
-    real :: xx(nDim)
+    real :: Xyz_D(nDim)
     real :: pX(nDim)
     real :: focusDist,timeReal,tmp
     real :: laser_profile,laser_phase
@@ -40,30 +40,32 @@ contains
     !
     !Works for the left boundary only
     !
-    xx(1:2)=(/x,y/)
-    if(nDim==3)xx(nDim) = z
+    Xyz_D(1:2)=(/x,y/)
+    if(nDim==3)Xyz_D(nDim) = z
     EField=0.0
     !
     if(tSimulation>=timePulseBegin .and. tSimulation <= timePulseEnd) then
        if(x<0.0) then 
-          focusDist=sqrt(sum((xFocus-xx)**2))
-          timeReal=tSimulation+focusDist-xFocus(1)
+          focusDist=sqrt(sum((XyzFocus_D(1:nDim)-Xyz_D(1:nDim))**2))
+          timeReal=tSimulation+focusDist-XyzFocus_D(1)
           pX(:)=0.0
           !
           if(timeReal<=timePulseEnd) then
              !
-             laser_phase=focusDist-xFocus(1)+(xPulseCenter+tSimulation)
+             laser_phase=focusDist-XyzFocus_D(1)+(xPulseCenter+tSimulation)
              !                                                          
-             tmp=(-laser_phase *2.0/pulseWidth(1))**2
+             tmp=(-laser_phase *2.0/PulseWidth_D(1))**2
              if(tmp < 30.) pX(1)=exp(-tmp)
-             tmp=(focusDist*asin((xx(2)-xFocus(2))/focusDist)&
-                  *2.0/pulseWidth(2))**2
+             tmp=(focusDist*asin((Xyz_D(2)-XyzFocus_D(2))/focusDist)&
+                  *2.0/PulseWidth_D(2))**2
              if(tmp < 30.) pX(2)=exp(-tmp)
-             tmp=(focusDist*asin((xx(3)-xFocus(3))/focusDist)&
-                  *2.0/pulseWidth(3))**2
-             if(tmp < 30.) pX(3)=exp(-tmp)
+             if(nDim==3)then
+                tmp=(focusDist*asin((Xyz_D(nDim)-XyzFocus_D(nDim))/focusDist)&
+                     *2.0/PulseWidth_D(nDim))**2
+                if(tmp < 30.) pX(nDim)=exp(-tmp)
+             end if
              !
-             laser_profile=product(pX)*laserAmplitude(iDir)
+             laser_profile=product(pX(1:nDim))*laserAmplitude(iDir)
              laser_phase=laser_phase+phaseShift
              !
              if(iDir==y_) then
@@ -87,34 +89,34 @@ contains
     call read_var('laserAmplitude2',laserAmplitude(2))
     call read_var('laserAmplitude3',laserAmplitude(3))
     call read_var('phaseShift',phaseShift)
-    call read_var('pulseWidth1',pulseWidth(1))
-    call read_var('pulseWidth2',pulseWidth(2))
-    call read_var('pulseWidth3',pulseWidth(3))
-    call read_var('xFocus1',xFocus(1))
-    call read_var('xFocus2',xFocus(2))
-    call read_var('xFocus3',xFocus(3))
+    call read_var('PulseWidth_D1',PulseWidth_D(1))
+    call read_var('PulseWidth_D2',PulseWidth_D(2))
+    if(nDim==3)call read_var('PulseWidth_D3',PulseWidth_D(nDim))
+    call read_var('xFocus1',XyzFocus_D(1))
+    call read_var('xFocus2',XyzFocus_D(2))
+    if(nDim==3)call read_var('xFocus3',XyzFocus_D(nDim))
     !
     laser_pulse=2
     !                                                                         
     timePulseBegin=0.0
-    xPulseCenter=-pulseWidth(1)
-    timePulseEnd=pulseWidth(1)*2.0
+    xPulseCenter=-PulseWidth_D(1)
+    timePulseEnd=PulseWidth_D(1)*2.0
     !                                                                        
     coeff=1.0/sqrt(2.0*alog(2.0)) !coeff=0.849322                           
     !                                                                        
     if(iProc==0)then
-       write(*,'(a,es13.5)')'Laser pulse of duration [cycles]=',pulseWidth(1)
-!       if(xFocus(1) <=0.0 ) then                                           
-       if(pulseWidth(2)<=0.0.or.pulseWidth(3)<=0) then
-          write(*,'(a,es13.5)')'is focused to a wavelength at x=',xFocus(1)
-          else
-          write(*,'(a,2es13.5)')'and of width [wavelengths]=',pulseWidth(2:3)
+       write(*,'(a,es13.5)')'Laser pulse of duration [cycles]=',PulseWidth_D(1)
+!       if(XyzFocus_D(1) <=0.0 ) then                                           
+       if(PulseWidth_D(2)<=0.0.or.PulseWidth_D(nDim)<=0) then
+          write(*,'(a,es13.5)')'is focused to a wavelength at x=',XyzFocus_D(1)
+       else
+          write(*,'(a,2es13.5)')'and of width [wavelengths]=',PulseWidth_D(2:nDim)
        end if
     end if
     !                                                                         
-    pulseWidth=pulseWidth*coeff
-    if(pulseWidth(2)<=0.0.or.pulseWidth(3)<=0) then
-       pulseWidth(2:3)=xFocus(1)*sin(45.0*cDegToRad)
+    PulseWidth_D=PulseWidth_D*coeff
+    if(PulseWidth_D(2)<=0.0.or.PulseWidth_D(nDim)<=0) then
+       PulseWidth_D(2:nDim)=XyzFocus_D(1)*sin(45.0*cDegToRad)
        laser_pulse=1
     end if
     !                                                                    
