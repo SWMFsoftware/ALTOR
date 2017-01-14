@@ -1,12 +1,12 @@
 module PIC_ModOutput
   use PIC_ModMain,ONLY: iStep, tSimulation, Dt, DX_D, &
        vInv, DxInv_D, UseSharedField 
-  use PIC_ModSize,ONLY: nDim, nCell_D, nX, nY, nZ, x_, y_, z_
-  use PIC_ModSize,ONLY: nBlock, nPType, jDim_, kDim_
+  use PC_ModSize,ONLY: nDim, nCell_D, nX, nY, nZ, x_, y_, z_
+  use PC_ModSize,ONLY: nBlock, nPType, jDim_, kDim_
   use PIC_ModParticles,     ONLY: M_P, Q_P, Wx_, Wz_, nPType
   use PC_ModParticleInField,ONLY: State_VGBI, add_moments
   use PIC_ModField,   ONLY: E_GDB,B_GDB
-  use PIC_ModMpi,     ONLY: pass_moments
+  use PC_ModMpi,     ONLY: pass_moments
   use PIC_ModProc
   use ModIoUnit,      ONLY: io_unit_new
   use PIC_ModLogFile, ONLY: nToWrite     !Number of test particles
@@ -138,7 +138,7 @@ contains
   subroutine compute_moments
     use PIC_ModFormFactor,ONLY: HighFF_ID,Node_D, get_form_factors
     use PC_BATL_particles,ONLY: Particle_I
-    use PIC_ModSize, ONLY: MaxDim
+    use PC_ModSize, ONLY: MaxDim
     use PIC_ModMain, ONLY: c,c2
     integer :: iSort,iParticle, i
     real,dimension(nDim):: X_D
@@ -174,7 +174,7 @@ contains
   !=====================================================================
   !Save the number density, velocity and pressure at certain timestep
   subroutine write_moments
-    use PIC_ModSize, ONLY: MaxDim
+    use PC_ModSize, ONLY: MaxDim
     integer :: iSort
     integer :: iVar,i,j,k, iBlock, iOffset_D(MaxDim) = 0
     !------------------------------------------------------------------
@@ -253,7 +253,7 @@ contains
   end subroutine write_moments
   !======================================================================
   subroutine average_fields
-    use PIC_ModSize, ONLY: MaxDim
+    use PC_ModSize, ONLY: MaxDim
     integer :: iBlock
     integer :: i, j, k, iOffset_D(MaxDim) = 0
     !--------------------

@@ -3,7 +3,7 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PIC_ModBatlInterface
   use PIC_ModMain,  ONLY: MaxBlock
-   use PIC_ModSize, ONLY: nDim
+   use PC_ModSize, ONLY: nDim
   implicit none
   integer, dimension(1:2*nDim,MaxBlock) :: NeiLevel_SB, NeiPe_SB, NeiBlk_SB
 contains
@@ -11,7 +11,7 @@ contains
   subroutine set_altor_grid
 
     use PC_BATL_lib, ONLY: Unused_B, nProc, iComm, nRoot_D
-    use PIC_ModSize, ONLY: nBlock
+    use PC_ModSize, ONLY: nBlock
     use PIC_ModMain, ONLY: nBlockMax, nTotBlocks
     use ModMpi
 
@@ -32,7 +32,7 @@ contains
   end subroutine set_altor_grid
   !===========================================================================
   subroutine set_altor_block(iBlock)
-    use PIC_ModSize, ONLY: nDim
+    use PC_ModSize, ONLY: nDim
     use PC_BATL_lib, ONLY: Block_, Proc_, Unset_, &
          iNodeNei_IIIB, DiLevelNei_IIIB, iTree_IA 
 

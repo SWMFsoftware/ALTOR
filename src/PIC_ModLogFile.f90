@@ -2,7 +2,7 @@
 !  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PIC_ModLogFile
-  use PIC_ModSize, ONLY: nPType, nDim
+  use PC_ModSize, ONLY: nPType, nDim
   implicit none
   SAVE
   PRIVATE !Except

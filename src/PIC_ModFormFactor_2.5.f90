@@ -1,5 +1,5 @@
 module PIC_ModFormFactor
-  use PIC_ModSize, ONLY: nDim, MaxDim
+  use PC_ModSize, ONLY: nDim, MaxDim
   implicit none
 
   integer, parameter :: lOrderFF =  3 

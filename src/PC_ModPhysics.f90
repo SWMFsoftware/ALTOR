@@ -60,7 +60,7 @@ module PC_ModPhysics
        'J       '/)
 contains
   subroutine assign_other_units
-    use PIC_ModSize, ONLY: nDim
+    use PC_ModSize, ONLY: nDim
     !\
     !May be found after UnitX_, UnitT_ and UnitN_ are set
     !/

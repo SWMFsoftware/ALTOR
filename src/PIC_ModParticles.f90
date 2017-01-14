@@ -2,13 +2,13 @@
 !  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PIC_ModParticles
-  use PIC_ModSize,ONLY: nPType, nElectronMax, x_, y_, z_
-  use PIC_ModSize,ONLY: nX, nY, nZ, nCell_D, nDim, MaxDim
+  use PC_ModSize,ONLY: nPType, nElectronMax, x_, y_, z_
+  use PC_ModSize,ONLY: nX, nY, nZ, nCell_D, nDim, MaxDim
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, DxInv_D, CellVolume, &
        SpeedOfLight_D, vInv, uTh_P, UseThermalization
   use PC_ModParticleInField,ONLY: &
        State_VGBI,add_current, add_moments, add_density
-  use PIC_ModMpi, ONLY: &
+  use PC_ModMpi, ONLY: &
        get_min_val_rho, get_max_val_rho, get_rho_avr, get_rho_int
   use PIC_ModFormFactor,ONLY: HighFF_ID, HighFFNew_ID,&
        Node_D, NodeNew_D, get_form_factors
@@ -138,7 +138,7 @@ contains
   !================================
   subroutine uniform_shared_field
     use PIC_ModProc
-    use PIC_ModMpi
+    use PC_ModMpi
     use ModMpi
     use PIC_ModRandom
     use PIC_ModMain, ONLY: nPPerCellUniform_P 
@@ -228,10 +228,10 @@ contains
   subroutine uniform
     use PIC_ModMain,  ONLY: nTotBlocks, UseSharedField, &
          nPPerCellUniform_P 
-    use PIC_ModSize,  ONLY: nBlock
+    use PC_ModSize,  ONLY: nBlock
     use PIC_ModProc
     use PIC_ModRandom
-    use PIC_ModMpi
+    use PC_ModMpi
     use PC_BATL_lib,  ONLY: iTree_IA, Block_, iNode_B
 
     integer             :: nPPerCell_P(nPType), nBPerPE, nBResidual,&
@@ -357,7 +357,7 @@ contains
     use ModReadParam,ONLY: read_var
     use PIC_ModProc
     use ModConst,    ONLY: cDegToRad
-    use PIC_ModMpi,  ONLY: pass_density
+    use PC_ModMpi,  ONLY: pass_density
     use ModMpi
     use PIC_ModMain, ONLY: nPPerCellFoil_P, FoilCenter_D, &
          FoilWidth_D, AngleFoil
@@ -382,7 +382,7 @@ contains
     use PIC_ModProc
     use PIC_ModRandom
     use ModConst,    ONLY: cDegToRad
-    use PIC_ModMpi,  ONLY: pass_density
+    use PC_ModMpi,  ONLY: pass_density
     use ModMpi
     use PIC_ModMain, ONLY: nPPerCellFoil_P, FoilCenter_D, &
          FoilWidth_D, AngleFoil

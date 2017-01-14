@@ -49,7 +49,7 @@ subroutine PIC_advance(tMax)
   use PIC_ModMain,      ONLY: tSimulation, iStep, Dt, IsPeriodicField_D
   use PIC_ModLogFile,   ONLY: write_logfile, nLogFile
   use PIC_ModOutput,    ONLY: nStepOutMin, nStepOut
-  use PIC_ModMpi,       ONLY: pass_current, pass_density, pass_moments
+  use PC_ModMpi,       ONLY: pass_current, pass_density, pass_moments
   use PC_BATL_pass_face_field, ONLY: message_pass_field
   implicit none
   real,intent(in) :: tMax
@@ -59,25 +59,21 @@ subroutine PIC_advance(tMax)
   if(tSimulation > tMax)return
   call timing_start('advance')
   !\
-  ! Electric field and the particle coordinates are at the beginning of 
-  ! the time step, the magnetic field and particle velocities are half
-  ! time step behind.
+  ! Electric and magnetic fields and the particle coordinates are at the 
+  ! beginning of the time step, particle velocities are half
+  ! time step behind. 
   !/
   !\
   ! Start update through the time step
   !/
-  !1. Update the magnetic field through the half time step
+  !6. Update the magnetic field through the half time step
   call timing_start('adv_b')
   call update_magnetic
   call timing_stop('adv_b')
-  !\
-  ! Electromagnetic fields and the particle coordinates are at the
-  !beginning of the time step, the particle velocities are half 
-  !time step behind.
-  !/
-  !2. Prepare to move particles
+  
+  !1. Prepare to move particles
   Current_GDB = 0.0; Energy_P = 0.0
-  !3. Move particles
+  !2. Move particles
   call timing_start('adv_particles')
 
   State_VGBI = 0.0
@@ -98,8 +94,8 @@ subroutine PIC_advance(tMax)
         call pass_density(iSort)
      end do
   end if
-
-  call pass_energy
+  !3. Collect currents at the half time step 
+  call pass_current
   !\
   ! Electromagnetic fields and the particle energies are at  
   ! the beginning of the time step. Density and the particle 
@@ -111,9 +107,13 @@ subroutine PIC_advance(tMax)
      !All energies in the logfile are at the beginning of the timestep.
      !For test particles velocities are in the middle of the timestep,
      !coordinates are at the end of it
-     if(iStep/=0.and.mod(iStep,nLogFile)==0)&
-          call write_logfile
+     if(iStep/=0.and.mod(iStep,nLogFile)==0)then
+        call pass_energy
+        call write_logfile
+     end if
   end if
+  iStep = iStep + 1
+  tSimulation = tSimulation + Dt
   !\
   !4. Update Magnetic field through a half timestep
   !/
@@ -121,24 +121,26 @@ subroutine PIC_advance(tMax)
   call update_magnetic
   call timing_stop('adv_b')
   !\
-  ! Electric fields are at the end of the time step.
+  ! Electric fields are at the beginning of the time step.
   ! The particle coordinates are at the end of the timestep.
   ! The particle velocities and magnetic fields are in  
   ! the middle of the timestep.
   !/
-  !5. Collect currents
-  call pass_current
-
-  !6. Advance electric field
-  !\
-  ! 6.1 calculate time dependent boundary conditions and 
-  !/
-  iStep = iStep + 1
-  tSimulation = tSimulation + Dt
-  call field_bc
-
+  !5. Advance electric field
+ 
   call timing_start('adv_e')
+  !\
+  ! 5.1 calculate time dependent external  boundary conditions
+  !/
+  call field_bc
+  !\
+  ! 5.2 advance field within the physical blocks
+  !/
   call update_e
+  !\
+  ! 5.3 update ghost face field values
+  !/ 
+  call message_pass_field(nGF, E_GDB)
   call timing_stop('adv_e')
 
   !\
@@ -147,8 +149,15 @@ subroutine PIC_advance(tMax)
   ! The particle velocities and magnetic fields are in  
   ! the middle of the timestep.
   !/
-  call message_pass_field(nGF, E_GDB)
-
+!  !6. Update the magnetic field through the half time step
+!  call timing_start('adv_b')
+!  call update_magnetic
+!  call timing_stop('adv_b')
+  !\
+  ! Electromagnetic fields and the particle coordinates are at the
+  !end of time step, the particle velocities are half 
+  !time step behind.
+  !/
   call timing_stop('advance')
 
 end subroutine PIC_advance

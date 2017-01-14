@@ -3,14 +3,14 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 ! This file contains the top level methods for ALTOR
 !==========================
-module PIC_ModMpi
+module PC_ModMpi
   use PIC_ModField
   use ModMpi
   use PIC_ModProc
   use PIC_ModMain, ONLY: UseSharedField, vInv, CellVolume
   use PC_BATL_pass_face_field, ONLY: &
        add_ghost_face_field, add_ghost_cell_field
-  use PIC_ModSize, ONLY: nBlock
+  use PC_ModSize, ONLY: nBlock
   implicit none
   !structures
   integer,parameter::iBuffSizeMax=10 !In MByte
@@ -154,7 +154,7 @@ contains
   end subroutine get_max_val_rho
   !=======================
   subroutine get_rho_avr(RhoAvr)
-    use PIC_ModSize, ONLY: nCell_D, nDim
+    use PC_ModSize, ONLY: nCell_D, nDim
     real   , intent(out) :: RhoAvr
     real                 :: RhoLoc_I(2), Rho_I(2)
     !-------------------------------
@@ -177,7 +177,7 @@ contains
   end subroutine get_rho_avr
  !=======================
   subroutine get_rho_int(RhoInt)
-    use PIC_ModSize, ONLY: nCell_D, nDim
+    use PC_ModSize, ONLY: nCell_D, nDim
     real   , intent(out) :: RhoInt
     real                 :: RhoIntLoc
     !-------------------------------
@@ -196,6 +196,6 @@ contains
     end if
   end subroutine get_rho_int
   !====================
-end module PIC_ModMpi
+end module PC_ModMpi
    
     

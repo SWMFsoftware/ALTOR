@@ -19,7 +19,7 @@ PIC_ModRandom.o: PIC_ModRandom.f90
 # BLAS and LAPACK libraries
 
 OBJECTS= \
-	PIC_ModSize.o \
+	PC_ModSize.o \
 	PIC_ModProc.o \
 	PIC_ModBatlInterface.o \
 	PIC_ModMain.o \
@@ -27,7 +27,7 @@ OBJECTS= \
 	PIC_ModLaserBeam.o \
 	PIC_ModField.o \
 	PC_ModParticleInField.o \
-	PIC_ModPassField_3d.o \
+	PC_ModPassField.o \
 	PIC_ModParticles.o \
 	PC_ModPhysics.o \
 	PIC_ModRandom.o \
@@ -95,7 +95,7 @@ ${EXE}: ${OBJECTS_EXE}
 clean: cleanfiles
 
 distclean: clean
-	rm -f PIC_ModSize.f90
+	rm -f PC_ModSize.f90
 
 
 

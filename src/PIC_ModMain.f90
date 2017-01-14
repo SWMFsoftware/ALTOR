@@ -1,6 +1,6 @@
 module PIC_ModMain
   use ModNumConst
-  use PIC_ModSize, ONLY: nDim, MaxBlock, nPType, MaxDim
+  use PC_ModSize, ONLY: nDim, MaxBlock, nPType, MaxDim
   implicit none
   SAVE
   !-----------------------

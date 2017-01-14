@@ -2,7 +2,7 @@
 !  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PIC_ModField
-  use PIC_ModSize, ONLY: nX, nY, nZ, x_, y_, z_, &
+  use PC_ModSize, ONLY: nX, nY, nZ, x_, y_, z_, &
        nDim, nCell_D, MaxBlock, jDim_, kDim_, nPType
   use PC_BATL_size,ONLY: MaxDim, nBlock
   use PIC_ModMain,ONLY:&

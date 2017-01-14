@@ -1,5 +1,5 @@
 module PC_ModParticleInField
-  use PIC_ModSize, ONLY:nBlock, nX, nY, nZ
+  use PC_ModSize, ONLY:nBlock, nX, nY, nZ
   use PIC_ModField
   use PIC_ModFormFactor, ONLY: lOrderFF, iUpFF, iDownFF, iExt
   use PIC_ModFormfactor, ONLY: Node_D, NodeNew_D

@@ -1,5 +1,5 @@
 !--------------------------------------------------------------!
-module PIC_ModSize
+module PC_ModSize
   use PC_BATL_size, ONLY: nX=>nI, nY=>nJ, nZ=>nK, jDim_, kDim_
   use PC_BATL_size, ONLY: nPType=>nKindParticle, nDim, MaxDim
   use PC_BATL_size, ONLY:nBlock
@@ -8,4 +8,9 @@ module PIC_ModSize
   integer, parameter :: nElectronMax=10000000
   integer, parameter :: nCell_D(MaxDim) = (/nX, nY, nZ/)
 
-end module PIC_ModSize
+  !\
+  ! Paramaters of hybrid simulations
+  !/
+  integer, parameter :: nHybrid = 0
+
+end module PC_ModSize

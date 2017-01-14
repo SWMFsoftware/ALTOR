@@ -34,10 +34,14 @@ my $Src         = 'src';
 
 # Grid size variables
 my $NameBatlFile = "srcBATL/BATL_size.f90";
-my $NameSizeFile = "$Src/PIC_ModSize.f90";
+my $NameSizeFile = "$Src/PC_ModSize.f90";
 my $GhostCell;
 my $GridSize;
+my $Hybrid;
+my $NewHybrid;
+my $ReadHybrid;
 my ($nI, $nJ, $nK, $MaxBlock, $nPType, $nElectronMax);
+
 
 # Read previous grid size, equation and user module
 &get_settings;
@@ -45,11 +49,15 @@ my ($nI, $nJ, $nK, $MaxBlock, $nPType, $nElectronMax);
 foreach (@Arguments){
     if(/^-s$/)                {$Show=1;                        next};
     if(/^-ng=(.*)$/i)         {$NewGhostCell=$1; next};
+    if(/^-hybrid=(.*)$/i)         {$ReadHybrid=$1; next};
     warn "WARNING: Unknown flag $_\n" if $Remaining{$_};
 }
+$NewHybrid=0;
+$NewHybrid=1 if($ReadHybrid eq "Y");
 
 &set_grid_size if ($NewGridSize and $NewGridSize ne $GridSize)
-    or            ($NewGhostCell and $NewGhostCell ne $GhostCell);
+    or            ($NewGhostCell and $NewGhostCell ne $GhostCell)
+    or            ($ReadHybrid and $NewHybrid ne $Hybrid);
 # Show grid size in a compact form if requested
 print "Config.pl -g=$nI,$nJ,$nK,$MaxBlock,$nPType,$nElectronMax",
     ,"\n" if $ShowGridSize and not $Show;
@@ -80,6 +88,7 @@ sub get_settings{
 	next if /^\s*!/; # skip commented out lines
         $MaxBlock=$1     if /\bMaxBlock\s*=\s*(\d+)/i;
 	$nElectronMax=$1        if /\bnElectronMax\s*=\s*(\d+)/i;
+	$Hybrid=$1        if /\bnHybrid\s*=\s*(\d+)/i;
     }
     close FILE;
 
@@ -106,6 +115,7 @@ sub set_grid_size{
 	    " positive integers separated with commas\n";
     }
     $GhostCell = $NewGhostCell if $NewGhostCell;
+    $Hybrid    = $NewHybrid    if $ReadHybrid;
 
  
     print "Writing new grid size $GridSize into ".
@@ -116,6 +126,7 @@ sub set_grid_size{
 	if(/^\s*!/){print; next} # Skip commented out lines
 	s/\b(nElectronMax\s*=[^0-9]*)(\d+)/$1$nElectronMax/i;
 	s/\b(MaxBlock\s*=[^0-9]*)(\d+)/$1$MaxBlock/i;
+	s/\b(nHybrid\s*=[^0-9]*)(\d+)/$1$Hybrid/i;
 	print;
     }
     @ARGV = ($NameBatlFile);
@@ -143,6 +154,8 @@ sub current_settings{
 	"Max. number of blocks/PE          : MaxBlock=$MaxBlock\n";
     $Settings .= 
 	"Max. number of electrons          : nElectronMax=$nElectronMax\n";
+    $Settings .= 
+	"Use hybrid scheme                 : nHybrid=$Hybrid\n";
 
 }
 
