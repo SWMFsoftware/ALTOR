@@ -7,7 +7,7 @@ DEFAULT_EXE    = ${DEFAULT_TARGET}.exe
 default : ${DEFAULT_TARGET}
 
 include Makefile.def
-
+include Makefile.conf
 FF = 1.5
 
 #
@@ -123,7 +123,7 @@ serialrun: ${DEFAULT_TARGET}
 # Cleaning
 #
 
-clean:
+clean: cleanfiles
 	@touch ${INSTALLFILES}
 	cd src; make clean
 	cd srcInterface; make clean
@@ -132,12 +132,14 @@ clean:
 	@(if [ -d util  ]; then cd util;  make clean; fi);
 	@(if [ -d share ]; then cd share; make clean; fi);
 
-distclean: 
+distclean: cleanfiles
+	rm -f test*.diff
 	./Config.pl -uninstall
 	rm -rf srcBATL
 
-allclean:
+allclean: cleanfiles
 	@touch ${INSTALLFILES}
+	rm -f test*.diff
 	cd src; make distclean
 	rm -rf srcBATL
 	cd srcInterface; make distclean
