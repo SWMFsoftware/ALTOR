@@ -1,5 +1,5 @@
 module PIC_ModLaserBeam
-  use PIC_ModSize, ONLY: nDim, x_, y_, z_
+  use PC_ModSize, ONLY: nDim, x_, y_, z_
   use PIC_ModMain, ONLY: tSimulation
   use ModNumConst, ONLY: cOne,cHalf,cDegToRad
   use PIC_ModProc,      ONLY:iProc
@@ -8,7 +8,7 @@ module PIC_ModLaserBeam
   PRIVATE
   real :: laserAmplitude(2:3)=0.0 !amplitude * polarization for Ey,Ez          
   real :: phaseShift=0.0 !Ey(center)=cos(0), Ez(center)=sin(0)                 
-  real :: pulseWidth(nDim)=-1. !In cycles, wavelengths                         
+  real :: pulseWidth(nDim)=-1. !In cycles, wavelengths
   real :: xFocus(nDim)=-1. !if(pulseWidth(2)<=0.0.or. pulseWidth(3)<=0) then   
                            !           pulseWidth(2:3)=0.42*xFocus1(1)        
   !                                                                           
@@ -33,14 +33,16 @@ contains
     real,   intent(inout)     :: EField !Before 
     !-------------------------
     real :: xx(nDim)
-    real ::pX(nDim)
+    real :: pX(nDim)
     real :: focusDist,timeReal,tmp
     real :: laser_profile,laser_phase
     !==========================================
     !
     !Works for the left boundary only
     !
-    xx(:)=(/x,y,z/)
+    xx(1:2)=(/x,y/)
+    if(nDim==3)xx(nDim) = z
+    EField=0.0
     !
     if(tSimulation>=timePulseBegin .and. tSimulation <= timePulseEnd) then
        if(x<0.0) then 
