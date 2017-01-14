@@ -85,13 +85,32 @@ contains
 !================================================                        
   subroutine read_laser_beam
     use ModReadParam,ONLY: read_var
-    !                                                                          
+    
+    !======================================READING BEGIN          
+    !LaserAmplitude in focus
+    !Polarization {Ey/=0 Ez=0} p-pol, {Ey=0 Ez/=0} s-pol 
+    !Polarization {Ey/=0 Ez/=0} circular, elliptical
     call read_var('laserAmplitude2',laserAmplitude(2))
     call read_var('laserAmplitude3',laserAmplitude(3))
+    !
+    !PhaseShift in respect of Ey(xCenter)=cos(0), Ez(xCenter)=sin(0); 
+    !PhaseShift is given in fractions of +-1, to be * (2*cPi).
     call read_var('phaseShift',phaseShift)
+    !
+    !PulseWidth in focus is given in cycles/wavelengths  
+    !PulseWidth_D(2:3)==f/D
+    !f/D==[focal radius...]/[diameter... of the focusing parabola] 
+    !== N=0.94 (56^degrees), N=1., N=1.5, N=2,...
+
     call read_var('PulseWidth_D1',PulseWidth_D(1))
     call read_var('PulseWidth_D2',PulseWidth_D(2))
     if(nDim==3)call read_var('PulseWidth_D3',PulseWidth_D(nDim))
+    !
+    !Focal point: 
+    !if XyzFocus_D(:) >=0 - no change
+    !if -1<XyzFocus_D(:)<0 - fractions of [region size]
+    !if XyzFocus_D(:)<=-1 - in wavelengths
+    ! XyzFocus_D(2:3) should be given in the same range 
     call read_var('xFocus1',XyzFocus_D(1))
     call read_var('xFocus2',XyzFocus_D(2))
     if(nDim==3)call read_var('xFocus3',XyzFocus_D(nDim))
