@@ -1,7 +1,7 @@
 module PIC_ModLaserBeam
   use PC_ModSize, ONLY: nDim, x_, y_, z_
   use PIC_ModMain, ONLY: tSimulation
-  use ModNumConst, ONLY: cOne,cHalf,cDegToRad
+  use ModNumConst, ONLY: cDegToRad
   use PIC_ModProc,      ONLY:iProc
   implicit none
   SAVE
@@ -22,9 +22,9 @@ module PIC_ModLaserBeam
   real :: XyzFocus_D(nDim)=-1.            
   real :: coeff=-1.!Gaussian distribution: Intensity/2 at pulse width          
   real :: timePulseBegin=0.0,timePulseEnd=0.0,xPulseCenter=0.0
+  integer :: nEnvelope = 1
   !                                                                            
   public::read_laser_beam,laser_beam
-  integer,public :: laser_pulse=-1
   !                                 
 contains
   subroutine laser_beam(iDir, x, y, z, EField)
@@ -119,11 +119,10 @@ contains
     !if -1<XyzFocus_D(:)<0 - fractions of [region size]
     !if XyzFocus_D(:)<=-1 - in wavelengths
     ! XyzFocus_D(2:3) should be given in the same range 
-    call read_var('xFocus1',XyzFocus_D(1))
-    call read_var('xFocus2',XyzFocus_D(2))
-    if(nDim==3)call read_var('xFocus3',XyzFocus_D(nDim))
+    call read_var('XyzFocus_D1',XyzFocus_D(1))
+    call read_var('XyzFocus_D2',XyzFocus_D(2))
+    if(nDim==3)call read_var('XyzFocus_D3',XyzFocus_D(nDim))
     !
-    laser_pulse=2
     !                                                                         
     timePulseBegin=0.0
     xPulseCenter=-PulseWidth_D(1)
@@ -144,7 +143,6 @@ contains
     PulseWidth_D=PulseWidth_D*coeff
     if(PulseWidth_D(2)<=0.0.or.PulseWidth_D(nDim)<=0) then
        PulseWidth_D(2:nDim)=XyzFocus_D(1)*sin(45.0*cDegToRad)
-       laser_pulse=1
     end if
     !                                                                    
   end subroutine read_laser_beam
