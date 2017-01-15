@@ -1,5 +1,6 @@
 module PIC_ModLaserBeam
-  use PC_ModSize, ONLY: nDim, x_, y_, z_
+  use PC_ModSize,  ONLY: nDim, x_, y_, z_, MaxDim
+  use PC_BATL_lib, ONLY: CoordMin_D, CoordMax_D
   use PIC_ModMain, ONLY: tSimulation
   use ModNumConst, ONLY: cDegToRad
   use PIC_ModProc,      ONLY:iProc
@@ -30,7 +31,7 @@ module PIC_ModLaserBeam
   public::read_laser_beam,laser_beam
   !                                 
 contains
-  subroutine laser_beam(iDir, x, y, z, EField)
+  subroutine laser_beam(iDir, Xyz_D, EField)
     !\
     ! The electric field parameter EField has an intent inout
     ! The input value is found from 'noreflect' boundary condition 
@@ -39,42 +40,39 @@ contains
     ! Calculate electric field iDir component in the point, x,y,z 
     !/
     integer,intent(in)        :: iDir
-    real,   intent(in)        :: x,y
-    real, optional, intent(in):: z !not used in 2D geometry
+    real,   intent(in)        :: Xyz_D(MaxDim)
     real,   intent(inout)     :: EField !Before 
     !-------------------------
-    real :: Xyz_D(nDim)
-    real :: pX(nDim)
+    real :: AmplitudeFactor_D(nDim)
     real :: focusDist,timeReal,tmp
     real :: laser_profile,laser_phase
     !==========================================
-    !
-    !Works for the left boundary only
-    !
-    Xyz_D(1:2)=(/x,y/)
-    if(nDim==3)Xyz_D(nDim) = z
+    !\
+    ! Works for the left boundary along x only. 
+    ! Beam is parallel to x-axis
+    !/
     !
     if(tSimulation > timePulseEnd) RETURN
     focusDist=sqrt(sum((XyzFocus_D(1:nDim)-Xyz_D(1:nDim))**2))
     timeReal=tSimulation+focusDist-XyzFocus_D(1)
-    pX(:)=0.0
+    AmplitudeFactor_D(:)=0.0
     !
     if(timeReal<=timePulseEnd) then
        !
        laser_phase=focusDist-XyzFocus_D(1)+(xPulseCenter+tSimulation)
        !                                                          
        tmp=(-laser_phase *2.0/PulseWidth_D(1))**2
-       if(tmp < 30.) pX(1)=exp(-tmp)
+       if(tmp < 30.) AmplitudeFactor_D(1)=exp(-tmp)
        tmp=(focusDist*asin((Xyz_D(2)-XyzFocus_D(2))/focusDist)&
             *2.0/PulseWidth_D(2))**2
-       if(tmp < 30.) pX(2)=exp(-tmp)
+       if(tmp < 30.) AmplitudeFactor_D(2)=exp(-tmp)
        if(nDim==3)then
           tmp=(focusDist*asin((Xyz_D(nDim)-XyzFocus_D(nDim))/focusDist)&
                *2.0/PulseWidth_D(nDim))**2
-          if(tmp < 30.) pX(nDim)=exp(-tmp)
+          if(tmp < 30.) AmplitudeFactor_D(nDim)=exp(-tmp)
        end if
        !
-       laser_profile=product(pX(1:nDim))*laserAmplitude(iDir)
+       laser_profile=product(AmplitudeFactor_D(1:nDim))*laserAmplitude(iDir)
        laser_phase=laser_phase+phaseShift
        !
        if(iDir==y_) then
