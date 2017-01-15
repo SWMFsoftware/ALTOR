@@ -1,3 +1,6 @@
+!  Copyright (C) 2002 Regents of the University of Michigan, 
+!  portions used with permission 
+!  For more information, see http://csem.engin.umich.edu/tools/swmf
 !--------------------------------------------------------------!
 module PC_ModSize
   use PC_BATL_size, ONLY: nX=>nI, nY=>nJ, nZ=>nK, jDim_, kDim_
