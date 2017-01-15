@@ -22,6 +22,9 @@ module PIC_ModLaserBeam
   real :: XyzFocus_D(nDim)=-1.            
   real :: coeff=-1.!Gaussian distribution: Intensity/2 at pulse width          
   real :: timePulseBegin=0.0,timePulseEnd=0.0,xPulseCenter=0.0
+  !
+  !Pulse longitudinal envelope: Default-Steplike, 
+  !              1-Gauss, 2-Cosine (FWHM - full width at half maximum)
   integer :: nEnvelope = 1
   !                                                                            
   public::read_laser_beam,laser_beam
@@ -50,45 +53,41 @@ contains
     !
     Xyz_D(1:2)=(/x,y/)
     if(nDim==3)Xyz_D(nDim) = z
-    EField=0.0
     !
-    if(tSimulation>=timePulseBegin .and. tSimulation <= timePulseEnd) then
-       if(x<0.0) then 
-          focusDist=sqrt(sum((XyzFocus_D(1:nDim)-Xyz_D(1:nDim))**2))
-          timeReal=tSimulation+focusDist-XyzFocus_D(1)
-          pX(:)=0.0
-          !
-          if(timeReal<=timePulseEnd) then
-             !
-             laser_phase=focusDist-XyzFocus_D(1)+(xPulseCenter+tSimulation)
-             !                                                          
-             tmp=(-laser_phase *2.0/PulseWidth_D(1))**2
-             if(tmp < 30.) pX(1)=exp(-tmp)
-             tmp=(focusDist*asin((Xyz_D(2)-XyzFocus_D(2))/focusDist)&
-                  *2.0/PulseWidth_D(2))**2
-             if(tmp < 30.) pX(2)=exp(-tmp)
-             if(nDim==3)then
-                tmp=(focusDist*asin((Xyz_D(nDim)-XyzFocus_D(nDim))/focusDist)&
-                     *2.0/PulseWidth_D(nDim))**2
-                if(tmp < 30.) pX(nDim)=exp(-tmp)
-             end if
-             !
-             laser_profile=product(pX(1:nDim))*laserAmplitude(iDir)
-             laser_phase=laser_phase+phaseShift
-             !
-             if(iDir==y_) then
-                EField=laser_profile*cos(laser_phase)
-             end if
-             if(iDir==z_) then
-                EField=laser_profile*sin(laser_phase)
-             end if
-             !
-          end if
+    if(tSimulation > timePulseEnd) RETURN
+    focusDist=sqrt(sum((XyzFocus_D(1:nDim)-Xyz_D(1:nDim))**2))
+    timeReal=tSimulation+focusDist-XyzFocus_D(1)
+    pX(:)=0.0
+    !
+    if(timeReal<=timePulseEnd) then
+       !
+       laser_phase=focusDist-XyzFocus_D(1)+(xPulseCenter+tSimulation)
+       !                                                          
+       tmp=(-laser_phase *2.0/PulseWidth_D(1))**2
+       if(tmp < 30.) pX(1)=exp(-tmp)
+       tmp=(focusDist*asin((Xyz_D(2)-XyzFocus_D(2))/focusDist)&
+            *2.0/PulseWidth_D(2))**2
+       if(tmp < 30.) pX(2)=exp(-tmp)
+       if(nDim==3)then
+          tmp=(focusDist*asin((Xyz_D(nDim)-XyzFocus_D(nDim))/focusDist)&
+               *2.0/PulseWidth_D(nDim))**2
+          if(tmp < 30.) pX(nDim)=exp(-tmp)
        end if
+       !
+       laser_profile=product(pX(1:nDim))*laserAmplitude(iDir)
+       laser_phase=laser_phase+phaseShift
+       !
+       if(iDir==y_) then
+          EField=laser_profile*cos(laser_phase)
+       end if
+       if(iDir==z_) then
+          EField=laser_profile*sin(laser_phase)
+       end if
+       !
     end if
   end subroutine laser_beam
   !                                
-!================================================                          
+  !================================================                          
 !=========reading command #LASERBEAM=============                       
 !================================================                        
   subroutine read_laser_beam
@@ -140,7 +139,6 @@ contains
        end if
     end if
     !                                                                         
-    PulseWidth_D=PulseWidth_D*coeff
     if(PulseWidth_D(2)<=0.0.or.PulseWidth_D(nDim)<=0) then
        PulseWidth_D(2:nDim)=XyzFocus_D(1)*sin(45.0*cDegToRad)
     end if
