@@ -27,22 +27,17 @@ module PIC_ModMain
   !/
   real :: tSimulation = 0.0
   integer :: iStep = 0
-  real :: Dt= 0.0
+  real :: Dt= 0.0, DtRead = -1.0
   !\
   ! Grid spacing. In the AMR grid they all are block variables
   !/
-  real :: CellVolume = 1.0, vInv = 1.0, Dx_D(nDim) = 1.0, DxInv_D(nDim) = 1.0
-  !\
-  ! Grid limits
-  !/
-  real :: XyzMin_D(nDim) = -0.50, XyzMax_D(nDim) = 0.50
+  real :: CellVolume = 1.0, vInv = 1.0 
+  real :: Dx_D(nDim) = 1.0, DxInv_D(nDim) = 1.0
   !\
   ! Macroparticle characteristic: number of electron macroparticles
   ! needed to simulate the "critical" electron density
   !/
   integer:: nPPerCellCrit=1
-
-
   !\
   ! Stopping conditions. These variables are only used in stand alone mode.
   !/

@@ -38,7 +38,8 @@ module PC_ModPhysics
 
   ! Conversion between units: e.g. VarSi = VarNo*No2Si_V(UnitVar_)
   ! The following should always be true: No2Si_V*Si2Io_V = No2Io_V
-  real, dimension(nIoUnit) ::  Si2No_V = -1.0, No2Si_V= -1.0
+  real, dimension(nIoUnit) ::  Si2No_V = -1.0, No2Si_V= -1.0, &
+       Io2No_V = 1.0, No2Io_V = 1.0
 
   character (len=8), dimension(nIoUnit) :: NameSiUnit_V=(/&
        'm       ',&
@@ -153,4 +154,19 @@ contains
     No2Si_V(UnitN_)     = 1/Omega2ToNRatio
     call assign_other_units
   end subroutine set_default_units
+  !============
+  subroutine set_io_cycle_wavelength
+    use ModNumConst, ONLY: cTwoPi
+    !\
+    ! In most standard normalizations for PIC and hybrid,
+    ! the dimensionless coordinate is normalized by c/\omega_{pe,pi}
+    ! time by 1/\omega_{pe,pi,Bi} etc. However, the input/output  of 
+    ! coordinates normalized per wavelength (which corresponds to the 
+    ! dimensionless distance of 2\pi) and a time normalized by the 
+    ! wave period (which corresponds to the dimensionless time of  
+    ! 2\pi) may be preferable.
+    !/
+    Io2No_V(UnitX_) = cTwoPi; No2Io_V(UnitX_) = 1/Io2No_V(UnitX_)
+    Io2No_V(UnitT_) = cTwoPi; No2Io_V(UnitT_) = 1/Io2No_V(UnitT_)
+  end subroutine set_io_cycle_wavelength
 end module PC_ModPhysics

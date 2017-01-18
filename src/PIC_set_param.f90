@@ -19,7 +19,9 @@ subroutine PIC_set_param(TypeAction)
   use ModConst
   use PC_BATL_lib,ONLY: init_mpi, init_batl, nG
   use PC_BATL_mpi,      ONLY: BATL_iProc=>iProc, BATL_nProc=>nProc, init_mpi
-  use PC_ModPhysics,    ONLY: read_units, No2Si_V, set_default_units
+  use PC_ModPhysics,    ONLY: read_units, No2Si_V, set_default_units, &
+       set_io_cycle_wavelength, Io2No_V, UnitX_, UnitT_ 
+  
   use PIC_ModBatlInterface
   implicit none
 
@@ -30,12 +32,16 @@ subroutine PIC_set_param(TypeAction)
   ! TypeAction determines if we read or check parameters
   character (len=*), intent(in) :: TypeAction
 
-  logical :: IsUninitialized      = .true.
+  logical :: IsUninitialized = .true.
 
   ! The name of the command
   character (len=lStringLine) :: NameCommand, StringLine, NameDescription
   integer :: iSession
   integer :: iDim, iP, iVar, iSide, nRootRead_D(nDim)=1
+  !\
+  ! Grid limits
+  !/
+  real :: XyzMin_D(nDim) = -0.50, XyzMax_D(nDim) = 0.50
   character(LEN=10) :: NameNormalization
   real   :: Value_V(nDim+MaxDim) = 0
 
@@ -53,6 +59,7 @@ subroutine PIC_set_param(TypeAction)
   case('CHECK','Check','check')
      if(iProc==0)write(*,*) NameSub,': CHECK iSession =',iSession
      if(IsUninitialized)then
+        IsUninitialized = .false.
         if(UseSharedField)then
            BATL_nProc = 1
            BATL_iProc = 0
@@ -68,27 +75,69 @@ subroutine PIC_set_param(TypeAction)
            call timing_depth(TimingDepth)
            call timing_report_style(TimingStyle)
         end if
-        IsUninitialized = .false.
         if(i_line_command("#GRID", iSessionIn = 1) > 0) then
-           call init_batl(XyzMin_D, XyzMax_D, MaxBlock, 'cartesian', &
-                TypeFieldBC_S(1:2*nDim-1:2) == 'periodic', nRootRead_D)
-           Dx_D = (XyzMax_D - XyzMin_D)/(nRootRead_D(1:nDim)*nCell_D(1:nDim))
-           DxInv_D = 1/Dx_D
-           CellVolume = product(Dx_D); vInv = 1/CellVolume
-           Q_P(Electron_) = - CellVolume/nPPerCellCrit
-           M_P(Electron_) =   CellVolume/nPPerCellCrit
-           do iP = 2, nPType
-              Q_P(iP) = Q_P(iP)*CellVolume/nPPerCellCrit
-              M_P(iP) = M_P(iP)*CellVolume/nPPerCellCrit
-           end do
-           call set_altor_grid
+           XyzMin_D = XyzMin_D*Io2No_V(UnitX_)
+           XyzMax_D = XyzMax_D*Io2No_V(UnitX_)
+           Dx_D = (XyzMax_D - XyzMin_D)/&
+                (nRootRead_D(1:nDim)*nCell_D(1:nDim))
+        elseif(i_line_command("#DXYZ", iSessionIn = 1) > 0)then  
+           Dx_D = Dx_D*Io2No_V(UnitX_)
+           XyzMin_D = 0.0; XyzMax_D = Dx_D*nCell_D(1:nDim)
         end if
+        call init_batl(XyzMin_D, XyzMax_D, MaxBlock, 'cartesian', &
+             TypeFieldBC_S(1:2*nDim-1:2) == 'periodic', nRootRead_D)
+
+        DxInv_D = 1/Dx_D
+        CellVolume = product(Dx_D); vInv = 1/CellVolume
+        Q_P(Electron_) = - CellVolume/nPPerCellCrit
+        M_P(Electron_) =   CellVolume/nPPerCellCrit
+        do iP = 2, nPType
+           Q_P(iP) = Q_P(iP)*CellVolume/nPPerCellCrit
+           M_P(iP) = M_P(iP)*CellVolume/nPPerCellCrit
+        end do
+        call set_altor_grid
      end if
      !\
      ! Initialize parameters
      !/
-     SpeedOfLight_D(1:nDim) = Dt * c / Dx_D
-     if(No2Si_V(1)<0.0)call set_default_units
+     if(tMax   > 0.0) tMax = tMax*Io2No_V(UnitT_)
+     if(DtRead > 0.0)then
+        Dt = DtRead*Io2No_V(UnitT_)
+        DtRead = -1.0
+     end if
+     SpeedOfLight_D(1:nDim) = Dt*c/Dx_D
+     if(No2Si_V(1) < 0.0) call set_default_units
+     !\
+     ! Check boundary conditions
+     !/
+     do iDim = 1, nDim
+        if(any(&
+             TypeFieldBC_S(2*iDim-1:2*iDim) == 'periodic'))then
+           TypeFieldBC_S(2*iDim-1:2*iDim) = 'periodic'
+        elseif(iDim>1)then
+           if(iProc==0)then
+              write(*,'(a,i1)')'Along direction iDim=',iDim
+              write(*,'(a,i1,a)')'the boundary condition TypeField_BC(',&
+                   2*iDim-1,'=)'//TypeFieldBC_S(2*iDim-1)//';'
+              write(*,'(a,i1,a)')'the boundary condition TypeField_BC(',&
+                   2*iDim-1,'=)'//TypeFieldBC_S(2*iDim-1)//';'
+              write(*,'(a)')&
+                   'For direction other than iDim=11 only periodic BC allowed' 
+              write(*,'(a)')'ALTOR stopped!!'
+           end if
+           call CON_stop('')
+        end if
+     end do
+     if(TypeFieldBC_S(2)=='laserbeam')then
+        if(iProc==0)then
+           write(*,'(a)')&
+                'The BC laserbeam is set for the right X_ boundary'
+           write(*,'(a)')&
+                'The BC laserbeam is only allowed for the left X_ boundary'
+           write(*,'(a)')'ALTOR stopped!!'
+        end if
+        call CON_stop('')
+     end if
      RETURN
   case('read','Read','READ')
      if(iProc==0)then
@@ -132,9 +181,8 @@ subroutine PIC_set_param(TypeAction)
         do iDim = 1, nDim
            call read_var('Dx_D', Dx_D(iDim))
         end do
-        CellVolume = product(Dx_D); vInv = 1/CellVolume
-        DxInv_D = 1/Dx_D
-        
+     case('#IOCYCLEWAVELENGTH')
+        call set_io_cycle_wavelength
      case('#NORMALIZATION')
         call read_var('Normalization',NameNormalization)
         select case(trim(NameNormalization))
@@ -185,7 +233,7 @@ subroutine PIC_set_param(TypeAction)
         call add_velocity_sine
 
      case('#TIMESTEP')
-        call read_var('Dt',Dt)
+        call read_var('Dt',DtRead)
     
      case('#TESTPARTICLE')
         call read_var('iSort', iP)

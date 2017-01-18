@@ -10,17 +10,14 @@
 1		nZ
 1		nPType
 
-DXYZ
-0.05
-0.05
-0.05
+#IOCYCLEWAVELENGTH
 
 #NORMALIZATION
 standard
-4
+8
 
 #UNIFORM
-4
+8
 
 #THERMALIZE
 2.50e-3
@@ -44,16 +41,14 @@ standard
 0.0
 0.0
 
-
 #LOGFILE
 1
 
-
 #TIMESTEP
-0.025
+0.004
 
 #STOP
 -1
-12.575
+2.0
 
 #END

@@ -156,7 +156,7 @@ contains
   subroutine show_progress
     use PIC_ModMain,      ONLY: nProgress1, nProgress2, UseTiming
     use PIC_ModParticles, ONLY: Particle_I, nPType
-
+    use PC_ModPhysics,   ONLY: No2Io_V, UnitT_
     real(Real8_), external :: timing_func_d
     real(Real8_) :: CpuTimePIC,CpuTimeAdvance
     integer:: iSumNP, iSort
@@ -179,7 +179,7 @@ contains
             /max(1.D-10,CpuTimeAdvance),&
             ' p/s/pe after',&
             CpuTimePIC,&
-            ' s at N =',iStep, ' (', tSimulation,' s)'
+            ' s at N =',iStep, ' (', tSimulation*No2Io_V(UnitT_),')'
     end if
 
     ! Show timing tables

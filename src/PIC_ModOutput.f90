@@ -34,7 +34,7 @@ contains
     use PIC_ModParticles, ONLY: nPType
     use ModMpi  
     use PC_BATL_particles,ONLY: Particle_I
-    
+    use PC_ModPhysics,    ONLY: No2Io_V, UnitT_, UnitX_
     character(len=*), intent(in):: TypeSave
     character(len=6) :: TypePosition
     real    :: Param_I(1:2*nPType)
@@ -120,16 +120,18 @@ contains
        Param_I(1:nPType)          = Q_P
        Param_I(nPType+1:2*nPType) = M_P
        
-       call save_plot_file(FileDir//NameFile,     &
-            TypeFileIn = TypeFile,         &
-            TypePositionIn = TypePosition, &
-            nDimIn  = nDim,  &
-            nStepIn = iStep, &
-            TimeIn  = tSimulation, &
-            ParamIn_I = Param_I, &
-            NameVarIn = NameVar, &
-            CoordMinIn_D = CoordMin_D(1:nDim) + 0.50*Dx_D(1:nDim), &
-            CoordMaxIn_D = CoordMax_D(1:nDim) - 0.50*Dx_D(1:nDim), &
+       call save_plot_file(FileDir//NameFile,                       &
+            TypeFileIn = TypeFile,                                  &
+            TypePositionIn = TypePosition,                          &
+            nDimIn  = nDim,                                         &
+            nStepIn = iStep,                                        &
+            TimeIn  = tSimulation*No2Io_V(UnitT_),                  &
+            ParamIn_I = Param_I,                                    &
+            NameVarIn = NameVar,                                    &
+            CoordMinIn_D = (CoordMin_D(1:nDim) + 0.50*Dx_D(1:nDim))*&
+            No2Io_V(UnitX_),                                        &
+            CoordMaxIn_D = (CoordMax_D(1:nDim) - 0.50*Dx_D(1:nDim))*&
+            No2Io_V(UnitX_),                                        &
             VarIn_VIII = PlotVar_VC(:,:,:,:))
     end if
   end subroutine PIC_save_files
