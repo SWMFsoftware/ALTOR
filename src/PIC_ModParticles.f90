@@ -616,20 +616,22 @@ contains
   !=======================PARTICLE MOVER=========================!
   !Advance the particles in one timestep; calculate cell-centered
   !number density and velocity moments if DoComputeMoments==.true.
-  subroutine advance_particles(iSort,DoComputeMoments)
+  subroutine advance_particles(iSort, &
+       DoComputeMoments, DoPredictorOnly)
     use ModCoordTransform, ONLY: cross_product
     use PC_ModParticleInField,ONLY: &
          b_interpolated_d,e_interpolated_d
+    use PC_ModHybrid,      ONLY: UseHybrid, add_predictor_current
     integer,intent(in) :: iSort
     logical,intent(in) :: DoComputeMoments
-
+    logical, optional, intent(in) :: DoPredictorOnly
     real:: QDtPerM
     real,dimension(MaxDim)::QPerVDx_D
     real:: W2
     integer::iParticle, iBlock, nParticle, iDim
     real,dimension(nDim)::X_D
     real,dimension(x_:z_)   ::W_D,W12_D,EForce_D,BForce_D
-    real    :: Gamma
+    real    :: Gamma, Gamma12Inv
     real,pointer::Coord_VI(:,:)
     integer,pointer::iIndex_II(:,:)
     !----------------------------------------------------
@@ -653,7 +655,8 @@ contains
        QPerVDx_D(iDim)= Q_P(iSort)*vInv*c*Dt
     end do
 
-    call set_pointer_to_particles(iSort,Coord_VI,iIndex_II,nParticle=nParticle)
+    call set_pointer_to_particles(&
+         iSort,Coord_VI,iIndex_II,nParticle=nParticle)
 
     !Looping over particles
     do iParticle=1,nParticle
@@ -677,10 +680,12 @@ contains
        !Electric field force, divided by particle mass 
        !and multiplied by \Delta t/2
        EForce_D = QDtPerM * e_interpolated_d(iBlock)
-
-       !Add kinetic energy advanced by half time step
+       !\
+       !Add kinetic energy, divided my mc^2 and 
+       !advanced by half time step 
+       !/
        Energy_P(iSort) = Energy_P(iSort) + &
-            M_P(iSort)*c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
+            M_P(iSort)/c*(W2/(Gamma+c) + sum(W_D*EForce_D)/Gamma)
        !Acceleration from the electric field, for the
        !first half of the time step:
        W_D = W_D + EForce_D
@@ -695,7 +700,10 @@ contains
 
        !Multiply the magnetic force by 2 to take a whole
        !rotation and reduce its magnitude not to perturb energy
-
+       if(UseHybrid)&
+            call add_predictor_current(&
+            QPerVDx_D,W12_D*Gamma12Inv,iBlock)
+       if(present(DoPredictorOnly))CYCLE
        BForce_D = (2.0/(1.0 + sum(BForce_D**2))) * BForce_D
 
        !Get a final momentum
@@ -730,7 +738,12 @@ contains
        Coord_VI(1:nDim,iParticle)= &
             X_D*Dx_D(1:nDIm) + CoordMin_DB(1:nDim,iBlock)
     end do
-    call message_pass_particles(iSort)
+    !\
+    ! If only the predictor step is done, the particle 
+    ! coordinates did not change
+    !/
+    if(.not.present(DoPredictorOnly))&
+         call message_pass_particles(iSort)
   end subroutine advance_particles
 end module PIC_ModParticles
 
