@@ -177,7 +177,6 @@ contains
   end subroutine get_rho_avr
  !=======================
   subroutine get_rho_int(RhoInt)
-    use PC_ModSize, ONLY: nCell_D, nDim
     real   , intent(out) :: RhoInt
     real                 :: RhoIntLoc
     !-------------------------------
@@ -195,7 +194,6 @@ contains
        end if
     end if
   end subroutine get_rho_int
-  !====================
 end module PC_ModMpi
    
     
