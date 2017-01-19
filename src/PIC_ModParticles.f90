@@ -480,7 +480,9 @@ contains
     end if
   end subroutine show_density
   !==================
+  !\
   !Generate Gaussian distribution using Box-Muller method
+  !/
   subroutine thermalize_particle(iSort,W_D)
     use PIC_ModRandom
     integer, intent(in ) :: iSort
@@ -604,6 +606,14 @@ contains
     use PC_ModHybrid,      ONLY: UseHybrid, add_predictor_current
     integer,intent(in) :: iSort
     logical,intent(in) :: DoComputeMoments
+    !\
+    ! If present, then only the predictor step is done.
+    ! This option may be used: (1) to make a final plot or
+    ! to print the last iteration data into the log file
+    ! (which both use the velocity data to be advanced by a half 
+    ! time step); (2) in some schemes for hybrid simulations (to 
+    ! advance the particle current to the beginning of time step)
+    !/
     logical, optional, intent(in) :: DoPredictorOnly
     real:: QDtPerM
     real,dimension(MaxDim)::QPerVDx_D
@@ -669,10 +679,10 @@ contains
        !Acceleration from the electric field, for the
        !first half of the time step:
        W_D = W_D + EForce_D
-
+       Gamma12Inv = 1/sqrt( c2+sum(W_D**2) )
        !Get magnetic force divided by particle mass and by c 
        !and multiplied by \Delta t/2
-       BForce_D = QDtPerM/sqrt( c2+sum(W_D**2) )*b_interpolated_d(iBlock)       
+       BForce_D = QDtPerM*Gamma12Inv*b_interpolated_d(iBlock)       
 
        !Add a half of the magnetic rotation:
 
