@@ -507,26 +507,6 @@ contains
     end do
   end subroutine read_temperature
   !=======================
-  subroutine get_energy
-    use ModMpi
-    use PIC_ModProc
-
-    real :: P2
-    integer:: iSort, iP, nParticle
-    real,dimension(:,:),pointer::Coord_VI
-    !-----------------------------------
-    Energy_P = 0.0
-    do iSort = 1, nPType
-       call set_pointer_to_particles(iSort,Coord_VI,nParticle=nParticle)
-       do iP = 1, nParticle
-          P2 = sum(Coord_VI(Wx_:Wz_,iP)**2)
-          Energy_P(iSort) = Energy_P(iSort) + &
-               M_P(iSort) * c*P2/(c + sqrt(c2 + P2))
-       end do
-    end do
-    call pass_energy
-  end subroutine get_energy
-  !==============================
   subroutine pass_energy
     use ModMpi
     use PIC_ModProc

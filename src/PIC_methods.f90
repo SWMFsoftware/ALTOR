@@ -4,12 +4,15 @@
 ! This file contains the top level methods for ALTOR
 !==========================
 subroutine PIC_setup
+  use PIC_ModFIeld,     ONLY: State_VGBI
+  use PC_ModMpi,        ONLY: pass_density, pass_moments
   use PIC_ModProc,      ONLY: iComm
   use PIC_ModMain,      ONLY: UseSharedField, UseUniform, UseFoil
   use PIC_ModLogFile,   ONLY: open_logfile, nLogFile
   use PIC_ModOutput,    ONLY: PIC_save_files
   use PIC_ModParticles, ONLY: uniform, foil, DoAddVelocity_P, &
-       add_initial_velocity, nPType
+       add_initial_velocity, nPType, Energy_P, advance_particles,&
+       pass_energy
 
   implicit none
   integer :: iSort
@@ -25,7 +28,17 @@ subroutine PIC_setup
   end if
   !Save the initial outputs
   call timing_start('output')
-  if(nLogFile >=1) call open_logfile
+  Energy_P = 0.0; State_VGBI = 0.0
+  do iSort = 1, nPType
+     call advance_particles(iSort,&
+          DoComputeMoments = .false., DoPredictorOnly = .true.)
+        !call pass_density(iSort)
+        !call show_density(iSort)
+     end do
+  if(nLogFile >=1) then
+     call pass_energy
+     call open_logfile
+  end if
   call PIC_save_files('INITIAL')
   call timing_stop('output')
 end subroutine PIC_setup

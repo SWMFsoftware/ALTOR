@@ -42,7 +42,6 @@ contains
   !======================
   subroutine open_logfile
      use ModIoUnit,        ONLY: io_unit_new
-     use PIC_ModParticles, ONLY: get_energy
      use PIC_ModProc,      ONLY: iProc
   
      character(LEN=100) :: Name
@@ -76,11 +75,6 @@ contains
              'iStep Time x y z Wx Wy Wz'
         end do
      end if
-
-     !\
-     !Calculate the particle energies
-     !/
-     call get_energy
      call write_logfile
   end subroutine open_logfile
   !===========================
