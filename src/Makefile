@@ -24,6 +24,7 @@ OBJECTS= \
 	PIC_ModBatlInterface.o \
 	PIC_ModMain.o \
 	PIC_ModFormFactor_${FF}.o \
+	PC_ModHybrid.o \
 	PIC_ModLaserBeam.o \
 	PIC_ModField.o \
 	PC_ModParticleInField.o \

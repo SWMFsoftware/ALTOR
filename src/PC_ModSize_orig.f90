@@ -15,5 +15,6 @@ module PC_ModSize
   ! Paramaters of hybrid simulations
   !/
   integer, parameter :: nHybrid = 0
+  logical, parameter :: UseHybrid = nHybrid==1
 
 end module PC_ModSize
