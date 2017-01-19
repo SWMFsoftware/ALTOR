@@ -4,8 +4,9 @@
 module PIC_ModParticles
   use PC_ModSize,ONLY: nPType, nElectronMax, x_, y_, z_
   use PC_ModSize,ONLY: nX, nY, nZ, nCell_D, nDim, MaxDim
+  use PC_ModSize,ONLY: nHybrid
   use PIC_ModMain,ONLY: c, c2, Dt, Dx_D, DxInv_D, CellVolume, &
-       SpeedOfLight_D, vInv, uTh_P, UseThermalization
+       SpeedOfLight_D, vInv, uTh_P
   use PC_ModParticleInField,ONLY: &
        State_VGBI,add_current, add_moments, add_density
   use PC_ModMpi, ONLY: &
@@ -23,10 +24,10 @@ module PIC_ModParticles
   !Index for velocity(momentum)
   integer,parameter :: Wx_ = W_+x_, Wy_ = W_+y_, Wz_ = W_+z_
 
-  integer,parameter::Electrons_=1,Electron_=Electrons_
+  integer,parameter::Electrons_ = 1 - nHybrid, Electron_=Electrons_
 
   !Structures
-  real,dimension(nPType) :: M_P, Q_P
+  real,dimension(Electrons_:nPType) :: M_P, Q_P
   !Particle's mass and charge
 
   real,dimension(nPType)    :: Energy_P
@@ -62,7 +63,7 @@ contains
        end do
     end if
 
-    do iSort=Electrons_,nPType
+    do iSort= 1, nPType
        Particle_I(iSort)%nVar      = Wz_
        Particle_I(iSort)%nIndex    = 0
        Particle_I(iSort)%nParticle = 0
@@ -211,7 +212,6 @@ contains
           write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
        end do
     end if
-    if(.not.UseThermalization)RETURN
     do iSort = 1, nPType
        if(uTh_P(iSort)<=0.0)CYCLE
        call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort,2)
@@ -221,7 +221,6 @@ contains
                Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
        end do
     end do
-    call thermalize
   end subroutine uniform_shared_field
   !============================================================
   !Distribute particles by blocks.
@@ -238,7 +237,6 @@ contains
          nPPerBlock, i, iNodeStart, iNodeEnd,  iNode, iP, &
          iPStart, iPEnd, iBlock, iDim, iSort
     real                :: n_P(nPType), Coord_D(nDim), W_D(MaxDim)
-    real                :: RhoInt, RhoMin, RhoMax, RhoAvr
     logical             :: UseQuasiNeutral
     !--------------------------
     DoAddVelocity_P = .false. !Added here
@@ -315,23 +313,8 @@ contains
                   W_D + VelocityToAdd_DP(:,iSort))
              Coord_D(1:nDim) = (Coord_D(x_:nDim) - &
                   CoordMin_DB(1:nDim,iBlock))*DxInv_D
-             call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
-             call add_density(Node_D,HighFF_ID,iBlock,iSort)
           end do
        end do BLOCKS
-       call pass_density(iSort)
-       Aux_CB(:,:,:,1:nBlock) = &
-            State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort)
-       call get_min_val_rho(RhoMin)
-       call get_max_val_rho(RhoMax)
-       call get_rho_avr(    RhoAvr)
-       call get_rho_int(    RhoInt)
-       if(iProc==0)then
-          write(*,*)'Total number of particles of sort ', iSort,&
-            ' equals ',RhoInt
-          write(*,*)'Density min=',Q_P(iSort)*RhoMin,', density max=',&
-               Q_P(iSort)*RhoMax,', average density=',Q_P(iSort)*RhoAvr
-       end if
        n_P(iSort) = Particle_I(iSort)%nParticle
     end do SORTS
     if(nProc==1)then
@@ -347,7 +330,6 @@ contains
           write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
        end do
     end if
-    if(UseThermalization)call thermalize
   end subroutine uniform
 
   !==========================================
@@ -467,19 +449,37 @@ contains
     !   write(*,*)'Particle density min:',min_val_rho()
     !   write(*,*)'Particle density average:',rho_avr()
     end if
-    if(UseThermalization)then
-       do iSort = 1, nPType
-          if(uTh_P(iSort)<=0.0)CYCLE
-          call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort)
-          do iP = 1, Particle_I(iSort)%nParticle
-             call thermalize_particle(iSort, W_D)
-             Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
-                  Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
-          end do
+    do iSort = 1, nPType
+       if(uTh_P(iSort)<=0.0)CYCLE
+       call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort)
+       do iP = 1, Particle_I(iSort)%nParticle
+          call thermalize_particle(iSort, W_D)
+          Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
+               Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
        end do
-       call thermalize
-    end if
+    end do
   end subroutine foil
+  !====================
+  subroutine show_density(iSort)
+    use PC_ModSize,  ONLY: nBlock
+    use PIC_ModProc
+    use PC_ModMpi
+    integer, intent(in):: iSort
+    real :: RhoInt, RhoMin, RhoMax, RhoAvr
+    Aux_CB(:,:,:,1:nBlock) = &
+         State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort)
+    call get_min_val_rho(RhoMin)
+    call get_max_val_rho(RhoMax)
+    call get_rho_avr(    RhoAvr)
+    call get_rho_int(    RhoInt)
+    if(iProc==0)then
+       write(*,*)'Total number of particles of sort ', iSort,&
+            ' equals ',RhoInt
+       write(*,*)'Density min=',Q_P(iSort)*RhoMin,', density max=',&
+            Q_P(iSort)*RhoMax,', average density=',Q_P(iSort)*RhoAvr
+    end if
+  end subroutine show_density
+  !==================
   !Generate Gaussian distribution using Box-Muller method
   subroutine thermalize_particle(iSort,W_D)
     use PIC_ModRandom
@@ -494,24 +494,6 @@ contains
        W_D(iW)     = MomentumAvr*COS(cTwoPi*RAND(2))
     end do
   end subroutine thermalize_particle
-  !==================================
-  subroutine thermalize
-    use PIC_ModProc,     ONLY: iProc
-    integer :: iSort
-    !------------------
-    call get_energy
-    if(iProc==0)then
-       do iSort = 1, nPType
-          write(*,*)'For particle of sort ',iSort,&
-               ' averaged energy per elementary chanrge is ',&
-          Energy_P(iSort)/(nTotal_P(iSort)*abs(Q_P(iSort))),' * m c2(=0.51 MeV)'
-          write(*,*)'           should be ', &
-               0.50 * M_P(iSort)/abs(Q_P(iSort)) *(3*uTh_P(iSort)**2 +&
-               sum(VelocityToAdd_DP(:,iSort)**2))*&
-               (1.0 -1.250*uTh_P(iSort)**2/c2),' * m c2 (=0.51MeV)'
-       end do
-    end if
-  end subroutine thermalize
   !===========Reading command #THERMALIZE============
   subroutine read_temperature
     use ModReadParam,    ONLY: read_var
