@@ -80,9 +80,9 @@ subroutine PIC_advance(tMax)
   ! Start update through the time step
   !/
   !6. Update the magnetic field through the half time step
-  call timing_start('adv_b')
-  call update_magnetic
-  call timing_stop('adv_b')
+  !call timing_start('adv_b')
+  !call update_magnetic
+  !call timing_stop('adv_b')
   
   !1. Prepare to move particles
   Current_GDB = 0.0; Energy_P = 0.0
@@ -165,10 +165,10 @@ subroutine PIC_advance(tMax)
   ! The particle velocities and magnetic fields are in  
   ! the middle of the timestep.
   !/
-!  !6. Update the magnetic field through the half time step
-!  call timing_start('adv_b')
-!  call update_magnetic
-!  call timing_stop('adv_b')
+  !6. Update the magnetic field through the half time step
+  call timing_start('adv_b')
+  call update_magnetic
+  call timing_stop('adv_b')
   !\
   ! Electromagnetic fields and the particle coordinates are at the
   !end of time step, the particle velocities are half 
@@ -179,15 +179,38 @@ subroutine PIC_advance(tMax)
 end subroutine PIC_advance
 !==============================
 subroutine PIC_finalize
-  use PIC_ModLogFile, ONLY: nLogFile, close_logfile
+  use PIC_ModLogFile, ONLY: nLogFile, write_logfile, &
+       close_logfile
   use PIC_ModProc, ONLY: iProc
-  use PIC_ModOutput, ONLY: PIC_save_files
+  use PIC_ModOutput, ONLY: PIC_save_files, nStepOut
+  use PIC_ModParticles, ONLY: Energy_P, advance_particles
+  use PC_ModMpi, ONLY: pass_moments, pass_density
+  use PIC_ModParticles, ONLY: pass_energy, nPType
+  use PIC_ModField, ONLY: State_VGBI
   implicit none
+  integer :: iSort
   character(len=*), parameter :: NameSub='PIC_finalize'
   !--------------------
-  if(nLogFile >=1)call close_logfile
   call timing_start('save_final')
-  call PIC_save_files('FINAL') 
+  Energy_P = 0.0; State_VGBI = 0.0
+  if(nStepOut>1)then
+     do iSort = 1, nPType
+        call advance_particles(iSort,&
+             DoComputeMoments = .true., DoPredictorOnly = .true.)
+        call pass_moments(iSort)
+     end do
+     call PIC_save_files('FINAL')
+  else
+     do iSort = 1, nPType
+        call advance_particles(iSort,&
+             DoComputeMoments = .false., DoPredictorOnly = .true.)
+     end do
+  end if
+  if(nLogFile >=1) then
+     call pass_energy
+     call write_logfile
+     call close_logfile
+  end if 
   call timing_stop('save_final')
 
   if(iProc==0)then
