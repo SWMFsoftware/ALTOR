@@ -3,6 +3,7 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PIC_ModLogFile
   use PC_ModSize, ONLY: nPType, nDim
+  use PC_ModPhysics, ONLY: No2Io_V, UnitT_
   implicit none
   SAVE
   PRIVATE !Except
@@ -90,7 +91,7 @@ contains
     Value_V = 0.0
     call get_field_energy(Value_V(Bx_:Ez_))
     if(iProc/=0)return
-    Value_V(Time_) = tSimulation
+    Value_V(Time_) = tSimulation*No2Io_V(UnitT_)
     Value_V(PartFirst_:PartLast_) = Energy_P
     Value_V(ETotal_) = sum(Value_V(PartFirst_:Ez_))
     if(Energy0 <=0)then
@@ -108,7 +109,8 @@ contains
     write(iLogUnit,trim(NameFormat))iStep, Value_V
     call flush_unit(iLogUnit)
     do iP=1, nToWrite
-       write(nToWrite_II(1,iP),'(i10,7es13.5)')iStep, tSimulation, &
+       write(nToWrite_II(1,iP),'(i10,7es13.5)')iStep,&
+            tSimulation*No2Io_V(UnitT_), &
             Particle_I(nToWrite_II(2,iP))%State_VI(1:nDim,nToWrite_II(3,iP))&
                 *Dx_D,&
             Particle_I(nToWrite_II(2,iP))%State_VI(Wx_:Wz_,nToWrite_II(3,iP))
