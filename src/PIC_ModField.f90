@@ -344,64 +344,72 @@ contains
   end subroutine update_e
   !=======================
   subroutine field_bc
-    use PC_BATL_grid, ONLY: Xyz_DGB
-    use PIC_ModLaserBeam, ONLY:laser_beam 
-    integer :: i,j,k
+    use PIC_ModBatlInterface, ONLY: NeiLevel_SB
+    use PC_Batl_lib,          ONLY: Unset_
+    use PC_BATL_grid,         ONLY: Xyz_DGB
+    use PIC_ModLaserBeam,     ONLY: laser_beam 
+    integer :: i, j, k, iBlock
     real    :: x, y, z
     !---------------
     !\
     ! Along the directions at which the periodic boundary condition is used
     ! only the electric field at the faces inside the computation domain
-    ! are calculated here, all the outer face values are filled in with the
+    ! is calculated here, and the outer face values are filled in with the
     ! periodic boundary conditions. Along other directions the computational
-    ! domain is extended by iGCN-1 (usually 1 ) layer of the gostcells and all
+    ! domain is extended by 1 layer of the gostcells and 
     ! the faces inside the extended domain are filled in here
     !/
-    if(.not.IsPeriodicField_D(x_))then
-       ! Face X < 0    
-       i=1-iGCN
-       do k=1-iGCN*kDim_,nZ+iGCN*kDim_
-          do j=1-iGCN*jDim_,nY+iGCN*jDim_
-             E_GDB(i,j,k,y_,1) = E_GDB(i,j,k,y_,1)*(1 - SpeedOfLight_D(x_)) +&
-                  SpeedOfLight_D(x_)*E_GDB(i+1,j,k,y_,1)
-             if(TypeFieldBC_S(1)=='laserbeam')&
-                  call laser_beam(iDir=y_,    &
-                  Xyz_D = 0.5* (Xyz_DGB(:,i,j,      k,1) + &
-                  Xyz_DGB(              :,i,j+jDim_,k,1)), &
-                  EField=E_GDB(i,j,k,y_,1) )
+    do iBlock = 1, nBlock
+       if(NeiLevel_SB(1, iBlock)==Unset_)then
+          ! Face X < 0    
+          i = 0
+          do k = 1, nZ
+             do j=1-jDim_, nY
+                E_GDB(i,j,k,y_,iBlock) = E_GDB(i,j,k,y_,iBlock)*&
+                     (1 - SpeedOfLight_D(x_)) + &
+                     SpeedOfLight_D(x_)*E_GDB(i+1,j,k,y_,iBlock)
+                if(TypeFieldBC_S(1)=='laserbeam')&
+                     call laser_beam(iDir=y_,    &
+                     Xyz_D = 0.5* (Xyz_DGB(:,i,j,k,iBlock) + &
+                     Xyz_DGB(:,i,j+jDim_,k,iBlock)), &
+                     EField=E_GDB(i,j,k,y_,iBlock) )
+             end do
           end do
-       end do
 
-       do k=1-iGCN*kDim_,nZ+iGCN*kDim_
-          do j=1-iGCN*jDim_,nY+iGCN*jDim_
-             E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(x_))+&
-                  SpeedOfLight_D(x_)*E_GDB(i+1,j,k,z_,1)
-             if(TypeFieldBC_S(1)=='laserbeam')&
-                  call laser_beam(iDir=z_,    &
-                  Xyz_D = 0.5* (Xyz_DGB(:,i,j,      k,1) + &
-                  Xyz_DGB(              :,i,j,k+kDim_,1)),  &
-                  EField=E_GDB(i,j,k,z_,1) )
+          do k = 1 - kDim_, nZ
+             do j = 1, nY
+                E_GDB(i,j,k,z_,iBlock) = E_GDB(i,j,k,z_,iBlock)*&
+                     (1 - SpeedOfLight_D(x_)) + &
+                     SpeedOfLight_D(x_)*E_GDB(i+1,j,k,z_,iBlock)
+                if(TypeFieldBC_S(1)=='laserbeam')&
+                     call laser_beam(iDir=z_,    &
+                     Xyz_D = 0.5* (Xyz_DGB(:,i,j,k,iBlock) + &
+                     Xyz_DGB(:,i,j,k+kDim_,iBlock)),  &
+                     EField=E_GDB(i,j,k,z_,iBlock) )
+             end do
           end do
-       end do
-
-       !face X > dx.nX    
-       do k=1-iGCN*kDim_,nZ+iGCN*kDIm_
-          do j=1-iGCN*jDim_,nY+iGCN*jDim_
-             i=nX+iGCN
-             E_GDB(i,j,k,y_,1) = E_GDB(i,j,k,y_,1)*(1 - SpeedOfLight_D(x_)) +&
-                  SpeedOfLight_D(x_)* E_GDB(i-1,j,k,y_,1)
+       end if
+       if(NeiLevel_SB(2, iBlock)==Unset_)then
+          ! Face X > 0    
+          i = nX +1
+          do k = 1, nZ
+             do j = 1 - jDim_, nY
+                E_GDB(i,j,k,y_,iBlock) = E_GDB(i,j,k,y_,iBlock)*&
+                     (1 - SpeedOfLight_D(x_)) +&
+                     SpeedOfLight_D(x_)* E_GDB(i-1,j,k,y_,iBlock)
+             end do
           end do
-       end do
-       do k=1-iGCN*kDim_,nZ+iGCN*kDim_
-          do j=1-iGCN*jDim_,nY+iGCN*jDim_
-             i=nX+iGCN
-             E_GDB(i,j,k,z_,1) = E_GDB(i,j,k,z_,1)*(1 - SpeedOfLight_D(x_)) +&
-                  SpeedOfLight_D(x_)*E_GDB(i-1,j,k,z_,1)
+          do k = 1 - kDim_, nZ
+             do j = 1, nY
+                E_GDB(i,j,k,z_,iBlock) = E_GDB(i,j,k,z_,iBlock)*&
+                     (1 - SpeedOfLight_D(x_)) +&
+                     SpeedOfLight_D(x_)*E_GDB(i-1,j,k,z_,iBlock)
+             end do
           end do
-       end do
-    end if
+       end if
+    end do
   end subroutine field_bc
-  !====================
+  !======================
   subroutine get_field_energy(Energy_V)
     !\
     ! Calculate the field energies, put the result onto the root PE
