@@ -9,7 +9,6 @@ program PIC
        tSimulation, IsFirstSession 
   use ModReadParam
   use ModMpi
-  use PIC_ModOutput, ONLY: PIC_save_files
   
   implicit none
 
@@ -80,9 +79,6 @@ program PIC
         end if
 
         call show_progress
-        call timing_start('output')
-        call PIC_save_files('NORMAL')
-        call timing_stop('output')
      end do TIMELOOP
 
      if(IsLastRead)exit SESSIONLOOP
