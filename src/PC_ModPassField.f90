@@ -29,7 +29,7 @@ contains
     integer::k,kNew,iBlock
     !-----------------------------------------------------------
     !Set up periodic BC in all three dimensions.
-    call add_ghost_cell_field(1,iGCN,State_VGBI(1:1,:,:,:,:,iSort))
+    call add_ghost_cell_field(1,nGF,State_VGBI(1:1,:,:,:,:,iSort))
     if(nProc==1)RETURN
     !\
     ! if the blocks are distributed, no need to allreduce
@@ -63,7 +63,7 @@ contains
     integer::k, kNew, iBlock
     !-----------------------------------------------------------
     !Set up periodic BC in all three dimensions.
-    call add_ghost_cell_field(10,iGCN,State_VGBI(:,:,:,:,:,iSort))
+    call add_ghost_cell_field(10,nGF,State_VGBI(:,:,:,:,:,iSort))
     if(nProc==1)RETURN
     !\
     ! if the blocks are distributed, no need to allreduce

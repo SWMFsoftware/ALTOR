@@ -59,8 +59,8 @@ contains
     allocate(Current_GDB(1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
          1-iGCN*kDim_:nZ+iGCN*kDim_, MaxDim, MaxBlock)) 
     Current_GDB = 0.0 
-    allocate(State_VGBI(10,1-iGCN:nX+iGCN, 1-iGCN*jDim_:nY+iGCN*jDim_,&
-         1-iGCN*kDim_:nZ+iGCN*kDim_, MaxBlock,nPType)) 
+    allocate(State_VGBI(10,1-nGF:nX+nGF, 1-nGF*jDim_:nY+nGF*jDim_,&
+         1-nGF*kDim_:nZ+nGF*kDim_, MaxBlock,nPType)) 
     State_VGBI = 0.0
 
     allocate(Aux_CB(1:nX, 1:nY,1:nZ, MaxBlock)); Aux_CB = 0.0 
