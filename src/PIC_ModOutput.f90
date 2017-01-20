@@ -21,10 +21,11 @@ module PIC_ModOutput
   !Unit for the log file                                                      
   !/                           
   integer :: iOutUnit = -1,iOutUnit_den=-1
-  integer,  public :: nStepOut=100000,nStepOutMin=100000
+  integer,  public :: nStepOut = -1, nStepOutMin = 0
   character(len=5),public :: TypeFile='real4' 
   !Array for saving coordinates, fields and moments in one timestep
   real,allocatable   :: PlotVar_VC(:,:,:,:)
+  logical :: IsInitialized = .false.
   public :: PIC_save_files
 
 contains
@@ -33,7 +34,6 @@ contains
     use ModPlotFile,      ONLY: save_plot_file
     use PIC_ModParticles, ONLY: nPType
     use ModMpi  
-    use PC_BATL_particles,ONLY: Particle_I
     use PC_ModPhysics,    ONLY: No2Io_V, UnitT_, UnitX_
     character(len=*), intent(in):: TypeSave
     character(len=6) :: TypePosition
@@ -41,9 +41,6 @@ contains
     integer :: iSort
     character(len=15) :: NameFile='variables.outs'
     character(len=*),parameter :: FileDir='PC/plots/'
-    
-    !real,dimension(nDim):: X_D
-    !real,dimension(MaxDim):: V_D
     integer :: iBlock=1
     
     character(len=:), allocatable, save:: NameVar
@@ -51,11 +48,11 @@ contains
     !----------------------------------------------------------------------
     select case(TypeSave)
     case('INITIAL')
-       !Do not save in test particle runs alone (test particle number>1 and
-       !density of electrons < 1 per cell)
-       if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
-       !Calculate the initial moments
-       call compute_moments
+       if(nStepOut < 1          &! No output at all
+            .or. IsInitialized  &! Done in the previous session
+            )RETURN
+       IsInitialized = .true.
+
        
        if(iProc==0) then
           allocate(character(len=69*nPType) :: NameVar)
@@ -87,20 +84,13 @@ contains
     case('NORMAL')
        !Check if this is time to save; if not, return
        !The calculation is done in advance_particles
-       if(nStepOut<1.or.nStepOutMin>=iStep.or.mod(iStep,nStepOut)/=0)&
-            RETURN
-       
-       !Do not save in test particle runs
-       if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
-       
+       if(nStepOut<1.or.nStepOutMin > iStep.or.mod(iStep,nStepOut)/=0)&
+            RETURN       
        TypePosition = 'append'
        
     case('FINAL')
-       !Do not save in test particle runs alone
-       if(nToWrite/=0.and.Particle_I(1)%nParticle<product(nCell_D)) RETURN
-       !Calculate the moments at final timestep
-       call compute_moments
-       
+       if(nStepOut < 1)RETURN
+       !The calculation of  the moments is done in PIC_finalize
        TypePosition = 'append'
        
     case default
@@ -135,45 +125,7 @@ contains
             VarIn_VIII = PlotVar_VC(:,:,:,:))
     end if
   end subroutine PIC_save_files
-  !======================================================================
-  !Calculate cell-centered number density and velocity for output
-  subroutine compute_moments
-    use PIC_ModFormFactor,ONLY: HighFF_ID,Node_D, get_form_factors
-    use PC_BATL_particles,ONLY: Particle_I
-    use PC_ModSize, ONLY: MaxDim
-    use PIC_ModMain, ONLY: c,c2
-    integer :: iSort,iParticle, i
-    real,dimension(nDim):: X_D
-    real,dimension(MaxDim):: V_D
-    integer :: iBlock
-    
-    character(len=:), allocatable, save:: NameVar
-    !----------------------------------------------------
-    !Calculate the number densities and velocities                   
-    do iSort = 1, nPType
-       State_VGBI(:,:,:,:,:,iSort) = 0.0
-       do iParticle = 1, Particle_I(iSort)%nParticle
-          !\
-          ! Get iBlock
-          !/
-          iBlock = Particle_I(iSort)%iIndex_II(0,iParticle)
-          !Get the position of particle                                      
-          X_D = (Particle_I(iSort)%State_VI(1:nDim,iParticle) - &
-               CoordMin_DB(1:nDim,iBlock))*DxInv_D
-          !Get the velocity of particle from generalized momentum            
-          V_D = Particle_I(iSort)%State_VI(Wx_:Wz_,iParticle)
-          V_D = c/(sqrt(c2+sum(V_D**2)))*V_D
-          
-          call get_form_factors(X_D,Node_D,HighFF_ID)
-          
-          call add_moments(V_D,Node_D,HighFF_ID,iBlock,iSort)
-       end do
-       
-       !Save number density, velocity and pressure                           
-       call pass_moments(iSort)
-    end do
-  end subroutine compute_moments
-  !=====================================================================
+  !================================================================
   !Save the number density, velocity and pressure at certain timestep
   subroutine write_moments
     use PC_ModSize, ONLY: MaxDim
