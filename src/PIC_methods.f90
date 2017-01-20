@@ -9,10 +9,11 @@ subroutine PIC_setup
   use PIC_ModProc,      ONLY: iComm
   use PIC_ModMain,      ONLY: UseSharedField, UseUniform, UseFoil
   use PIC_ModLogFile,   ONLY: open_logfile, nLogFile
-  use PIC_ModOutput,    ONLY: PIC_save_files
+  use PIC_ModOutput,    ONLY: PIC_save_files, nStepOut
   use PIC_ModParticles, ONLY: uniform, foil, DoAddVelocity_P, &
-       add_initial_velocity, nPType, Energy_P, advance_particles,&
-       pass_energy
+       add_initial_velocity, nPType, Energy_P, advance_particles, &
+       show_density, pass_energy
+
 
   implicit none
   integer :: iSort
@@ -29,17 +30,26 @@ subroutine PIC_setup
   !Save the initial outputs
   call timing_start('output')
   Energy_P = 0.0; State_VGBI = 0.0
-  do iSort = 1, nPType
-     call advance_particles(iSort,&
-          DoComputeMoments = .false., DoPredictorOnly = .true.)
-        !call pass_density(iSort)
-        !call show_density(iSort)
+  if(nStepOut>1)then
+     do iSort = 1, nPType
+        call advance_particles(iSort,&
+             DoComputeMoments = .true., DoPredictorOnly = .true.)
+        call pass_moments(iSort)
+        call show_density(iSort)
      end do
+     call PIC_save_files('INITIAL')
+  else
+     do iSort = 1, nPType
+        call advance_particles(iSort,&
+             DoComputeMoments = .false., DoPredictorOnly = .true.)
+        call pass_density(iSort)
+        call show_density(iSort)
+     end do
+  end if
   if(nLogFile >=1) then
      call pass_energy
      call open_logfile
   end if
-  call PIC_save_files('INITIAL')
   call timing_stop('output')
 end subroutine PIC_setup
 !==========================
@@ -64,6 +74,7 @@ subroutine PIC_advance(tMax)
   use PIC_ModOutput,    ONLY: nStepOutMin, nStepOut, PIC_save_files
   use PC_ModMpi,       ONLY: pass_current, pass_density, pass_moments
   use PC_BATL_pass_face_field, ONLY: message_pass_field
+  use PC_ModHybrid,     ONLY: UseHybrid
   implicit none
   real,intent(in) :: tMax
   integer :: iSort, iBlock
@@ -78,12 +89,7 @@ subroutine PIC_advance(tMax)
   !/
   !\
   ! Start update through the time step
-  !/
-  !6. Update the magnetic field through the half time step
-  !call timing_start('adv_b')
-  !call update_magnetic
-  !call timing_stop('adv_b')
-  
+  !/  
   !1. Prepare to move particles
   Current_GDB = 0.0; Energy_P = 0.0
   !2. Move particles
@@ -91,7 +97,7 @@ subroutine PIC_advance(tMax)
 
   State_VGBI = 0.0
   if(nStepOut>=1.and.nStepOutMin<=iStep&
-       .and.mod(iStep,nStepOut)==0)then
+       .and.mod(iStep,nStepOut)==0.and.iStep/=0)then
      do iSort=1, nPType
         !Calculate cell-centered number density and velocity while
         !advancing the particles
@@ -174,6 +180,21 @@ subroutine PIC_advance(tMax)
   !end of time step, the particle velocities are half 
   !time step behind.
   !/
+  !\
+  ! For hybrid scheme: advance the particle to the end of time step and 
+  ! improve electric field.
+  !/
+  if(.not.UseHybrid)RETURN
+  call update_e
+  call message_pass_field(nGF, E_GDB)
+  Current_GDB = 0.0
+  do iSort = 1, nPType
+     call advance_particles(&
+          iSort,DoComputeMoments=.FALSE.,DoPredictorOnly=.true.)
+  end do
+  call pass_current
+  call update_e
+  call message_pass_field(nGF, E_GDB)
   call timing_stop('advance')
 
 end subroutine PIC_advance
