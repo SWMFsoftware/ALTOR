@@ -3,8 +3,9 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 !==========================
 module PC_ModHybrid
-  use PC_ModSize, ONLY: nHybrid, UseHybrid
+  use PC_ModSize, ONLY: nHybrid
   implicit none
+  logical, parameter:: UseHybrid = nHybrid==1
 contains
   subroutine add_predictor_current(QPerVDt_D, W_D, iBlock)
     use PC_ModSize, ONLY: MaxDim, nDim
