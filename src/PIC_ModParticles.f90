@@ -687,13 +687,21 @@ contains
        !Add a half of the magnetic rotation:
 
        W12_D = W_D + cross_product(W_D,BForce_D)
-
-       !Multiply the magnetic force by 2 to take a whole
-       !rotation and reduce its magnitude not to perturb energy
+       !\
+       !Contribute to number density and velocity moments
+       !/
+       if(DoComputeMoments)then 
+          call add_moments(W12_D*Gamma12Inv,&
+               Node_D,HighFF_ID,iBlock,iSort)
+       else
+          call add_density(Node_D,HighFF_ID,iBlock,iSort)
+       end if       
        if(UseHybrid)&
             call add_predictor_current(&
             QPerVDx_D,W12_D*Gamma12Inv,iBlock)
        if(present(DoPredictorOnly))CYCLE
+       !Multiply the magnetic force by 2 to take a whole
+       !rotation and reduce its magnitude not to perturb energy
        BForce_D = (2.0/(1.0 + sum(BForce_D**2))) * BForce_D
 
        !Get a final momentum
@@ -713,15 +721,7 @@ contains
 
        !New form factor
        call get_form_factors(X_D,NodeNew_D,HighFFNew_ID)
-       
-       
-       !Contribute to number density and velocity
-       if(DoComputeMoments)then 
-          call add_moments(W_D*c,NodeNew_D,HighFFNew_ID,iBlock,iSort)
-       else
-          call add_density(NodeNew_D,HighFFNew_ID,iBlock,iSort)
-       end if
-   
+          
        !Contribute to the current
        call add_current(QPerVDx_D,W_D,iBlock)
        
