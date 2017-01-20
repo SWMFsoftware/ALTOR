@@ -12,6 +12,8 @@ DXYZ
 0.05		Dx_D(2)
 0.05		Dx_D(3)
 
+#IOCYCLEWAVELENGTH
+
 #GRID
 2
 2
@@ -41,15 +43,15 @@ standard
 1		nLogFile
 
 #TIMESTEP
-0.025		Dt
+0.004		Dt
 
 #SAVEFIELDMOMENTS
 ascii		TypeFile
-500		nStepOutMin
-10		nStepOut
+0		nStepOutMin
+500		nStepOut
 
 #STOP
 -1		MaxIteration
-12.575		tSimulationMax
+2.0		tSimulationMax
 
 #END
