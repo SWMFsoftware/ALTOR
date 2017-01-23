@@ -27,19 +27,19 @@ module PIC_ModParticles
   integer,parameter::Electrons_ = 1 - nHybrid, Electron_=Electrons_
 
   !Structures
-  real,dimension(Electrons_:nPType) :: M_P, Q_P
+  real,dimension(Electrons_:max(nPType,Electrons_)) :: M_P, Q_P
   !Particle's mass and charge
 
-  real,dimension(nPType)    :: Energy_P
-  real,dimension(nPType)    :: OmegaPDtMax_P
+  real,dimension(1:max(nPType,1))    :: Energy_P
+  real,dimension(1:max(nPType,1))    :: OmegaPDtMax_P
 
   !Only at the root PE:
-  real            :: nTotal_P(nPType) = 0
+  real            :: nTotal_P(1:max(nPType,1)) = 0
   !\
   ! Add velocity
   !/
-  logical :: DoAddVelocity_P(nPType) = .false.
-  real    :: VelocityToAdd_DP(Wx_:Wz_,nPType) = 0.0
+  logical :: DoAddVelocity_P(1:max(nPType,1)) = .false.
+  real    :: VelocityToAdd_DP(Wx_:Wz_,1:max(nPType,1)) = 0.0
 
   !Methods
   public::set_particle_param       !Assigns M_P, Q_P and allocates coordinate
@@ -53,6 +53,7 @@ contains
     logical :: DoInit=.true.
     integer :: iSort
     !--------------------------
+    if(nPType<1)RETURN
     if(DoInit)then
        DoInit=.false.
     else
@@ -146,8 +147,8 @@ contains
     use PC_BATL_tree, ONLY: nRoot_D
     use PC_BATL_grid, ONLY: find_grid_block
 
-    integer        :: nPPerCell_P(nPType)
-    real :: n_P(nPType)
+    integer        :: nPPerCell_P(1:max(nPType,1))
+    real :: n_P(1:max(nPType,1))
     integer        :: nPPerPE, nResidual, nPTotal
     real           :: Coord_D(MaxDim) = 0.0, W_D(MaxDim)= 0.0
     logical        :: UseQuasiNeutral
@@ -233,10 +234,10 @@ contains
     use PC_ModMpi
     use PC_BATL_lib,  ONLY: iTree_IA, Block_, iNode_B
 
-    integer             :: nPPerCell_P(nPType), nBPerPE, nBResidual,&
+    integer             :: nPPerCell_P(1:max(nPType,1)), nBPerPE, nBResidual,&
          nPPerBlock, i, iNodeStart, iNodeEnd,  iNode, iP, &
          iPStart, iPEnd, iBlock, iDim, iSort
-    real                :: n_P(nPType), Coord_D(nDim), W_D(MaxDim)
+    real                :: n_P(1:max(nPType,1)), Coord_D(nDim), W_D(MaxDim)
     logical             :: UseQuasiNeutral
     !--------------------------
     DoAddVelocity_P = .false. !Added here
@@ -369,8 +370,8 @@ contains
     use PIC_ModMain, ONLY: nPPerCellFoil_P, FoilCenter_D, &
          FoilWidth_D, AngleFoil
     integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
-    integer :: nPPerCell_P(nPType)
-    integer :: n_P(nPType)
+    integer :: nPPerCell_P(1:max(nPType,1))
+    integer :: n_P(1:max(nPType,1))
     real    :: Coord_D(nDim), W_D(MaxDim) 
     real    :: PrimaryCoord_D(nDim)
     real    :: angleSin, angleCos
@@ -513,9 +514,10 @@ contains
     use ModMpi
     use PIC_ModProc
 
-    real :: E_P(nPType)
+    real :: E_P(1:max(nPType,1))
     !---------------------------
-    if(nProc==1)return
+    if(nProc==1)RETURN
+    if(nPType<1)RETURN
     E_P = Energy_P
     call MPI_Reduce(&
          E_P, Energy_P, nPType, MPI_REAL,MPI_SUM,  0, iComm, iError)

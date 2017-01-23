@@ -37,7 +37,7 @@ contains
     use PC_ModPhysics,    ONLY: No2Io_V, UnitT_, UnitX_
     character(len=*), intent(in):: TypeSave
     character(len=6) :: TypePosition
-    real    :: Param_I(1:2*nPType)
+    real    :: Param_I(1:2*max(nPType,1))
     integer :: iSort
     character(len=15) :: NameFile='variables.outs'
     character(len=*),parameter :: FileDir='PC/plots/'
@@ -55,7 +55,8 @@ contains
 
        
        if(iProc==0) then
-          allocate(character(len=69*nPType) :: NameVar)
+          allocate(character(len=69*max(nPType,1)) :: NameVar)
+          write(NameVar(1:7),'(a7)')'QS0 MS0'
           do iSort=1,nPType
              write(NameVar((6*iSort-5):(6*iSort)),'(a4,i1,1x)') 'rhoS',iSort-1
              write(NameVar((15*iSort-14+6*nPType):(15*iSort+6*nPType)),&
@@ -107,8 +108,8 @@ contains
     if(iProc==0) then
        !Get cell-center averaged E and B; fields are the same on each Proc
        !Save the charge and mass ratio for each species in normalized unit
-       Param_I(1:nPType)          = Q_P
-       Param_I(nPType+1:2*nPType) = M_P
+       Param_I(1:max(nPType,1))          = Q_P
+       Param_I(max(nPType,1)+1:2*max(nPType,1)) = M_P
        
        call save_plot_file(FileDir//NameFile,                       &
             TypeFileIn = TypeFile,                                  &

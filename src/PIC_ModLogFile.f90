@@ -28,13 +28,13 @@ module PIC_ModLogFile
   public :: write_logfile
   public :: close_logfile
   
-  integer, parameter ::         &
-       Time_ = 1,               &
-       PartFirst_ = 2,          &
-       PartLast_  = 1 + nPType, &
-       Bx_        = 2 + nPType, &
-       Ez_        = 7 + nPType, &
-       ETotal_    = 8 + nPType
+  integer, parameter ::                &
+       Time_ = 1,                      &
+       PartFirst_ = 2,                 &
+       PartLast_  = 1 + max(nPType,1), &
+       Bx_        = 2 + max(nPType,1), &
+       Ez_        = 7 + max(nPType,1), &
+       ETotal_    = 8 + max(nPType,1)
 
   real  :: Value_V(Time_:ETotal_)
   character(LEN=30) ::NameFormat
