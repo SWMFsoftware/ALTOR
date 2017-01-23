@@ -212,7 +212,7 @@ test_beam:
 	${MAKE} test_beam_check
 
 test_beam_compile:
-	./Config.pl -g=10,25,1,6400,0,0
+	./Config.pl -g=800,20,1,6400,0,0
 	${MAKE} 
 
 test_beam_rundir: 
