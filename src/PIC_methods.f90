@@ -13,7 +13,7 @@ subroutine PIC_setup
   use PIC_ModParticles, ONLY: uniform, foil, DoAddVelocity_P, &
        add_initial_velocity, nPType, Energy_P, advance_particles, &
        show_density, pass_energy
-
+  use PIC_ModLaserBeam, ONLY: UseLaserBeam, check_laser_beam
 
   implicit none
   integer :: iSort
@@ -27,8 +27,8 @@ subroutine PIC_setup
              call add_initial_velocity(iSort)
      end do
   end if
+  if(UseLaserBeam)call check_laser_beam
   !Save the initial outputs
-  call timing_start('output')
   Energy_P = 0.0; State_VGBI = 0.0
   if(nStepOut>1)then
      do iSort = 1, nPType
@@ -50,7 +50,6 @@ subroutine PIC_setup
      call pass_energy
      call open_logfile
   end if
-  call timing_stop('output')
 end subroutine PIC_setup
 !==========================
 subroutine PIC_init_session(iSession)
@@ -80,7 +79,13 @@ subroutine PIC_advance(tMax)
   integer :: iSort, iBlock
   character(len=*), parameter :: NameSub='PIC_advance'
   !--------------------------------------------------------------------
-  if(tSimulation > tMax)return
+  !\
+  !Avoid invinitesimal time step.
+  !/
+  if(tSimulation > tMax - 1.0e-8*Dt)then
+     tSimulation = tMax
+     RETURN
+  end if
   call timing_start('advance')
   !\
   ! Electric and magnetic fields and the particle coordinates are at the 
@@ -93,7 +98,6 @@ subroutine PIC_advance(tMax)
   !1. Prepare to move particles
   Current_GDB = 0.0; Energy_P = 0.0
   !2. Move particles
-  call timing_start('adv_particles')
 
   State_VGBI = 0.0
   if(nStepOut>=1.and.nStepOutMin<=iStep&
@@ -101,30 +105,31 @@ subroutine PIC_advance(tMax)
      do iSort=1, nPType
         !Calculate cell-centered number density and velocity while
         !advancing the particles
+        call timing_start('adv_particles')
         call advance_particles(iSort,DoComputeMoments=.TRUE.)
+        call timing_stop('adv_particles')
         !Save the moments
         call pass_moments(iSort)
      end do
-     call timing_start('output')
      call PIC_save_files('NORMAL')
-     call timing_stop('output')
   else
      do iSort=1, nPType
         !Advance the particles without calculating cell-centered
         !number velocity 
+        call timing_start('adv_particles')
         call advance_particles(iSort,DoComputeMoments=.FALSE.)
+        call timing_stop('adv_particles')
         call pass_density(iSort)
      end do
   end if
   !3. Collect currents at the half time step 
-  call pass_current
+  if(nPType > 0) call pass_current
   !\
   ! Electromagnetic fields and the particle energies are at  
   ! the beginning of the time step. Density and the particle 
   ! coordinates are at the end of the timestep.
   ! The particle velocities are in the middle of the timestep.
   !/
-  call timing_stop('adv_particles')
   if(nLogFile>=1)then
      !All energies in the logfile are at the beginning of the timestep.
      !For test particles velocities are in the middle of the timestep,
@@ -159,11 +164,12 @@ subroutine PIC_advance(tMax)
   ! 5.2 advance field within the physical blocks
   !/
   call update_e
+  call timing_stop('adv_e')
   !\
   ! 5.3 update ghost face field values
   !/ 
   call message_pass_field(nGF, E_GDB)
-  call timing_stop('adv_e')
+
 
   !\
   ! Electric fields are at the end of the time step.
@@ -184,7 +190,10 @@ subroutine PIC_advance(tMax)
   ! For hybrid scheme: advance the particle to the end of time step and 
   ! improve electric field.
   !/
-  if(.not.UseHybrid)RETURN
+  if(.not.UseHybrid)then
+     call timing_stop('advance')
+     RETURN
+  end if
   call update_e
   call message_pass_field(nGF, E_GDB)
   Current_GDB = 0.0
@@ -212,7 +221,6 @@ subroutine PIC_finalize
   integer :: iSort
   character(len=*), parameter :: NameSub='PIC_finalize'
   !--------------------
-  call timing_start('save_final')
   Energy_P = 0.0; State_VGBI = 0.0
   if(nStepOut>1)then
      do iSort = 1, nPType
@@ -232,8 +240,6 @@ subroutine PIC_finalize
      call write_logfile
      call close_logfile
   end if 
-  call timing_stop('save_final')
-
   if(iProc==0)then
      write(*,*)
      write(*,'(a)')'    Finished Saving Output Files'
