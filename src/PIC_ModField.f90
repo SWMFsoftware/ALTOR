@@ -347,7 +347,7 @@ contains
     use PIC_ModBatlInterface, ONLY: NeiLevel_SB
     use PC_Batl_lib,          ONLY: Unset_
     use PC_BATL_grid,         ONLY: Xyz_DGB
-    use PIC_ModLaserBeam,     ONLY: laser_beam 
+    use PIC_ModLaserBeam,     ONLY: laser_beam, UseLaserBeam 
     integer :: i, j, k, iBlock
     real    :: x, y, z
     !---------------
@@ -368,7 +368,7 @@ contains
                 E_GDB(i,j,k,y_,iBlock) = E_GDB(i,j,k,y_,iBlock)*&
                      (1 - SpeedOfLight_D(x_)) + &
                      SpeedOfLight_D(x_)*E_GDB(i+1,j,k,y_,iBlock)
-                if(TypeFieldBC_S(1)=='laserbeam')&
+                if(UseLaserBeam)&
                      call laser_beam(iDir=y_,    &
                      Xyz_D = 0.5* (Xyz_DGB(:,i,j,k,iBlock) + &
                      Xyz_DGB(:,i,j+jDim_,k,iBlock)), &
@@ -381,7 +381,7 @@ contains
                 E_GDB(i,j,k,z_,iBlock) = E_GDB(i,j,k,z_,iBlock)*&
                      (1 - SpeedOfLight_D(x_)) + &
                      SpeedOfLight_D(x_)*E_GDB(i+1,j,k,z_,iBlock)
-                if(TypeFieldBC_S(1)=='laserbeam')&
+                if(UseLaserBeam)&
                      call laser_beam(iDir=z_,    &
                      Xyz_D = 0.5* (Xyz_DGB(:,i,j,k,iBlock) + &
                      Xyz_DGB(:,i,j,k+kDim_,iBlock)),  &
