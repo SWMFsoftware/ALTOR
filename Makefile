@@ -200,3 +200,31 @@ test_altor_2d_check:
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
 		Param/TestOutput/log_Langmuir_2d.log ${TESTDIR}/PC/plots/log_n0001.log > test_altor_2d.diff	
 	ls -l test_altor*.diff
+
+test_beam:
+	@echo "test_beam_compile..." > test_beam.diff
+	${MAKE} test_beam_compile
+	@echo "test_beam_rundir..." >> test_beam.diff
+	${MAKE} test_beam_rundir
+	@echo "test_beam_run..." >> test_beam.diff
+	${MAKE} test_beam_run
+	@echo "test_beam_check..." >> test_beam.diff
+	${MAKE} test_beam_check
+
+test_beam_compile:
+	./Config.pl -g=10,25,1,6400,0,0
+	${MAKE} 
+
+test_beam_rundir: 
+	rm -rf ${TESTDIR}
+	${MAKE} rundir RUNDIR=${TESTDIR} STANDALONE=YES PCDIR=`pwd`
+	cd ${TESTDIR}; cp -f Param/PARAM.in.GaussianBeam PARAM.in; mkdir PC/plots/
+
+test_beam_run:
+	cd ${TESTDIR}; ${MPIRUN} ./ALTOR.exe | tee -a runlog
+
+test_beam_check:
+	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
+		Param/TestOutput/log_beam.log \
+	${TESTDIR}/PC/plots/log_n0001.log > test_beam.diff	
+	ls -l test_beam.diff
