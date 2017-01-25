@@ -137,6 +137,9 @@ TESTDIR = run_test
 test:
 	-@(${MAKE} test_altor)
 	-@(${MAKE} test_altor_2d)
+	-@(${MAKE} test_beam)
+	-@(${MAKE} test_foil)
+	ls -lt test*.diff
 
 test_altor:
 	@echo "test_altor_compile..." > test_altor.diff
@@ -199,7 +202,7 @@ test_altor_2d_run:
 test_altor_2d_check:
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
 		Param/TestOutput/log_Langmuir_2d.log ${TESTDIR}/PC/plots/log_n0001.log > test_altor_2d.diff	
-	ls -l test_altor*.diff
+	ls -l test_altor_2d.diff
 
 test_beam:
 	@echo "test_beam_compile..." > test_beam.diff
@@ -212,7 +215,7 @@ test_beam:
 	${MAKE} test_beam_check
 
 test_beam_compile:
-	./Config.pl -g=800,20,1,6400,0,0
+	./Config.pl -g=800,20,1,80,0,0
 	${MAKE} 
 
 test_beam_rundir: 
@@ -228,3 +231,31 @@ test_beam_check:
 		Param/TestOutput/log_beam.log \
 	${TESTDIR}/PC/plots/log_n0001.log > test_beam.diff	
 	ls -l test_beam.diff
+
+test_foil:
+	@echo "test_foil_compile..." > test_foil.diff
+	${MAKE} test_foil_compile
+	@echo "test_foil_rundir..." >> test_foil.diff
+	${MAKE} test_foil_rundir
+	@echo "test_foil_run..." >> test_foil.diff
+	${MAKE} test_foil_run
+	@echo "test_foil_check..." >> test_foil.diff
+	${MAKE} test_foil_check
+
+test_foil_compile:
+	./Config.pl -g=800,20,1,8,1,1500000
+	${MAKE} 
+
+test_foil_rundir: 
+	rm -rf ${TESTDIR}
+	${MAKE} rundir RUNDIR=${TESTDIR} STANDALONE=YES PCDIR=`pwd`
+	cd ${TESTDIR}; cp -f Param/PARAM.FOIL PARAM.in; mkdir PC/plots/
+
+test_foil_run:
+	cd ${TESTDIR}; ${MPIRUN} ./ALTOR.exe >runlog
+
+test_foil_check:
+	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
+		Param/TestOutput/log_foil.log \
+	${TESTDIR}/PC/plots/log_n0001.log > test_foil.diff	
+	ls -l test_foil.diff

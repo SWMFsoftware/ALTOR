@@ -1,79 +1,73 @@
 #DESCRIPTION
-3 dimensional version
+2 dimensional version
 
 #CHECKGRID
-80
-64
-64
-2
+800		nX
+20		nY
+1		nPType
 
-#DXYZ
-0.5
-0.5
-0.5
+#IOCYCLEWAVELENGTH
+
+#GRID
+1		nRoot_D(1)
+8		nRoot_D(2)
+0.0             XyzMin_D(1)
+8.0            XyzMax_D(1)
+-4.0		XyzMin_D(2)
+4.0		XyzMax_D(2)
 
 #NORMALIZATION
 standard
 1
-1.0
-1836.0
-
-UNIFORM
-2
--2
-
-FOIL
-10              nPPerCell_P_1
--10              nPPerCell_P_2
-5.0              xFoilCenter
-4.0              yFoilCenter
-4.0              zFoilCenter
-6.0              xFoilWidth
-7.0              yFoilWidth
-7.0              zFoilWidth
-0.0             angleFoilInDegrees
-
-THERMALIZE
-2.50e-3
-2.50e-3
-
-ADDB
-1.0
-0.0
-0.0
 
 #LASERBEAM
-1.0              laserAmplitude2
-0.0              laserAmplitude3
-0.0              phaseShift
-12.56              pulseWidth1
--20.0              pulseWidth2
-20.0              pulseWidth3
-25.0              xFocus1
-16.0              xFocus2
-16.0              xFocus3
+11.0             Amplitude
+0.0              Amplitude3
+0.250            PhaseShift
+0.5              PulseWidth
+1.0              PulseWidth
+6.0              XyzFocus
+0.0              XyzFocus
+1                nEnvelope
+
 
 #FIELDBC                                                                       
 laserbeam            TypeFieldBC_S(x<0)                                        
 noreflect            TypeFieldBC_S(x>nX.dx)                                    
 periodic             TypeFieldBC_S(y<0)                                     
 periodic             TypeFieldBC_S(y>nY.dy)                                    
-periodic             TypeFieldBC_S(z<0)                                        
-periodic             TypeFieldBC_S(z>nZ.dz)
 
 #LOGFILE
 1
 
-#OUTFIELD
-0                  nStepOutMin
-32                  nStepOut
-
 #TIMESTEP
-0.25
+0.0098
+
+#SAVEFIELDMOMENTS
+ascii		TypeFile
+0		nStepOutMin
+50		nStepOut
+
+#NORMALIZATION
+standard
+10
+
+#FOIL
+150              nPPerCell_P_1
+6.0550           xFoilCenter
+0.0              yFoilCenter
+0.11             xFoilWidth
+3.0              yFoilWidth
+0.0              AngleFoil
+
+#THERMALIZE
+2.50e-3
+2.50e-3
 
 #STOP 
-320                  FinalStepIfPositiveOr
--12.575            FinalTimeIfPositive
+-1                FinalStepIfPositiveOr
+10.78              FinalTimeIfPositive
 
 
 #END
+

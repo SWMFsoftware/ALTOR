@@ -150,14 +150,25 @@ contains
        do iBlock = 1, nBlock
           iOffset_D(1:nDim) = nint((CoordMin_DB(1:nDim,iBlock) - &
                CoordMin_D(1:nDim))/dX_D(1:nDim))
-          !The cell-centered velocity should be normalized by number density
-          do iVar=2,4
-             State_VGBI(iVar,1:nX,1:nY,1:nZ,iBlock,iSort) = &
-                  State_VGBI(iVar,1:nX,1:nY,1:nZ,iBlock,iSort)/&
-                  State_VGBI(1,1:nX,1:nY,1:nZ,iBlock,iSort)
-          end do
           !Looping over all the cell centers
           do k=1,nZ; do j=1,nY; do i=1,nX
+             if(State_VGBI(1,i,j,k,iBlock,iSort)<=0.0)then
+                PlotVar_VC(iSort+6,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = 0.0
+                PlotVar_VC(nPType+3*iSort+4:nPType+3*iSort+6,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = 0.0
+                PlotVar_VC(5*nPType+6*iSort+1:5*nPType+6*iSort+3,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = 0.0
+                PlotVar_VC(5*nPType+6*iSort+4:5*nPType+6*iSort+6,&
+                  i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_)) = 0.0
+                CYCLE
+             end if
+             !The cell-centered velocity should be normalized by number density
+             do iVar=2,4
+                State_VGBI(iVar,i,j,k,iBlock,iSort) = &
+                  State_VGBI(iVar,i,j,k,iBlock,iSort)/&
+                  State_VGBI(1,i,j,k,iBlock,iSort)
+             end do
              PlotVar_VC(iSort+6,&
                   i+iOffset_D(x_),j+iOffset_D(y_),k+iOffset_D(z_))  = &
                   abs(Q_P(iSort))*vInv*State_VGBI(1,i,j,k,iBlock,iSort)

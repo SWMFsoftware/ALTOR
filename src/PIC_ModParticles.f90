@@ -42,11 +42,9 @@ module PIC_ModParticles
   real    :: VelocityToAdd_DP(Wx_:Wz_,1:max(nPType,1)) = 0.0
 
   !Methods
-  public::set_particle_param       !Assigns M_P, Q_P and allocates coordinate
-  ! arrays
-  public::put_particle             !Add particle with known coordinates
-  public::advance_particles   !Advance particles and collect moments info in 
-                              !certain timestep
+  public::set_particle_param  !Assigns M_P, Q_P and allocates arrays
+  public::put_particle        !Add particle with known coordinates
+  public::advance_particles   !Advance particles and collect moments
 contains
   !======================================
   subroutine set_particle_param
@@ -137,112 +135,26 @@ contains
             write(*,*)'Particles will neutralize electrons'
     end do
   end subroutine read_uniform
-  !================================
-  subroutine uniform_shared_field
-    use PIC_ModProc
-    use PC_ModMpi
-    use ModMpi
-    use PIC_ModRandom
-    use PIC_ModMain, ONLY: nPPerCellUniform_P 
-    use PC_BATL_tree, ONLY: nRoot_D
-    use PC_BATL_grid, ONLY: find_grid_block
-
-    integer        :: nPPerCell_P(1:max(nPType,1))
-    real :: n_P(1:max(nPType,1))
-    integer        :: nPPerPE, nResidual, nPTotal
-    real           :: Coord_D(MaxDim) = 0.0, W_D(MaxDim)= 0.0
-    logical        :: UseQuasiNeutral
-    integer        :: iBlockOut=1, iProcOut=0, iSort, iDim, iP
-    !--------------------------
-    do iSort = 1, nPType
-       State_VGBI(:,:,:,:,:,iSort) = 0
-       if(nPPerCellUniform_P(iSort)==0)CYCLE
-
-       if(nPPerCellUniform_P(iSort) > 0)then
-          nPPerCell_P(iSort) = nPPerCellUniform_P(iSort)
-          UseQuasiNeutral = .false.
-       else
-          nPPerCell_P(iSort) = -nPPerCellUniform_P(iSort)
-          UseQuasiNeutral = .true.
-       end if
-
-       nPTotal = product(nCell_D(1:nDim)*nRoot_D(1:nDim)) * NPPerCell_P(iSort)
-       nPPerPE = nPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
-
-       if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
-
-       if(UseQuasiNeutral)then
-          !Initialize the same random number sequence as 
-          !for electrons
-          call parallel_init_rand(nDim * nPPerPE, Electrons_)
-       else
-          call parallel_init_rand(nDim * nPPerPE, iSort)
-       end if
-
-       do iP = 1, nPPerPE
-          do iDim = 1,nDim
-             Coord_D(iDim) = (CoordMax_D(iDim)-CoordMin_D(iDim))&
-                  * RAND() + CoordMin_D(iDim)
-          end do
-          !\
-          ! This verion only works for UseSharedBlock
-          !/
-          call find_grid_block(Coord_D, iProcOut, iBlockOut)
-          call put_particle(iSort, Coord_D(1:nDim), iBlockOut)
-          Coord_D(1:nDim) = (Coord_D(x_:nDim) - &
-               CoordMin_DB(1:nDim,iBlockOut))*DxInv_D
-          call get_form_factors(Coord_D(1:nDim),Node_D,HighFF_ID)
-          call add_density(Node_D,HighFF_ID,iBlockOut,iSort)
-          
-       end do
-       call pass_density(iSort)
-       if(iProc==0)write(*,*)'Total number of particles of sort ', iSort,&
-            ' equals ',sum(State_VGBI(1,1:nX,1:nY,1:nZ,1:nBlock,iSort))
-       n_P(iSort) = Particle_I(iSort)%nParticle
-    end do
-    if(nProc==1)then
-       nTotal_P = n_P
-    else
-       call MPI_reduce(n_P, nTotal_P, nPType, MPI_REAL,&
-            MPI_SUM, 0, iComm, iError)
-    end if
-
-    if(iProc==0)then
-       write(*,*)'Particles are distributed'
-       do iSort = 1, nPType
-          write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
-       end do
-    end if
-    do iSort = 1, nPType
-       if(uTh_P(iSort)<=0.0)CYCLE
-       call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort,2)
-       do iP = 1, Particle_I(iSort)%nParticle
-          call thermalize_particle(iSort, W_D)
-          Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
-               Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
-       end do
-    end do
-  end subroutine uniform_shared_field
-  !============================================================
+  !=====================
   !Distribute particles by blocks.
   subroutine uniform
     use PIC_ModMain,  ONLY: nTotBlocks, UseSharedField, &
-         nPPerCellUniform_P 
+         nPPerCellUniform_P, UseUniform 
     use PC_ModSize,  ONLY: nBlock
     use PIC_ModProc
     use PIC_ModRandom
-    use PC_ModMpi
+    use ModMpi
     use PC_BATL_lib,  ONLY: iTree_IA, Block_, iNode_B
 
-    integer             :: nPPerCell_P(1:max(nPType,1)), nBPerPE, nBResidual,&
-         nPPerBlock, i, iNodeStart, iNodeEnd,  iNode, iP, &
+    integer :: nPPerCell_P(1:max(nPType,1)), nBPerPE, nBResidual,&
+         nPPerBlock, i, iNodeStart, iNodeEnd,  iNode, iP,        &
          iPStart, iPEnd, iBlock, iDim, iSort
-    real                :: n_P(1:max(nPType,1)), Coord_D(nDim), W_D(MaxDim)
-    logical             :: UseQuasiNeutral
-    !--------------------------
+    real    :: n_P(1:max(nPType,1)), Coord_D(nDim), W_D(MaxDim)
+    logical :: UseQuasiNeutral
+    !-------------------------
     DoAddVelocity_P = .false. !Added here
+    UseUniform      = .false. !Do not repeate in the next session.
     SORTS:do iSort = 1, nPType
-       State_VGBI(:,:,:,:,:,iSort) = 0
        if(uTh_P(iSort)==0.0)W_D = 0.0
        if(nPPerCellUniform_P(iSort)==0)CYCLE SORTS
 
@@ -253,41 +165,9 @@ contains
           nPPerCell_P(iSort) = -nPPerCellUniform_P(iSort)
           UseQuasiNeutral = .true.
        end if
-       nPPerBlock = product(nCell_D(1:nDim)) * NPPerCell_P(iSort)
-       if(UseSharedField)then
-          !\
-          ! Blocks are distributed just to distribute particles
-          !/
-          nBPerPE    = nTotBlocks/nProc 
-          nBResidual = nTotBlocks - nProc*nBPerPE
-          if(iProc+1<=nBResidual)then
-             nBPerPE = nBPerPE + 1
-             iNodeStart = nBPerPE*iProc + 1
-             iNodeEnd   = nBPerPE*iProc + nBPerPE
-          else
-             iNodeStart = nBPerPE*iProc + nBResidual + 1
-             iNodeEnd   = nBPerPE*iProc + nBResidual + nBPerPE
-          end if
-       else
-          !\
-          ! Blocks are already distrbuted
-          !/
-          iNodeStart =1; iNodeEnd = nBlock
-       end if
-       BLOCKS:do i = iNodeStart, iNodeEnd
-          if(UseSharedField)then
-             !\
-             ! Blocks are distributed just to distribute particles
-             !/
-             iNode = i
-             iBlock = iTree_IA(Block_,iNode)
-          else
-             !\
-             ! Blocks are already distrbuted
-             !/
-             iBlock = i
-             iNode  = iNode_B(iBlock)
-          end if
+       nPPerBlock = product(nCell_D(1:nDim))*NPPerCell_P(iSort)
+       BLOCKS:do iBlock = 1, nBlock
+          iNode  = iNode_B(iBlock)
           if(UseQuasiNeutral)then 
              !Initialize the same random number sequence as 
              !for electrons
@@ -338,15 +218,12 @@ contains
   !==========================================
   subroutine read_foil
     use ModReadParam,ONLY: read_var
-    use PIC_ModProc
+    use PIC_ModProc, ONLY: iProc
     use ModConst,    ONLY: cDegToRad
-    use PC_ModMpi,  ONLY: pass_density
-    use ModMpi
     use PIC_ModMain, ONLY: nPPerCellFoil_P, FoilCenter_D, &
-         FoilWidth_D, AngleFoil
+         FoilWidth_D, AngleFoil, UseFoil
     integer:: iSort, iDim
-
-    !--------------
+    !-------------------
     do iSort = 1,nPType
        call read_var('nPPerCellFoil',nPPerCellFoil_P(iSort))
        if(nPPerCellFoil_P(iSort)<0.and.iProc==0)&
@@ -359,30 +236,44 @@ contains
        call read_var('FoilWidth_D',FoilWidth_D(iDim))
     end do
     call read_var('AngleFoil',AngleFoil)
+    !\
+    ! Convert to radians
+    !/
+    AngleFoil = AngleFoil*cDegToRad
   end subroutine read_foil
   !================================
   subroutine foil
+    use PC_ModPhysics, ONLY: Io2No_V, UnitX_
     use PIC_ModProc
     use PIC_ModRandom
-    use ModConst,    ONLY: cDegToRad
     use PC_ModMpi,  ONLY: pass_density
     use ModMpi
-    use PIC_ModMain, ONLY: nPPerCellFoil_P, FoilCenter_D, &
-         FoilWidth_D, AngleFoil
-    integer :: nPPerPE, nResidual, nPTotal, iSort, iDim, iP
-    integer :: nPPerCell_P(1:max(nPType,1))
-    integer :: n_P(1:max(nPType,1))
-    real    :: Coord_D(nDim), W_D(MaxDim) 
-    real    :: PrimaryCoord_D(nDim)
-    real    :: angleSin, angleCos
-    logical :: UseQuasineutral
-    integer :: iBlockOut = 1, iProcOut 
-    !--------------------------
-    angleSin=sin(angleFoil*cDegToRad)
-    angleCos=cos(angleFoil*cDegToRad)
-    do iSort = 1, nPType
+    use PIC_ModMain, ONLY: nPPerCellFoil_P, FoilCenter_D,    &
+         FoilWidth_D, AngleFoil, nTotBlocks, UseSharedField, &
+         UseFoil
+    use PC_ModSize,  ONLY: nBlock
+    use PC_BATL_lib,  ONLY: iTree_IA, Block_, iNode_B
 
-       if(nPPerCellFoil_P(iSort)==0)CYCLE
+    integer :: nPPerCell_P(1:max(nPType,1)), nPPerBlock, iP, &
+         iNode, iPStart, iPEnd, iBlock, iDim, iSort
+    real    :: n_P(1:max(nPType,1)), Coord_D(nDim), W_D(MaxDim)
+    logical :: UseQuasiNeutral
+
+    real    :: PrimaryCoord_D(nDim)
+    real    :: SinAngle, CosAngle, TanAngle, CosAngleInv
+    !--------------------------
+    CosAngle = cos(AngleFoil);  CosAngleInv = 1/CosAngle
+    SinAngle = sin(AngleFoil);  TanAngle =  SinAngle/CosAngle
+    !\
+    ! Convert the coordinates, if needed
+    !/
+    FoilCenter_D = FoilCenter_D*Io2No_V(UnitX_)
+    FoilWidth_D  = FoilWidth_D *Io2No_V(UnitX_)    
+    DoAddVelocity_P = .false. !Added here
+    UseFoil         = .false. !Do not repeate in the next session.
+    SORTS:do iSort = 1, nPType
+       if(uTh_P(iSort)==0.0)W_D = 0.0
+       if(nPPerCellFoil_P(iSort)==0)CYCLE SORTS
 
        if(nPPerCellFoil_P(iSort) > 0)then
           nPPerCell_P(iSort) = nPPerCellFoil_P(iSort)
@@ -391,74 +282,97 @@ contains
           nPPerCell_P(iSort) = -nPPerCellFoil_P(iSort)
           UseQuasiNeutral = .true.
        end if
-
-       NPTotal = product(FoilWidth_D)/CellVolume &
-            *nPPerCell_P(iSort)
-       nPPerPE = nPTotal/nProc; nResidual = nPTotal - nProc*nPPerPE
-
-       if(iProc+1<=nResidual)nPPerPE = nPPerPE + 1
-
-       if(UseQuasiNeutral)then
-          !Initialize the same random number sequence as 
-          !for electrons
-          call parallel_init_rand(nDim * nPPerPE, Electrons_)
-       else
-          call parallel_init_rand(nDim * nPPerPE, iSort)
-       end if
-       !
-       PART:        do iP = 1, nPPerPE
-          !
-          do iDim = 1,nDim
-             PrimaryCoord_D(iDim) = FoilWidth_D(iDim)*(RAND()-0.5)
-          end do
-          !
-          Coord_D(1) = PrimaryCoord_D(2)*angleSin+PrimaryCoord_D(1)*angleCos
-          Coord_D(2) = PrimaryCoord_D(2)*angleCos-PrimaryCoord_D(1)*angleSin
-          if(nDim==3)Coord_D(nDim) = PrimaryCoord_D(nDim)
-          !
-          do iDim = 1,nDim
-             Coord_D(iDim) = (FoilCenter_D(iDim)+Coord_D(iDim))/Dx_D(iDim)
-          end do
-!          if(  Coord_D(1) .lt. 0.0 .or. Coord_D(1) .ge. real(nCell_D(1))&
-!               .or.&
-!               Coord_D(2) .lt. 0.0 .or. Coord_D(2) .ge. real(nCell_D(2))&
-!               .or.&
-!               Coord_D(3) .lt. 0.0 .or. Coord_D(3) .ge. real(nCell_D(3))&
-!               ) cycle PART
-          call put_particle(iSort, Coord_D, iBlockOut)
-          !call get_form_factors(Coord_D,Node_D,HighFF_ID)
-          !hyzhou: I removed add_density. Need to modify this part later
-          !call add_density(Node_D,HighFF_ID,1)
-       end do PART
+       if(UseSharedField)call CON_stop(&
+            'Redundant shared field option is not implemented for foil')
+       BLOCKS:do iBlock = 1, nBlock
+          iNode  = iNode_B(iBlock)
+          nPPerBlock = nint(&
+               min(CoordMax_DB(x_,iBlock) - CoordMin_DB(x_,iBlock),&
+               FoilWidth_D(x_))*CosAngleInv*product(&
+               CoordMax_DB(y_:nDim,iBlock) - CoordMin_DB(y_:nDim,iBlock))*&
+               vInv*nPPerCell_P(iSort) )
+          if(UseQuasiNeutral)then 
+             !Initialize the same random number sequence as 
+             !for electrons
+             call init_rand(nTotBlocks*Electrons_ + iNode)
+          else
+             call init_rand(nTotBlocks*iSort      + iNode)
+          end if
+          !\
+          ! Init another sequence of random numbers to
+          ! assign velocity
+          !/ 
+          call init_rand(nTotBlocks*(iSort + nPType) + iNode,2)
+          iPStart = Particle_I(iSort)%nParticle + 1
+          iPEnd   = Particle_I(iSort)%nParticle + nPPerBlock
+          PARTICLES:do iP = iPStart, iPEnd
+             do iDim = 2,nDim
+                Coord_D(iDim) = (CoordMax_DB(iDim,iBlock) -&
+                     CoordMin_DB(iDim,iBlock))&
+                     * RAND() + CoordMin_DB(iDim,iBlock)
+             end do
+             !   Coord_D(x_) - FoilCenter_D(x_) =  &
+             !       (PrimaryCoord_D(x_) - FoilCenter_D(x_))*CosAngle + &
+             !       (PrimaryCoord_D(y_) - FoilCenter_D(y_))*SinAngle
+             !   Coord_D(y_) - FoilCenter_D(y_) =  &
+             !       (PrimaryCoord_D(y_) - FoilCenter_D(y_))*CosAngle - &
+             !       (PrimaryCoord_D(x_) - FoilCenter_D(x_))*SinAngle
+             !=> Coord_D(x_) - FoilCenter_D(x_) =  &
+             !       (Coord_D(y_) - FoilCenter_D(y_))*TanAngle + &
+             !       (PrimaryCoord_D(x_) - FoilCenter_D(x_))/CosAngle
+             PrimaryCoord_D(x_) = FoilCenter_D(x_) + (RAND() - 0.50)*&
+                  FoilWidth_D(x_)
+             Coord_D(x_) = FoilCenter_D(x_) + &      
+                  (Coord_D(y_) - FoilCenter_D(y_))*TanAngle + &
+                  (PrimaryCoord_D(x_) - FoilCenter_D(x_))*CosAngleInv
+             !\
+             ! Check if this value of x-coordinate is within the block range
+             !/
+             if(Coord_D(x_) > CoordMax_DB(x_,iBlock)&
+                  .or. Coord_D(x_) < CoordMin_DB(x_,iBlock))&
+                  CYCLE PARTICLES
+             !\
+             ! Inverse formula for y-coordinate:
+             !/
+             !   PrimaryCoord_D(y_) - FoilCenter_D(y_) =  &
+             !       (Coord_D(y_) - FoilCenter_D(y_))*CosAngle + &
+             !       (Coord_D(x_) - FoilCenter_D(x_))*SinAngle
+             PrimaryCoord_D(y_) = FoilCenter_D(y_) +  &
+                  (Coord_D(y_) - FoilCenter_D(y_))*CosAngle + &
+                  (Coord_D(x_) - FoilCenter_D(x_))*SinAngle
+             !\
+             ! Check if this value is within the foil range
+             !/
+             if(abs(PrimaryCoord_D(y_) - FoilCenter_D(y_)) >&
+                  0.50*FoilWidth_D(y_))CYCLE PARTICLES
+             if(nDim==3)then
+                !\
+                ! Check if z-coordinate is within the foil range
+                !/
+                if(abs(PrimaryCoord_D(nDim) - FoilCenter_D(nDim)) >&
+                  0.50*FoilWidth_D(nDim))CYCLE PARTICLES
+             end if
+             if(uTh_P(iSort)>0.0)&
+                  call thermalize_particle(iSort, W_D)
+             call put_particle(iSort, Coord_D(1:nDim), iBlock, &
+                  W_D + VelocityToAdd_DP(:,iSort))
+          end do PARTICLES
+       end do BLOCKS
        n_P(iSort) = Particle_I(iSort)%nParticle
-    end do
-       !
-    !Rho_GB = 0.0
+    end do SORTS
     if(nProc==1)then
        nTotal_P = n_P
     else
        call MPI_reduce(n_P, nTotal_P, nPType, MPI_REAL,&
             MPI_SUM, 0, iComm, iError)
     end if
-    !call pass_density(iSort)
+    
     if(iProc==0)then
        write(*,*)'Particles are distributed'
        do iSort = 1, nPType
           write(*,*)'Totally ',nTotal_P(iSort),' particles of sort ',iSort
        end do
-    !   write(*,*)'Particle density max:',max_val_rho()
-    !   write(*,*)'Particle density min:',min_val_rho()
-    !   write(*,*)'Particle density average:',rho_avr()
     end if
-    do iSort = 1, nPType
-       if(uTh_P(iSort)<=0.0)CYCLE
-       call parallel_init_rand(6*Particle_I(iSort)%nParticle,iSort)
-       do iP = 1, Particle_I(iSort)%nParticle
-          call thermalize_particle(iSort, W_D)
-          Particle_I(iSort)%State_VI(Wx_:Wz_,iP) = &
-               Particle_I(iSort)%State_VI(Wx_:Wz_,iP) + W_D
-       end do
-    end do
   end subroutine foil
   !====================
   subroutine show_density(iSort)
@@ -734,8 +648,10 @@ contains
     ! If only the predictor step is done, the particle 
     ! coordinates did not change
     !/
-    if(.not.present(DoPredictorOnly))&
-         call message_pass_particles(iSort)
+    if(.not.present(DoPredictorOnly))then
+       call message_pass_particles(iSort)
+       call remove_undefined_particles(iSort)
+    end if
   end subroutine advance_particles
 end module PIC_ModParticles
 
