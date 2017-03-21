@@ -123,13 +123,13 @@ clean: cleanfiles
 distclean: cleanfiles
 	rm -f test*.diff
 	./Config.pl -uninstall
-	rm -rf srcBATL
+	rm -rf srcBATL src/PC_ModSize.f90 ${INSTALLFILES}
 
 allclean: 
 	@touch ${INSTALLFILES}
 	rm -f test*.diff
 	cd src; make distclean
-	rm -rf srcBATL
+	rm -rf srcBATL 
 	cd srcInterface; make distclean
 	cd srcBATL_orig; make distclean
 TESTDIR = run_test
