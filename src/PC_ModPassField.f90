@@ -172,7 +172,7 @@ contains
        else
           Rho_I = RhoLoc_I
        end if
-       RhoAvr = Rho_I(1)/Rho_I(2)
+       if(iProc==0)RhoAvr = Rho_I(1)/Rho_I(2)
     end if
   end subroutine get_rho_avr
  !=======================
