@@ -15,7 +15,8 @@ module PIC_ModParticles
        Node_D, NodeNew_D, get_form_factors
   use PIC_ModProc,      ONLY:iProc,iError
   use ModNumConst,      ONLY: cHalf, cTwoPi
-  use PC_BATL_particles
+  use PC_BATL_particles, ONLY: allocate_particles, Particle_I, &
+       set_pointer_to_particles
   use PC_BATL_lib, ONLY: CoordMin_DB, CoordMax_DB, &
        CoordMin_D, CoordMax_D
   implicit none
@@ -68,7 +69,7 @@ contains
        Particle_I(iSort)%nParticle = 0
        Particle_I(iSort)%nParticleMax=nElectronMax
     end do
-    call allocate_particles
+    call allocate_particles()
   end subroutine set_particle_param
   !================================
   subroutine put_particle(iSort,Coords_D,iBlock,W_D)
@@ -520,6 +521,8 @@ contains
     use PC_ModParticleInField,ONLY: &
          b_interpolated_d,e_interpolated_d
     use PC_ModHybrid,      ONLY: UseHybrid, add_predictor_current
+    use PC_BATL_particles,ONLY: remove_undefined_particles, &
+         message_pass_particles
     integer,intent(in) :: iSort
     logical,intent(in) :: DoComputeMoments
     !\
