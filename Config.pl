@@ -63,8 +63,9 @@ print "Config.pl -g=$nI,$nJ,$nK,$MaxBlock,$nPType,$nElectronMax",
     ,"\n" if $ShowGridSize and not $Show;
 
 
-my $Settings = &current_settings; print $Settings if $Show;
-
+my $Settings;
+&current_settings;
+print $Settings if $Show;
 
 exit 0;
 
@@ -72,7 +73,7 @@ exit 0;
 
 sub get_settings{
 
-    # Read size of the grid from $NameSizeFile
+    # Read size of the grid from $NameBatlFile
     open(FILE, $NameBatlFile) or die "$ERROR could not open $NameBatlFile\n";
     while(<FILE>){
 	next if /^\s*!/; # skip commented out lines
@@ -81,23 +82,21 @@ sub get_settings{
 	$nK=$1           if /\bnK\s*=\s*(\d+)/i;
 	$nPType=$1       if /\bnKindParticle\s*=\s*(\d+)/i;
 	$GhostCell=$1    if /\bnG\s*=\s*(\d)/;	
+        $MaxBlock=$1     if /\bMaxBlock\s*=\s*(\d+)/i;
     }
     close FILE;
+    die "$ERROR could not read MaxBlock from $NameBatlFile\n" 
+	unless length($MaxBlock);
+
     open(FILE, $NameSizeFile) or die "$ERROR could not open $NameSizeFile\n";
     while(<FILE>){
 	next if /^\s*!/; # skip commented out lines
-        $MaxBlock=$1     if /\bMaxBlock\s*=\s*(\d+)/i;
 	$nElectronMax=$1        if /\bnElectronMax\s*=\s*(\d+)/i;
 	$Hybrid=$1        if /\bnHybrid\s*=\s*(\d+)/i;
     }
     close FILE;
 
-    die "$ERROR could not read MaxBlock from $NameSizeFile\n" 
-	unless length($MaxBlock);
-
-
     $GridSize = "$nI,$nJ,$nK,$MaxBlock,$nPType,$nElectronMax";
-
 }
 
 #############################################################################
@@ -111,21 +110,19 @@ sub set_grid_size{
 	($nI,$nJ,$nK,$MaxBlock,$nPType,$nElectronMax)= split(',', $GridSize);
     }elsif($GridSize){
 	die "$ERROR -g=$GridSize should be ".
-	    #"4". 
-	    " positive integers separated with commas\n";
+	    " 6 positive integers separated with commas\n";
     }
     $GhostCell = $NewGhostCell if $NewGhostCell;
     $Hybrid    = $NewHybrid    if $ReadHybrid;
 
  
     print "Writing new grid size $GridSize into ".
-	"$NameSizeFile ...\n";
+	"$NameSizeFile and $NameBatlFile\n";
 
     @ARGV = ($NameSizeFile);
     while(<>){
 	if(/^\s*!/){print; next} # Skip commented out lines
 	s/\b(nElectronMax\s*=[^0-9]*)(\d+)/$1$nElectronMax/i;
-	s/\b(MaxBlock\s*=[^0-9]*)(\d+)/$1$MaxBlock/i;
 	s/\b(nHybrid\s*=[^0-9]*)(\d+)/$1$Hybrid/i;
 	print;
     }
@@ -137,26 +134,20 @@ sub set_grid_size{
 	s/\b(nJ\s*=[^0-9]*)(\d+)/$1$nJ/i;
 	s/\b(nK\s*=[^0-9]*)(\d+)/$1$nK/i;
 	s/\b(nG\s*=[^0-9]*)\d/$1$GhostCell/i;
+	s/\b(MaxBlock\s*=[^0-9]*)(\d+)/$1$MaxBlock/i;
 	print;
     }
 }
 
-
-
-
 sub current_settings{
 
     $Settings = 
-	"Number of cells in a block        : nI=$nI, nJ=$nJ, nK=$nK\n";
-    $Settings .= 
-	"Number of different types of particles        : nPType=$nPType\n";
-    $Settings .= 
-	"Max. number of blocks/PE          : MaxBlock=$MaxBlock\n";
-    $Settings .= 
-	"Max. number of electrons          : nElectronMax=$nElectronMax\n";
-    $Settings .= 
-	"Use hybrid scheme                 : nHybrid=$Hybrid\n";
-
+"Number of cells in a block        : nI=$nI, nJ=$nJ, nK=$nK
+Number of different particle types: nPType=$nPType
+Max. number of blocks/PE          : MaxBlock=$MaxBlock
+Max. number of electrons          : nElectronMax=$nElectronMax
+Use hybrid scheme                 : nHybrid=$Hybrid
+";
 }
 
 #############################################################################
@@ -166,11 +157,12 @@ sub print_help{
     print "
 Additional options for ALTOR/Config.pl:
 
--g=NI,NJ,NK,MAXBLK   
+-g=NI,NJ,NK,MAXBLK,NPTYPE,NELECTRON
                 Set grid size. NI, NJ and NK are the number of cells 
                 in the I, J and K directions, respectively. 
                 MAXBLK is the maximum number of blocks per processor.
-
+                NPTYPE is the number of particle types.
+                NELECTRONMAX is the number of electrons.
 
 Examples for ALTOR/Config.pl:
 
@@ -181,7 +173,7 @@ Set block size to 8x8x8, number of blocks to 400",
     Config.pl -g=8,8,8,400",
 "
 
-Show settings for BATSRUS:
+Show settings for ALTOR:
 
     Config.pl -s
 \n";
