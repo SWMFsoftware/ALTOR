@@ -90,7 +90,7 @@ ${EXE}: ${OBJECTS_EXE}
 		ar -x ${LIBTIMING}; \
 		ar -x ${LIBSHARE}
 	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o \
-		${Lflag1}
+		${Lflag1} ${CPPLIB}
 	rm -rf Tmp_ 
 
 clean: cleanfiles
