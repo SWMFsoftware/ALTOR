@@ -5,7 +5,7 @@ module PIC_ModBatlInterface
   use PIC_ModMain,  ONLY: MaxBlock
    use PC_ModSize, ONLY: nDim
   implicit none
-  integer, dimension(1:2*nDim,MaxBlock) :: NeiLevel_SB, NeiPe_SB, NeiBlk_SB
+  integer, allocatable, dimension(:,:) :: NeiLevel_SB, NeiPe_SB, NeiBlk_SB
 contains
   !===========================================================================
   subroutine set_altor_grid
@@ -18,6 +18,11 @@ contains
     integer:: iBlock, iError
     character(len=*), parameter:: NameSub = 'set_altor_grid'
     !-------------------------------------------------------------------------
+    if(.not.allocated(NeiLevel_SB)) allocate( &
+         NeiLevel_SB(2*nDim,MaxBlock), &
+         NeiPe_SB(2*nDim,MaxBlock), &
+         NeiBlk_SB(2*nDim,MaxBlock))
+
     if(nProc/=1)then
        call MPI_allreduce(nBlock, nBlockMax, 1, MPI_INTEGER, MPI_MAX, &
             iComm, iError)
