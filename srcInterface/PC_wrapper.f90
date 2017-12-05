@@ -101,7 +101,7 @@ contains
   subroutine PC_set_grid
     !USES:
     use PC_domain_decomposition, ONLY:  PC_get_root_decomposition, &
-         PC_update_local_decomposition, PC_DomainDecomposition
+         PC_update_local_decomposition, PC_Domain
     use CON_coupler
     use CON_comp_param,  ONLY: PC_
     use PC_BATL_lib,        ONLY: CoordMin_D, CoordMax_D
@@ -124,10 +124,10 @@ contains
 
     if(is_proc(PC_))then
        call init_decomposition(&
-            PC_DomainDecomposition,PC_,3,.true.)
-       call PC_get_root_decomposition(PC_DomainDecomposition)
-       call PC_update_local_decomposition(PC_DomainDecomposition)
-       PC_DomainDecomposition%IsLocal=.true.
+            PC_Domain,PC_,3,.true.)
+       call PC_get_root_decomposition(PC_Domain)
+       call PC_update_local_decomposition(PC_Domain)
+       PC_Domain%IsLocal=.true.
     end if
     call CON_set_do_test('test_grids',DoTest,DoTestMe)
 

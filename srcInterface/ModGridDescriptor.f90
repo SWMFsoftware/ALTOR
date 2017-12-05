@@ -17,12 +17,8 @@ module PC_domain_decomposition
   public:: PC_get_root_decomposition
   public:: PC_update_local_decomposition
 
-  type(DomainDecompositionType), public:: PC_DomainDecomposition
-
-  ! Local variables and constants
-  logical:: UseMHGridDescriptor=.true. 
-  
-  
+  type(DomainType), public:: PC_Domain
+    
   integer, parameter, private::    &
        PELast_      = 5, &
        LEV_         = 6, &
@@ -50,7 +46,7 @@ contains
   subroutine show_domain_decomp(Dd)
     use PIC_ModProc, ONLY: iProc
 
-    type(DomainDecompositionType),intent(in):: Dd
+    type(DomainType),intent(in):: Dd
     integer:: iNode, iChild
     !-------------------------------------------------------------------------
     if(iProc /= 0) RETURN
@@ -95,19 +91,19 @@ contains
 
   end subroutine show_domain_decomp
   !===========================================================================
-  subroutine get_batl_tree(DomainDecomposition)
+  subroutine get_batl_tree(Domain)
 
     ! Avoid name conflict with Parent_ in the SWMF coupling toolkit
     use PC_BATL_tree, ParentBatl_ => Parent_
 
-    type(DomainDecompositionType),intent(inout)::DomainDecomposition
+    type(DomainType),intent(inout)::Domain
 
     integer:: iNode, iNodeParent, iChild
     !-------------------------------------------------------------------------
 
     ! Allocate arrays for nNode sized tree
-    DomainDecomposition%nTreeNodes = nNode
-    call check_octree_grid_allocation(DomainDecomposition)
+    Domain%nTreeNodes = nNode
+    call check_octree_grid_allocation(Domain)
 
     ! Here we assume that there are no holes in the BATL tree
     do iNode = 1, nNode
@@ -115,15 +111,15 @@ contains
        iNodeParent = iTree_IA(ParentBatl_,iNode)
        if(iNodeParent == Unset_)then
           ! For root blocks coupling toolkit seems to set parent to itself
-          DomainDecomposition%iDecomposition_II(Parent_,iNode) = iNode
+          Domain%iDecomposition_II(Parent_,iNode) = iNode
           ! For root blocks coupling toolkit seems to set child index to 0
-          DomainDecomposition%iDecomposition_II(MyNumberAsAChild_,iNode) = 0
+          Domain%iDecomposition_II(MyNumberAsAChild_,iNode) = 0
        else
-          DomainDecomposition%iDecomposition_II(Parent_,iNode) = iNodeParent
+          Domain%iDecomposition_II(Parent_,iNode) = iNodeParent
           ! Find child index
           do iChild = 1, nChild
              if(iTree_IA(Child0_+iChild,iNodeParent) == iNode) then
-                DomainDecomposition%iDecomposition_II(MyNumberAsAChild_,iNode)&
+                Domain%iDecomposition_II(MyNumberAsAChild_,iNode)&
                      =iChild
                 EXIT
              end if
@@ -133,46 +129,46 @@ contains
        if(iTree_IA(Status_,iNode) == Unused_)then 
           do iChild = 1, nChild
              ! iChildOrder_II may be required here !!!
-             DomainDecomposition%iDecomposition_II(iChild,iNode) = &
+             Domain%iDecomposition_II(iChild,iNode) = &
                   iTree_IA(Child0_+iChild,iNode) 
           end do
        else
-          DomainDecomposition%iDecomposition_II(FirstChild_,iNode) = &
+          Domain%iDecomposition_II(FirstChild_,iNode) = &
                None_
-          DomainDecomposition%iDecomposition_II(GlobalBlock_,iNode) = &
+          Domain%iDecomposition_II(GlobalBlock_,iNode) = &
                iMortonNode_A(iNode)
-          DomainDecomposition%iDecomposition_II(ProcToolkit_,iNode) = &
+          Domain%iDecomposition_II(ProcToolkit_,iNode) = &
                iTree_IA(Proc_,iNode)
-          DomainDecomposition%iDecomposition_II(PELast_,iNode) = &
+          Domain%iDecomposition_II(PELast_,iNode) = &
                iTree_IA(Proc_,iNode)
-          DomainDecomposition%iDecomposition_II(BLK_,iNode) = &
+          Domain%iDecomposition_II(BLK_,iNode) = &
                iTree_IA(Block_,iNode)
-          DomainDecomposition%iDecomposition_II(LEV_,iNode) = &
+          Domain%iDecomposition_II(LEV_,iNode) = &
                iTree_IA(Level_,iNode)
-          DomainDecomposition%iDecomposition_II(LEVmin_,iNode) = &
+          Domain%iDecomposition_II(LEVmin_,iNode) = &
                iTree_IA(MinLevel_,iNode)
-          DomainDecomposition%iDecomposition_II(LEVmax_,iNode) = &
+          Domain%iDecomposition_II(LEVmax_,iNode) = &
                iTree_IA(MaxLevel_,iNode)
        end if
     end do
 
-    ! call show_domain_decomp(DomainDecomposition)
+    ! call show_domain_decomp(Domain)
 
   end subroutine get_batl_tree
   !===========================================================================
-  subroutine PC_get_roots_dd(DomainDecomposition)                         
+  subroutine PC_get_roots_dd(Domain)                         
 
     use PC_BATL_lib, ONLY: nIJK_D, IsPeriodic_D, nRoot_D, CoordMin_D, CoordMax_D
 
-    type(DomainDecompositionType),intent(inout)::DomainDecomposition  
+    type(DomainType),intent(inout)::Domain  
     !-------------------------------------------------------------------------
 
     call get_root_decomposition_dd(&
-         DomainDecomposition,       & ! Decomposition to be constructed
-         nRoot_D,                   & ! As in DomainDecompositionType
-         CoordMin_D,                & ! As in DomainDecompositionType
-         CoordMax_D,                & ! As in DomainDecompositionType
-         nIJK_D,                    & ! As in DomainDecompositionType
+         Domain,       & ! Decomposition to be constructed
+         nRoot_D,                   & ! As in DomainType
+         CoordMin_D,                & ! As in DomainType
+         CoordMax_D,                & ! As in DomainType
+         nIJK_D,                    & ! As in DomainType
          IsPeriodic_D=IsPeriodic_D, &
          iShift_DI=iShiftMorton_DI)
 
@@ -186,25 +182,25 @@ contains
     !-------------------------------------------------------------------------
     call get_root_decomposition_id(&
          GridID_,                   & ! Decomposition to be constructed
-         nRoot_D,                   & ! As in DomainDecompositionType
-         CoordMin_D,                & ! As in DomainDecompositionType
-         CoordMax_D,                & ! As in DomainDecompositionType
-         nIJK_D,                    & ! As in DomainDecompositionType
+         nRoot_D,                   & ! As in DomainType
+         CoordMin_D,                & ! As in DomainType
+         CoordMax_D,                & ! As in DomainType
+         nIJK_D,                    & ! As in DomainType
          IsPeriodic_D=IsPeriodic_D, &
          iShift_DI=iShiftMorton_DI)
 
   end subroutine PC_get_roots_id
 
   !==========================================================================
-  subroutine PC_update_local_decomposition(DomainDecomposition)
+  subroutine PC_update_local_decomposition(Domain)
 
-    type(DomainDecompositionType), intent(inout):: DomainDecomposition
+    type(DomainType), intent(inout):: Domain
     !-----------------------------------------------------------------------
-    call get_batl_tree(DomainDecomposition)
+    call get_batl_tree(Domain)
 
-    DomainDecomposition%iRealization = &
-         mod(DomainDecomposition%iRealization+1, 1000)
-    call complete_grid(DomainDecomposition)
+    Domain%iRealization = &
+         mod(Domain%iRealization+1, 1000)
+    call complete_grid(Domain)
 
   end subroutine PC_update_local_decomposition
 
