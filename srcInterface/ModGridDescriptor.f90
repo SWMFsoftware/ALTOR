@@ -103,7 +103,7 @@ contains
 
     ! Allocate arrays for nNode sized tree
     Domain%nTreeNodes = nNode
-    call check_octree_grid_allocation(Domain)
+    call check_octree_allocation(Domain)
 
     ! Here we assume that there are no holes in the BATL tree
     do iNode = 1, nNode
@@ -200,7 +200,7 @@ contains
 
     Domain%iRealization = &
          mod(Domain%iRealization+1, 1000)
-    call complete_grid(Domain)
+    call complete(Domain)
 
   end subroutine PC_update_local_decomposition
 
