@@ -9,6 +9,20 @@ our $MakefileDefOrig = 'src/Makefile.def';
 our @Arguments = @ARGV;
 
 my $config     = "share/Scripts/Config.pl";
+
+
+my $GITCLONE = "git clone"; my $GITDIR = "herot.engin.umich.edu:/GIT/FRAMEWORK/";
+
+if (-f $config or -f "../../$config"){
+}else{
+    `$GITCLONE $GITDIR/share.git; $GITCLONE $GITDIR/util.git`;
+}
+
+if (-d "srcBATL_orig"){
+}else{
+    `$GITCLONE $GITDIR/srcBATL.git srcBATL_orig`;
+}
+
 if(-f $config){
     require $config;
 }else{
