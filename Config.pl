@@ -11,7 +11,7 @@ our @Arguments = @ARGV;
 my $config     = "share/Scripts/Config.pl";
 
 
-my $GITCLONE = "git clone"; my $GITDIR = "herot.engin.umich.edu:/GIT/FRAMEWORK/";
+my $GITCLONE = "git clone"; my $GITDIR = "herot:/GIT/FRAMEWORK/";
 
 if (-f $config or -f "../../$config"){
 }else{
