@@ -38,7 +38,7 @@ program PIC
   end if
   
   !\
-  ! Read input parameter file. Provide the default restart file for #RESTART
+  ! Read input parameter file. 
   !/
   call read_file('PARAM.in',iComm)
  
