@@ -82,10 +82,6 @@ QED:
 NOMPI:
 	cd util/NOMPI/src; make LIB
 
-
-# The MACHINE variable holds the machine name for which scripts should
-# be copied to the run directory when it is created.
-MACHINE = `hostname | perl -pe 's/^login\d*\.//; s/\..*//; s/\d+$$//'`
 COMPONENT = PC
 
 rundir:
