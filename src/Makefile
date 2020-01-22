@@ -6,7 +6,7 @@ include ../Makefile.def
 INCL_EXTRA = -I../srcBATL  
 
 include ../Makefile.conf
-include Makefile.DEPEND
+-include Makefile.DEPEND
 
 PIC_ModRandom.o: PIC_ModRandom.f90
 	${COMPILE.f90} ${Cflag0} PIC_ModRandom.f90

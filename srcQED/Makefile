@@ -6,7 +6,7 @@ include ../Makefile.def
 SEARCH_EXTRA =  
 
 include ../Makefile.conf
-include Makefile.DEPEND
+-include Makefile.DEPEND
 
 #
 #	Makefile for parallel code ALTOR
