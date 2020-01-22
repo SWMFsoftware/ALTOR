@@ -39,12 +39,8 @@ help:
 	@echo '    distclean     (equivalent to ./Config.pl -uninstall)'
 #	@echo '    dist          (create source distribution tar file)'
 
-INSTALLFILES =	src/Makefile.DEPEND srcBATL/Makefile.DEPEND \
-	srcInterface/Makefile.DEPEND srcBATL_orig/Makefile.DEPEND
-
 
 install: src/PC_ModSize.f90 srcBATL/Makefile srcBATL/BATL_size.f90
-	touch ${INSTALLFILES}
 
 srcBATL/Makefile:
 	rm -rf srcBATL; mkdir srcBATL 
@@ -107,7 +103,6 @@ rundir:
 #
 
 clean: cleanfiles
-	@touch ${INSTALLFILES}
 	cd src; make clean
 	cd srcInterface; make clean
 	cd srcBATL_orig; make clean
@@ -118,10 +113,9 @@ clean: cleanfiles
 distclean: cleanfiles
 	rm -f test*.diff
 	./Config.pl -uninstall
-	rm -rf srcBATL src/PC_ModSize.f90 ${INSTALLFILES}
+	rm -rf srcBATL src/PC_ModSize.f90
 
 allclean: 
-	@touch ${INSTALLFILES}
 	rm -f test*.diff
 	cd src; make distclean
 	rm -rf srcBATL 
