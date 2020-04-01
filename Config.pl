@@ -21,15 +21,10 @@ my $config     = "share/Scripts/Config.pl";
 
 my $GITCLONE = "git clone"; my $GITDIR = "git\@gitlab.umich.edu:swmf_software";
 
-if (-f $config or -f "../../$config"){
-}else{
-    `$GITCLONE $GITDIR/share.git; $GITCLONE $GITDIR/util.git`;
-}
+`$GITCLONE $GITDIR/share.git; $GITCLONE $GITDIR/util.git` 
+    unless -f $config or -f "../../$config";
 
-if (-d "srcBATL_orig"){
-}else{
-    `$GITCLONE $GITDIR/srcBATL.git srcBATL_orig`;
-}
+`$GITCLONE $GITDIR/srcBATL.git srcBATL_orig` unless -d "srcBATL_orig";
 
 if(-f $config){
     require $config;
