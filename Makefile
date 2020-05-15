@@ -154,10 +154,13 @@ test_altor_run:
 
 test_altor_check:
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
-		Param/TestOutput/log_noise.log ${TESTDIR}/PC/plots/log_n0001.log > test_altor.diff	
-	gunzip -c Param/TestOutput/variables.outs.gz > ${TESTDIR}/PC/plots/variables.ref
+		${TESTDIR}/PC/plots/log_n0001.log \
+		Param/TestOutput/log_noise.log \
+		> test_altor.diff	
 	${SCRIPTDIR}/DiffNum.pl -t -r=1e-5 -a=3e-8 \
-        ${TESTDIR}/PC/plots/variables.ref ${TESTDIR}/PC/plots/variables.outs >> test_altor.diff
+		${TESTDIR}/PC/plots/variables.outs \
+		Param/TestOutput/variables.outs.gz \
+		>> test_altor.diff
 	ls -l test_altor.diff
 
 test_altor_update:
