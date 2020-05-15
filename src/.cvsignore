@@ -1,5 +1,0 @@
-*.mod
-*.o
-Makefile.RULES
-Makefile.DEPEND
-PC_ModSize.f90
