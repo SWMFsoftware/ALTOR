@@ -127,7 +127,6 @@ test:
 	-@(${MAKE} test_altor)
 	-@(${MAKE} test_altor_2d)
 	-@(${MAKE} test_beam)
-	-@(${MAKE} test_foil)
 	ls -lt test*.diff
 
 test_altor:
