@@ -125,7 +125,6 @@ TESTDIR = run_test
 
 test:
 	-@(${MAKE} test_altor)
-	-@(${MAKE} test_altor_2d)
 	-@(${MAKE} test_beam)
 	ls -lt test*.diff
 
