@@ -24,6 +24,7 @@ module PC_wrapper
 
  ! GM coupler
   public:: PC_get_for_gm
+  public:: PC_put_from_gm_grid_info
   public:: PC_put_from_gm_dt
   public:: PC_put_from_gm_init
   public:: PC_put_from_gm
@@ -136,7 +137,7 @@ contains
 
     call bcast_decomposition(PC_)
 
-    call synchronize_refinement(PC_,PC_domaindecomposition)
+    call synchronize_refinement(PC_,PC_Domain)
   end subroutine PC_set_grid
   !=========================
   subroutine PC_save_restart(TimeSimulation) 
@@ -188,6 +189,18 @@ contains
     !--------------------------------------------------------------------------
     call CON_set_do_test(NameSub, DoTest, DoTestMe)
   end subroutine PC_put_from_gm
+  !============================================================================
+
+  subroutine PC_put_from_gm_grid_info(nInt, nPicGrid, AccumulatedSize_I, Int_I)
+    integer, intent(in)         :: nInt, nPicGrid
+    integer, intent(in)         :: Int_I(nInt), AccumulatedSize_I(nPicGrid)    
+    character(len=*), parameter :: NameSub='PC_put_from_gm_grid_info'
+    !--------------------------------------------------------------------------
+
+    call CON_stop(NameSub//': PC_ERROR: empty version cannot be used!')
+
+  end subroutine PC_put_from_gm_grid_info
+ 
   !============================================================================
   subroutine PC_put_from_gm_dt(DtSiIn)
 
