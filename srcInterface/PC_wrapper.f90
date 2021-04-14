@@ -101,8 +101,7 @@ contains
   !INTERFACE:
   subroutine PC_set_grid
     !USES:
-    use PC_domain_decomposition, ONLY:  PC_get_root_decomposition, &
-         PC_update_local_decomposition, PC_Domain
+    use PC_domain_decomposition
     use CON_coupler
     use CON_comp_param,  ONLY: PC_
     use PC_BATL_lib,        ONLY: CoordMin_D, CoordMax_D
