@@ -1,4 +1,5 @@
 module PIC_ModOutput
+
   use PIC_ModMain,ONLY: iStep, tSimulation, Dt, DX_D, &
        vInv, DxInv_D, UseSharedField 
   use PC_ModSize,ONLY: nDim, nCell_D, nX, nY, nZ, x_, y_, z_
@@ -12,6 +13,7 @@ module PIC_ModOutput
   use PIC_ModLogFile, ONLY: nToWrite     !Number of test particles
   use PC_BATL_lib,    ONLY: CoordMin_D, CoordMax_D, CoordMin_DB
   use PC_BATL_tree,     ONLY: nRoot_D
+  use ModUtilities, ONLY: CON_stop
 
   implicit none
   SAVE

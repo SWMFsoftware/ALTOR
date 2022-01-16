@@ -2,6 +2,7 @@
 !  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PIC_ModParticles
+
   use PC_ModSize,ONLY: nPType, nElectronMax, x_, y_, z_
   use PC_ModSize,ONLY: nX, nY, nZ, nCell_D, nDim, MaxDim
   use PC_ModSize,ONLY: nHybrid
@@ -19,6 +20,8 @@ module PIC_ModParticles
        set_pointer_to_particles
   use PC_BATL_lib, ONLY: CoordMin_DB, CoordMax_DB, &
        CoordMin_D, CoordMax_D
+  use ModUtilities, ONLY: CON_stop
+
   implicit none
 
   integer,parameter :: W_ = nDim

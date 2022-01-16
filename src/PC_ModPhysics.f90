@@ -2,8 +2,11 @@
 !  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module PC_ModPhysics
+
   use ModConst, ONLY: cBoltzmann,  cElectronMass, cLightSpeed, &
        cEps, cElectronCharge
+  use ModUtilities, ONLY: CON_stop
+  
   implicit none
   save
 

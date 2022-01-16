@@ -1,22 +1,26 @@
 !  Copyright (C) 2002 Regents of the University of Michigan, 
 !  portions used with permission 
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
-!___________________________________________________________________
-! Gaussian field distribution in the focal plane is created via the !
-! boundary conditions for electric fields at the left x-boundary    !
-! of the domain. We use denotations and terms identical to those    !
-! used in https://en.wikipedia.org/wiki/Gaussian_beam with the only !
-! exception of using the beam propagating along x axis              !
-!___________________________________________________________________!
+
 module PIC_ModLaserBeam
+
+  ! Gaussian field distribution in the focal plane is created via the !
+  ! boundary conditions for electric fields at the left x-boundary    !
+  ! of the domain. We use denotations and terms identical to those    !
+  ! used in https://en.wikipedia.org/wiki/Gaussian_beam with the only !
+  ! exception of using the beam propagating along x axis              !
+
   use PC_ModSize,  ONLY: nDim, x_, y_, z_, MaxDim
   use PC_BATL_lib, ONLY: CoordMin_D, CoordMax_D
   use PIC_ModMain, ONLY: tSimulation, Dt
   use ModNumConst, ONLY: cPi, cTwoPi
   use PIC_ModProc, ONLY: iProc
+  use ModUtilities, ONLY: CON_stop
+
   implicit none
   SAVE
   PRIVATE
+
   logical, public :: UseLaserBeam = .false.
   !LaserAmplitude in focus 
   !\
