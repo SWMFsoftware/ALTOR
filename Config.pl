@@ -19,7 +19,7 @@ our @Arguments = @ARGV;
 my $config     = "share/Scripts/Config.pl";
 
 
-my $GITCLONE = "git clone"; my $GITDIR = "git\@gitlab.umich.edu:swmf_software";
+my $GITCLONE = "git clone"; my $GITDIR = "git\@github.com:SWMFsoftware";
 
 `$GITCLONE $GITDIR/share.git; $GITCLONE $GITDIR/util.git` 
     unless -f $config or -f "../../$config";
