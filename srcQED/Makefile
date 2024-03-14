@@ -86,7 +86,7 @@ ${EXE}: ${OBJECTS_EXE}
 		ar -x ${LIBTIMING}; \
 		ar -x ${LIBSHARE}
 	${LINK.f90} -o ${EXE} ${OBJECTS_EXE} Tmp_/*.o \
-		${Lflag1}
+		${LflagMpi}
 	rm -rf Tmp_ 
 
 distclean: clean
